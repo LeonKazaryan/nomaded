@@ -73,4 +73,20 @@ enum GeoMath {
     static func angularDistance(_ a: GeoCoordinate, _ b: GeoCoordinate) -> Double {
         acos(max(-1, min(1, simd_dot(unitVector(a), unitVector(b)))))
     }
+
+    /// Angular radius (radians) of the circle around `center` that holds every outline
+    /// point closer than `limit`. Far-flung parts are left out, so France is framed
+    /// without French Guiana and the US without Hawaii.
+    static func capRadius(around center: GeoCoordinate, rings: [[SIMD2<Float>]], limit: Double) -> Double {
+        let axis = unitVector(center)
+        let limitCosine = cos(limit)
+        var smallestCosine = 1.0
+        for ring in rings {
+            for point in ring {
+                let cosine = simd_dot(axis, unitVector(GeoCoordinate(latitude: Double(point.y), longitude: Double(point.x))))
+                if cosine >= limitCosine { smallestCosine = min(smallestCosine, cosine) }
+            }
+        }
+        return acos(smallestCosine)
+    }
 }

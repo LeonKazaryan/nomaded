@@ -33,6 +33,18 @@ struct GlobeCamera: Equatable, Sendable {
         return (ratio * ratio + 1).squareRoot()
     }
 
+    /// How far from the screen center, in points, a surface point `angle` radians away from
+    /// the facing point appears.
+    func screenRadius(ofAngle angle: Double) -> Double {
+        focalLength * sin(angle) / (distance - cos(angle))
+    }
+
+    /// The distance at which `angle` radians around the facing point span `screenRadius`
+    /// points. Frames a country so it fills a chosen share of the screen.
+    func distance(fitting angle: Double, screenRadius: Double) -> Double {
+        cos(angle) + focalLength * sin(angle) / screenRadius
+    }
+
     /// World-space ray through a point in the view (points, origin top-left).
     func ray(through point: CGPoint) -> (origin: SIMD3<Double>, direction: SIMD3<Double>) {
         let x = Double(point.x - viewportSize.width / 2)
@@ -69,5 +81,34 @@ struct GlobeOrientation: Equatable, Sendable {
     /// Geographic coordinate of a world-space point on the globe's surface.
     func coordinate(atWorldPoint point: SIMD3<Double>) -> GeoCoordinate {
         GeoMath.coordinate(of: quaternion.inverse.act(point))
+    }
+
+    /// The coordinate in the middle of the screen.
+    var centerCoordinate: GeoCoordinate {
+        coordinate(atWorldPoint: [0, 0, 1])
+    }
+
+    /// The orientation nearest to this one that moves `coordinate` to `worldPoint`.
+    /// Keeps the spot between the fingers in place while pinching. `nil` when no
+    /// yaw and pitch can get it there, e.g. a pole can't reach the globe's side.
+    func placing(_ coordinate: GeoCoordinate, at worldPoint: SIMD3<Double>) -> GlobeOrientation? {
+        // Pitch first: yaw never changes latitude, so after undoing the pitch the
+        // target must sit at the coordinate's latitude. That leaves two candidates.
+        let target = simd_normalize(worldPoint)
+        let radius = (target.y * target.y + target.z * target.z).squareRoot()
+        let sinLatitude = sin(GeoMath.radians(coordinate.latitude))
+        guard radius > 1e-9, abs(sinLatitude) <= radius else { return nil }
+
+        let phase = atan2(target.z, target.y)
+        let spread = acos(sinLatitude / radius)
+        let up: Double = pitch + GeoMath.wrapAngle(phase + spread - pitch)
+        let down: Double = pitch + GeoMath.wrapAngle(phase - spread - pitch)
+        let newPitch = abs(up - pitch) < abs(down - pitch) ? up : down
+
+        // Then yaw: whatever longitude the target has once the pitch is undone.
+        let untilted = SIMD2(target.x, -target.y * sin(newPitch) + target.z * cos(newPitch))
+        let longitude = atan2(untilted.x, untilted.y)
+        let newYaw = yaw + GeoMath.wrapAngle(longitude - GeoMath.radians(coordinate.longitude) - yaw)
+        return GlobeOrientation(yaw: newYaw, pitch: newPitch)
     }
 }

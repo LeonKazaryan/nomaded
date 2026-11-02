@@ -54,49 +54,58 @@ struct GlobeView: View {
 
     private var zoomGesture: some Gesture {
         MagnifyGesture()
-            .onChanged { value in controller.pinchChanged(magnification: value.magnification) }
+            .onChanged { value in
+                controller.pinchChanged(magnification: value.magnification, anchor: value.startLocation)
+            }
             .onEnded { _ in controller.pinchEnded() }
     }
 }
 
 /// Lighting drawn over the flat, unlit globe: darker edges, a soft key light and the
 /// atmosphere glow. It lines up with the 3D sphere because both use `GlobeCamera`.
+///
+/// A screen-sized canvas rather than circle views: zoomed in, the globe is many times
+/// bigger than the screen, and full-size shapes would need huge offscreen layers.
 private struct GlobeShading: View {
     let radius: Double
 
+    private static let edges = Gradient(stops: [
+        .init(color: .clear, location: 0.5),
+        .init(color: .black.opacity(0.22), location: 0.82),
+        .init(color: .black.opacity(0.5), location: 1),
+    ])
+    private static let keyLight = Gradient(colors: [.white.opacity(0.16), .clear])
+    private static let glowScale = 1.45
+    private static let glow = Gradient(stops: [
+        .init(color: Palette.atmosphere.opacity(0), location: 0.84 / glowScale),
+        .init(color: Palette.atmosphere.opacity(0.5), location: 0.995 / glowScale),
+        .init(color: Palette.atmosphere.opacity(0.3), location: 1.03 / glowScale),
+        .init(color: Palette.atmosphere.opacity(0.08), location: 1.18 / glowScale),
+        .init(color: Palette.atmosphere.opacity(0), location: 1),
+    ])
+
     var body: some View {
-        let glow = radius * 1.45
-        ZStack {
-            Circle()
-                .fill(RadialGradient(
-                    stops: [
-                        .init(color: .clear, location: 0.5),
-                        .init(color: .black.opacity(0.22), location: 0.82),
-                        .init(color: .black.opacity(0.5), location: 1),
-                    ],
-                    center: .center, startRadius: 0, endRadius: radius
-                ))
-                .frame(width: radius * 2, height: radius * 2)
+        Canvas { context, size in
+            let center = CGPoint(x: size.width / 2, y: size.height / 2)
+            let screen = Path(CGRect(origin: .zero, size: size))
+            let globe = Path(ellipseIn: CGRect(
+                x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2
+            ))
 
-            Circle()
-                .fill(RadialGradient(
-                    colors: [.white.opacity(0.16), .clear],
-                    center: UnitPoint(x: 0.3, y: 0.25), startRadius: 0, endRadius: radius * 1.1
-                ))
-                .frame(width: radius * 2, height: radius * 2)
+            var surface = context
+            surface.clip(to: globe)
+            surface.fill(screen, with: .radialGradient(
+                Self.edges, center: center, startRadius: 0, endRadius: radius
+            ))
+            surface.fill(screen, with: .radialGradient(
+                Self.keyLight,
+                center: CGPoint(x: center.x - 0.4 * radius, y: center.y - 0.5 * radius),
+                startRadius: 0, endRadius: radius * 1.1
+            ))
 
-            Circle()
-                .fill(RadialGradient(
-                    stops: [
-                        .init(color: Palette.atmosphere.opacity(0), location: 0.84 / 1.45),
-                        .init(color: Palette.atmosphere.opacity(0.5), location: 0.995 / 1.45),
-                        .init(color: Palette.atmosphere.opacity(0.3), location: 1.03 / 1.45),
-                        .init(color: Palette.atmosphere.opacity(0.08), location: 1.18 / 1.45),
-                        .init(color: Palette.atmosphere.opacity(0), location: 1),
-                    ],
-                    center: .center, startRadius: 0, endRadius: glow
-                ))
-                .frame(width: glow * 2, height: glow * 2)
+            context.fill(screen, with: .radialGradient(
+                Self.glow, center: center, startRadius: 0, endRadius: radius * Self.glowScale
+            ))
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)

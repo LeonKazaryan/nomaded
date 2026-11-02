@@ -4,7 +4,11 @@ enum GlobeTuning {
 
     /// Globe diameter as a share of the screen width at zoom 1.
     static let baseDiameterRatio = 0.88
-    static let zoomRange = 0.85...4.0
+    /// At 14 the screen shows about 300 km across: Luxembourg or Andorra fill a good part of it.
+    static let zoomRange = 0.85...14.0
+    /// Lifted countries rise less when zoomed in, so up close they don't tower over their
+    /// neighbours. 0 keeps the full height, 1 shrinks it as fast as the zoom grows.
+    static let liftZoomDamping = 0.5
 
     // MARK: Rotation
 
@@ -15,6 +19,11 @@ enum GlobeTuning {
     static let maxSpinVelocity = 9.0
     static let autoRotateDelay = 5.0
     static let autoRotateSpeed = 0.07
+    /// No idle spin while someone is looking closely.
+    static let autoRotateMaxZoom = 1.5
+    /// Fastest the surface may slide past while the globe turns to a country, in points
+    /// per second. Keeps a long swing readable when zoomed in.
+    static let maxFocusScreenSpeed = 3000.0
 
     // MARK: Countries
 
@@ -34,11 +43,26 @@ enum GlobeTuning {
     static let tapSlop = 10.0
     static let microStateTapRadius = 14.0
 
+    // MARK: Flight to a country (search)
+
+    /// Share of the screen width the country takes when the flight lands.
+    static let flightFitFraction = 0.6
+    /// Parts of a country farther than this from its center (radians, ~26°) are ignored
+    /// when framing it: France is framed without French Guiana.
+    static let framingExtentLimit = 0.45
+    /// How far a flight pulls back on the way: cruise zoom = this / trip length in radians.
+    /// Long trips zoom out to the whole globe, short hops stay close.
+    static let flightCruiseScale = 1.5
+    /// Start zooming in when this share of the trip is left.
+    static let flightHandoff = 0.4
+
     // MARK: Springs
 
     static let focusSpring = SpringParameters(response: 0.75, dampingRatio: 1)
     static let introSpring = SpringParameters(response: 1.6, dampingRatio: 1)
     static let zoomSpring = SpringParameters(response: 0.35, dampingRatio: 1)
+    static let flightSpring = SpringParameters(response: 1.1, dampingRatio: 1)
+    static let flightZoomSpring = SpringParameters(response: 0.9, dampingRatio: 1)
     static let pitchWallSpring = SpringParameters(response: 0.35, dampingRatio: 1)
     static let liftSpring = SpringParameters(response: 0.5, dampingRatio: 0.55)
     static let colorSpring = SpringParameters(response: 0.55, dampingRatio: 0.7)
