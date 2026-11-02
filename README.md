@@ -2,7 +2,7 @@
 
 Личный паспорт путешественника для iPhone. Красивый интерактивный 3D-глобус, на котором светятся страны, где ты был. Главная фишка — яркие, живые, «физические» анимации в духе Zenly.
 
-> **Статус:** M0 — каркас проекта. План в [`docs/04-roadmap.md`](docs/04-roadmap.md).
+> **Статус:** M1 — спайк глобуса готов, ждёт замера на iPhone. План в [`docs/04-roadmap.md`](docs/04-roadmap.md).
 
 ## Стек
 
@@ -54,6 +54,8 @@ xcodebuild -project Nomaded.xcodeproj -scheme Nomaded \
 | [`docs/04-roadmap.md`](docs/04-roadmap.md) | Этапы M0–M7 до релиза, чек-листы |
 | [`docs/05-conventions.md`](docs/05-conventions.md) | Стиль кода, git, как мы работаем вместе, шпаргалка по Xcode |
 | [`docs/06-app-store.md`](docs/06-app-store.md) | Всё про публикацию в App Store |
+| [`docs/07-apple-rules.md`](docs/07-apple-rules.md) | Правила Apple (HIG + App Review) и чек-лист перед мержем |
+| [`Tools/GeoPipeline/README.md`](Tools/GeoPipeline/README.md) | Как из Natural Earth получаются меши стран |
 | [`CLAUDE.md`](CLAUDE.md) | Правила для Claude в этом репозитории |
 
 ## Структура
@@ -61,11 +63,20 @@ xcodebuild -project Nomaded.xcodeproj -scheme Nomaded \
 ```
 Nomaded/                 исходники приложения (папка синхронизируется с Xcode сама)
   App/                   точка входа
-  Resources/             Assets, String Catalog
+  Features/Globe/        главный экран: глобус, карточка страны
+  GlobeEngine/           3D-глобус: сцена, физика, hit-test, математика
+  DesignSystem/          палитра, анимации, общие компоненты
+  Domain/                чистая логика (флаги, названия стран…)
+  Resources/             Assets, String Catalog, Geo/world.nmgeo
   Info.plist             только ключи, которые нельзя задать в build settings
 NomadedTests/            юнит-тесты (Swift Testing)
+Tools/GeoPipeline/       утилита: границы стран → меши глобуса (в приложение не входит)
 Nomaded.xcodeproj/       проект Xcode
 docs/                    документация проекта
 ```
+
+## Что крутить, если хочется другого ощущения
+
+Все параметры глобуса (трение, скорость, пружины, высота подъёма стран, зум) лежат в `Nomaded/GlobeEngine/GlobeTuning.swift`. Поменял число, нажал `⌘R` и проверил на телефоне.
 
 Любой файл, который кладёшь в `Nomaded/`, автоматически попадает в проект. Добавлять его в Xcode руками не нужно.

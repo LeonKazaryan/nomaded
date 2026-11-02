@@ -4,7 +4,7 @@ import SwiftUI
 struct NomadedApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            GlobeScreen()
         }
     }
 }

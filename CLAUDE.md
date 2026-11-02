@@ -38,6 +38,18 @@ xcodebuild -project Nomaded.xcodeproj -scheme Nomaded \
 - **Reduce Motion** учитывай в каждой новой анимации.
 - **Domain-логику покрывай тестами** (Swift Testing).
 - **Обновляй доки:** галочки в роадмапе, новые и изменённые решения в журнал ADR.
+- **Правила Apple** (HIG + App Review Guidelines) — в `docs/07-apple-rules.md`. Любая фича проходит его чек-лист. Если задача упирается в правило Apple, скажи об этом Leon явно.
+
+## Глобус
+
+- Параметры ощущений (трение, пружины, высоты, зум) — только в `GlobeEngine/GlobeTuning.swift`.
+- `Resources/Geo/world.nmgeo` руками не редактируется. Он перегенерируется `Tools/GeoPipeline` (команда в его README), после этого прогоняются тесты.
+- Проверка в симуляторе без касаний — DEBUG launch-аргументы (`GlobeScreen.applyDebugLaunchArguments`):
+  ```bash
+  xcrun simctl launch "iPhone 16 Pro" com.leonkazaryan.nomaded \
+    -NomadedDebugVisited IT,FR -NomadedDebugSelect FR -NomadedDebugTap 186,459 -NomadedDebugMarkAfterTap YES
+  xcrun simctl io "iPhone 16 Pro" screenshot shot.png
+  ```
 
 ## Окружение
 
