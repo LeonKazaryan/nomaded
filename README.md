@@ -1,0 +1,71 @@
+# Nomaded
+
+Личный паспорт путешественника для iPhone. Красивый интерактивный 3D-глобус, на котором светятся страны, где ты был. Главная фишка — яркие, живые, «физические» анимации в духе Zenly.
+
+> **Статус:** M0 — каркас проекта. План в [`docs/04-roadmap.md`](docs/04-roadmap.md).
+
+## Стек
+
+| | |
+|---|---|
+| Язык | Swift 6 (strict concurrency) |
+| UI | SwiftUI |
+| 3D-глобус | RealityKit (проверяем спайком в M1, см. ADR-001) |
+| Данные | SwiftData, только на устройстве |
+| Тесты | Swift Testing |
+| Минимальная iOS | 18.0, только iPhone, портретная ориентация |
+| Зависимости | нет, только системные фреймворки |
+
+## Как запустить
+
+**В Xcode (основной способ):**
+
+1. Открой `Nomaded.xcodeproj`.
+2. Вверху окна выбери схему **Nomaded** и симулятор, например **iPhone 16 Pro**.
+3. `⌘R` — запустить, `⌘U` — прогнать тесты, `⇧⌘K` — очистить сборку.
+
+**На своём iPhone:**
+
+1. Xcode → Settings → Accounts → `+` → добавь свой Apple ID.
+2. В навигаторе слева кликни на проект **Nomaded** → таргет **Nomaded** → вкладка **Signing & Capabilities** → **Team** = твой Apple ID.
+3. Подключи iPhone кабелем и выбери его вверху вместо симулятора.
+4. На iPhone включи Режим разработчика: Настройки → Конфиденциальность и безопасность → Режим разработчика.
+5. `⌘R`. С бесплатным Apple ID сборка работает на телефоне 7 дней, потом просто запусти её из Xcode ещё раз.
+
+> Анимации оценивай **только на реальном iPhone**. Симулятор не показывает настоящую плавность (120 Гц) и не умеет в хаптику.
+
+**Из терминала:**
+
+```bash
+xcodebuild -project Nomaded.xcodeproj -scheme Nomaded \
+  -destination 'platform=iOS Simulator,name=iPhone 16 Pro' build
+
+xcodebuild -project Nomaded.xcodeproj -scheme Nomaded \
+  -destination 'platform=iOS Simulator,name=iPhone 16 Pro' test
+```
+
+## Документация
+
+| Документ | О чём |
+|---|---|
+| [`docs/01-product.md`](docs/01-product.md) | Видение, экраны, что входит в MVP, открытые вопросы |
+| [`docs/02-design.md`](docs/02-design.md) | Визуальный язык, палитра, motion-система, каталог «вау»-моментов |
+| [`docs/03-architecture.md`](docs/03-architecture.md) | Структура кода, модель данных, устройство глобуса, журнал решений |
+| [`docs/04-roadmap.md`](docs/04-roadmap.md) | Этапы M0–M7 до релиза, чек-листы |
+| [`docs/05-conventions.md`](docs/05-conventions.md) | Стиль кода, git, как мы работаем вместе, шпаргалка по Xcode |
+| [`docs/06-app-store.md`](docs/06-app-store.md) | Всё про публикацию в App Store |
+| [`CLAUDE.md`](CLAUDE.md) | Правила для Claude в этом репозитории |
+
+## Структура
+
+```
+Nomaded/                 исходники приложения (папка синхронизируется с Xcode сама)
+  App/                   точка входа
+  Resources/             Assets, String Catalog
+  Info.plist             только ключи, которые нельзя задать в build settings
+NomadedTests/            юнит-тесты (Swift Testing)
+Nomaded.xcodeproj/       проект Xcode
+docs/                    документация проекта
+```
+
+Любой файл, который кладёшь в `Nomaded/`, автоматически попадает в проект. Добавлять его в Xcode руками не нужно.
