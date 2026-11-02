@@ -34,7 +34,8 @@ xcodebuild -project Nomaded.xcodeproj -scheme Nomaded \
 - **Не добавляй сторонние зависимости** без явного согласия. Если всё-таки добавили, запиши ADR в `03-architecture.md`.
 - **Файлы проекта:** `Nomaded/` и `NomadedTests/` — синхронизированные папки (Xcode 16). Новые файлы просто создавай в нужной подпапке, `project.pbxproj` трогать не нужно. Правка `project.pbxproj` вручную — только для build settings и только осознанно.
 - **Swift 6, iOS 18.** Код должен проходить strict concurrency. API новее iOS 18 — только под `if #available`.
-- **DesignSystem-токены** (`Palette`, `Motion`, `Haptics`) вместо магических чисел в фичах.
+- **DesignSystem-токены и компоненты** (`Palette`, `Typography`, `Motion`, `Haptics`, `.glassCard()`, `.capsule()`, `HeroNumber`, `StatTile`…) вместо магических чисел и самописных дубликатов в фичах. Список в `docs/02-design.md`, вживую — `-NomadedGallery YES`.
+- **Цвета данных** (candy-палитра, графики в Statistics) прогоняй через dataviz-валидатор, а не на глаз. Текст не красится в цвет серии.
 - **Reduce Motion** учитывай в каждой новой анимации.
 - **Domain-логику покрывай тестами** (Swift Testing).
 - **Обновляй доки:** галочки в роадмапе, новые и изменённые решения в журнал ADR.

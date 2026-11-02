@@ -16,11 +16,11 @@ struct CountryPeekCard: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(verbatim: RegionDisplay.name(for: code))
-                        .font(.system(.title2, design: .rounded, weight: .bold))
+                        .font(Typography.title)
                         .lineLimit(2)
                         .minimumScaleFactor(0.8)
                     Text(isVisited ? "Visited" : "Not visited yet")
-                        .font(.system(.subheadline, design: .rounded, weight: .medium))
+                        .font(Typography.label)
                         .foregroundStyle(.secondary)
                         .contentTransition(.opacity)
                 }
@@ -36,7 +36,7 @@ struct CountryPeekCard: View {
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(PressableButtonStyle())
+                .buttonStyle(.pressable)
                 .accessibilityLabel("Close")
             }
 
@@ -46,17 +46,13 @@ struct CountryPeekCard: View {
                         .contentTransition(.symbolEffect(.replace))
                     Text(isVisited ? "Visited" : "Mark as visited")
                 }
-                .font(.system(.headline, design: .rounded, weight: .bold))
-                .foregroundStyle(isVisited ? Palette.accent : .white)
-                .frame(maxWidth: .infinity, minHeight: 54)
-                .background(isVisited ? AnyShapeStyle(.white) : AnyShapeStyle(Palette.accent), in: Capsule())
             }
-            .buttonStyle(PressableButtonStyle())
+            .buttonStyle(.capsule(isVisited ? .inverted : .accent))
             .accessibilityAddTraits(isVisited ? .isSelected : [])
             .accessibilityHint(isVisited ? "Removes the country from your visited list" : "")
         }
         .padding(20)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .glassCard(cornerRadius: 30)
         .animation(Motion.snappy, value: isVisited)
     }
 }

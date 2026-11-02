@@ -5,15 +5,21 @@ enum Palette {
     static let night = Color(rgb: 0x0D0A2E)
     static let nebula = Color(rgb: 0x3B1F8C)
     static let accent = Color(rgb: 0x7C5CFF)
+    static let accentLight = Color(rgb: 0xA88BFF)
     static let atmosphere = Color(rgb: 0x7DD3FC)
+
+    /// Visited-country colors, in slot order. Validated for colorblind separation and
+    /// 3:1 contrast against the ocean and land (docs/02-design.md); re-validate before
+    /// changing any of them.
+    static let candy: [Color] = RGB.candy.map(Color.init(rgb:))
+    static let candyNames = ["Bubblegum", "Tangerine", "Lemon", "Mint", "Sky", "Grape"]
 
     /// Raw values for places that can't take a `Color`, like RealityKit materials.
     enum RGB {
         static let ocean: UInt32 = 0x1F45B5
         static let landIdle: UInt32 = 0x4B4778
         static let landUnclaimed: UInt32 = 0x3C3962
-        /// Bubblegum, tangerine, lemon, mint, sky, grape.
-        static let candy: [UInt32] = [0xFF5FA2, 0xFF9F43, 0xFFD93D, 0x3DDC97, 0x4DA3FF, 0x8B5CF6]
+        static let candy: [UInt32] = [0xFF6AAE, 0xFF8A3D, 0xFFE04A, 0x4BE8A5, 0x84CEFF, 0xB68AFF]
     }
 
     /// sRGB components in 0…1.

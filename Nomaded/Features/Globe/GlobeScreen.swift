@@ -39,8 +39,8 @@ struct GlobeScreen: View {
             FrameRateBadge(framesPerSecond: controller.framesPerSecond)
             #endif
         }
-        .sensoryFeedback(.selection, trigger: selected) { _, new in new != nil }
-        .sensoryFeedback(.success, trigger: celebrations)
+        .sensoryFeedback(Haptics.select, trigger: selected) { _, new in new != nil }
+        .sensoryFeedback(Haptics.markVisited, trigger: celebrations)
         .onAppear {
             controller.onCountryTap = { select($0) }
             #if DEBUG
@@ -105,12 +105,11 @@ private struct WorldSummaryChip: View {
                 .symbolEffect(.bounce, value: visitedCount)
             Text("\(visitedCount) countries")
                 .contentTransition(.numericText(value: Double(visitedCount)))
-                .monospacedDigit()
         }
-        .font(.system(.subheadline, design: .rounded, weight: .bold))
+        .font(Typography.label)
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(.ultraThinMaterial, in: Capsule())
+        .glass(Capsule())
         .animation(Motion.bouncy, value: visitedCount)
         .accessibilityElement(children: .combine)
     }
