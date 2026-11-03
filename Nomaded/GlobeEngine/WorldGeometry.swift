@@ -13,6 +13,11 @@ struct GeoBounds: Sendable {
 
     /// Larger side, in degrees.
     var span: Float { max(maxLongitude - minLongitude, maxLatitude - minLatitude) }
+
+    func overlaps(_ other: GeoBounds) -> Bool {
+        maxLongitude >= other.minLongitude && minLongitude <= other.maxLongitude
+            && maxLatitude >= other.minLatitude && minLatitude <= other.maxLatitude
+    }
 }
 
 /// One country's outline and its pre-built globe mesh (see Tools/GeoPipeline).
@@ -24,11 +29,20 @@ struct CountryShape: Sendable {
     /// Where to point the camera when the country is selected.
     let label: GeoCoordinate
     let bounds: GeoBounds
-    /// Outline as (longitude, latitude), holes included. Use the even-odd rule.
+    /// Outline as (longitude, latitude), holes included (enclaves and lakes). Use the
+    /// even-odd rule.
     let rings: [[SIMD2<Float>]]
     /// Mesh on the unit sphere. Triangles are counter-clockwise seen from outside.
     let vertices: [SIMD3<Float>]
     let indices: [UInt32]
+}
+
+/// A lake the pipeline cut out of the land. The countries already show it as water; its
+/// shore is kept to tell a tap on the lake from one on the ocean.
+struct LakeShape: Sendable {
+    let bounds: GeoBounds
+    /// (longitude, latitude).
+    let shore: [SIMD2<Float>]
 }
 
 enum WorldGeometryError: Error {
@@ -37,13 +51,14 @@ enum WorldGeometryError: Error {
     case truncated
 }
 
-/// All countries, decoded from the bundled `world.nmgeo`.
+/// All countries and the larger lakes, decoded from the bundled `world.nmgeo`.
 /// The format is documented in Tools/GeoPipeline/Sources/GeoPipeline/WorldFileWriter.swift.
 struct WorldGeometry: Sendable {
     static let magic: UInt32 = 0x4E4D_4757 // "NMGW"
-    static let version: UInt16 = 2
+    static let version: UInt16 = 3
 
     let countries: [CountryShape]
+    let lakes: [LakeShape]
 
     /// Decodes off the main thread; the file is a few megabytes.
     static func loadBundled() async throws -> WorldGeometry {
@@ -69,6 +84,24 @@ struct WorldGeometry: Sendable {
             countries.append(try Self.readCountry(&reader))
         }
         self.countries = countries
+
+        let lakeCount = try reader.readCount()
+        var lakes: [LakeShape] = []
+        lakes.reserveCapacity(lakeCount)
+        for _ in 0..<lakeCount {
+            let bounds = try Self.readBounds(&reader)
+            lakes.append(LakeShape(bounds: bounds, shore: try reader.readArray(SIMD2<Float>.self, count: try reader.readCount())))
+        }
+        self.lakes = lakes
+    }
+
+    private static func readBounds(_ reader: inout BinaryReader) throws -> GeoBounds {
+        GeoBounds(
+            minLongitude: try reader.readFloat(),
+            minLatitude: try reader.readFloat(),
+            maxLongitude: try reader.readFloat(),
+            maxLatitude: try reader.readFloat()
+        )
     }
 
     private static func readCountry(_ reader: inout BinaryReader) throws -> CountryShape {
@@ -78,12 +111,7 @@ struct WorldGeometry: Sendable {
 
         let labelLongitude = try reader.readFloat()
         let labelLatitude = try reader.readFloat()
-        let bounds = GeoBounds(
-            minLongitude: try reader.readFloat(),
-            minLatitude: try reader.readFloat(),
-            maxLongitude: try reader.readFloat(),
-            maxLatitude: try reader.readFloat()
-        )
+        let bounds = try readBounds(&reader)
 
         let ringCount = try reader.readCount()
         var rings: [[SIMD2<Float>]] = []

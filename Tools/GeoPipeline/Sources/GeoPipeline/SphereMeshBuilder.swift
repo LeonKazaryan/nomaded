@@ -45,6 +45,7 @@ struct SphereMeshBuilder {
             (coords, holeIndices) = flatten(dense)
             triangles = Earcut.triangulate(coords, holeIndices: holeIndices)
         }
+        triangles = DelaunayFlipper.flip(triangles, coords: coords, ringSizes: dense.map(\.count))
 
         rings.append(contentsOf: dense)
         let base = vertices.count

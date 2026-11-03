@@ -24,6 +24,13 @@ struct SourceFeature {
     var vertexCount: Int { polygons.reduce(0) { $0 + $1.rings.reduce(0) { $0 + $1.count } } }
 }
 
+struct SourceLake {
+    let name: String
+    /// Natural Earth's importance: 0 for the great lakes of the world, up to 9.
+    let scaleRank: Int
+    let polygons: [GeoPolygon]
+}
+
 struct CountryInput {
     /// ISO 3166-1 alpha-2. Empty for land that belongs to no selectable country.
     let code: String

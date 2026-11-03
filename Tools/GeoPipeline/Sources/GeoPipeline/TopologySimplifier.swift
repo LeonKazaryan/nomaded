@@ -78,6 +78,17 @@ enum TopologySimplifier {
         return result.count >= 3 ? result : ring
     }
 
+    /// A closed ring on its own (no neighbours to agree with): split at its first point and
+    /// the point farthest from it, each half simplified.
+    static func simplifyClosed(_ ring: [GeoPoint], tolerance: Double) -> [GeoPoint] {
+        guard ring.count > 4 else { return ring }
+        let far = ring.indices.max { simd_distance(ring[$0], ring[0]) < simd_distance(ring[$1], ring[0]) }!
+        let first = douglasPeucker(Array(ring[0...far]), tolerance: tolerance)
+        let second = douglasPeucker(Array(ring[far...]) + [ring[0]], tolerance: tolerance)
+        let result = first.dropLast() + second.dropLast()
+        return result.count >= 3 ? Array(result) : ring
+    }
+
     static func douglasPeucker(_ points: [GeoPoint], tolerance: Double) -> [GeoPoint] {
         guard points.count > 2 else { return points }
         var keep = [Bool](repeating: false, count: points.count)

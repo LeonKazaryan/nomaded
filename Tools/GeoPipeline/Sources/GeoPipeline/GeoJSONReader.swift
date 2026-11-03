@@ -53,6 +53,36 @@ enum GeoJSONReader {
         )
     }
 
+    /// Reads Natural Earth's lakes (`ne_10m_lakes`): name, rank and outline.
+    static func readLakes(_ url: URL) throws -> [SourceLake] {
+        let data = try Data(contentsOf: url)
+        guard
+            let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let features = root["features"] as? [[String: Any]]
+        else { throw PipelineError.malformed("missing features") }
+        return try features.compactMap { feature in
+            guard
+                let properties = feature["properties"] as? [String: Any],
+                let geometry = feature["geometry"] as? [String: Any]
+            else { return nil }
+            let polygons: [GeoPolygon]
+            switch geometry["type"] as? String {
+            case "Polygon":
+                polygons = [try parsePolygon(geometry["coordinates"])]
+            case "MultiPolygon":
+                guard let parts = geometry["coordinates"] as? [Any] else { throw PipelineError.malformed("multipolygon") }
+                polygons = try parts.map(parsePolygon)
+            default:
+                return nil
+            }
+            return SourceLake(
+                name: properties["name"] as? String ?? "",
+                scaleRank: (properties["scalerank"] as? NSNumber)?.intValue ?? 99,
+                polygons: polygons.filter { !$0.rings.isEmpty }
+            )
+        }
+    }
+
     private static func parsePolygon(_ value: Any?) throws -> GeoPolygon {
         guard let rings = value as? [[[Double]]] else { throw PipelineError.malformed("polygon") }
         let cleaned = rings.map { ring in

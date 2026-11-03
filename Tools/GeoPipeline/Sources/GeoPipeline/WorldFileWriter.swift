@@ -11,6 +11,9 @@ import Foundation
 ///              ring count UInt32; per ring: point count UInt32 + lon/lat Float32 pairs
 ///              vertex count UInt32 + xyz Float32 triples (unit sphere)
 ///              index count UInt32 + UInt32 indices (CCW seen from outside)
+///     lakes    count UInt32; per lake: bounds Float32 ×4, then its shore as point count
+///              UInt32 + lon/lat Float32 pairs. The countries already have them cut out;
+///              these are only for telling a tap on a lake from one on the ocean.
 struct BuiltCountry {
     let code: String
     let colorSlot: Int
@@ -22,9 +25,9 @@ struct BuiltCountry {
 
 enum WorldFileWriter {
     static let magic: UInt32 = 0x4E4D_4757 // "NMGW"
-    static let version: UInt16 = 2
+    static let version: UInt16 = 3
 
-    static func encode(_ countries: [BuiltCountry]) -> Data {
+    static func encode(_ countries: [BuiltCountry], lakes: [[GeoPoint]]) -> Data {
         var data = Data()
         append(magic, to: &data)
         append(version, to: &data)
@@ -64,6 +67,19 @@ enum WorldFileWriter {
 
             append(UInt32(country.indices.count), to: &data)
             for index in country.indices { append(index, to: &data) }
+        }
+
+        append(UInt32(lakes.count), to: &data)
+        for shore in lakes {
+            append(Float(shore.map(\.x).min() ?? 0), to: &data)
+            append(Float(shore.map(\.y).min() ?? 0), to: &data)
+            append(Float(shore.map(\.x).max() ?? 0), to: &data)
+            append(Float(shore.map(\.y).max() ?? 0), to: &data)
+            append(UInt32(shore.count), to: &data)
+            for point in shore {
+                append(Float(point.x), to: &data)
+                append(Float(point.y), to: &data)
+            }
         }
         return data
     }

@@ -18,6 +18,7 @@ struct WorldGeometryTests {
         let codes = Set(world.countries.map(\.code))
 
         #expect(world.countries.count > 200)
+        #expect(world.lakes.count > 300)
         for code in ["IT", "VA", "KZ", "UA", "TW", "BR", "AQ", "LS"] {
             #expect(codes.contains(code), "missing \(code)")
         }
@@ -37,6 +38,11 @@ struct WorldGeometryTests {
         Place(name: "Anchorage", latitude: 61.2, longitude: -149.9, expected: "US"),
         Place(name: "Mid-Atlantic", latitude: 0, longitude: -30, expected: nil),
         Place(name: "Sea just off Monaco", latitude: 43.70, longitude: 7.45, expected: "MC"),
+        // Lakes are water on the globe, but a tap on one picks the land around it.
+        Place(name: "Lake Baikal", latitude: 53.5, longitude: 108.2, expected: "RU"),
+        Place(name: "Lake Ladoga", latitude: 60.8, longitude: 31.5, expected: "RU"),
+        Place(name: "Lake Victoria off Entebbe", latitude: 0.0, longitude: 32.6, expected: "UG"),
+        Place(name: "Chicago, on Lake Michigan", latitude: 41.88, longitude: -87.63, expected: "US"),
     ])
     func hitTestFindsCountry(_ place: Place) async throws {
         let tester = GlobeHitTester(world: try await WorldGeometry.loadBundled())
@@ -63,6 +69,22 @@ struct WorldGeometryTests {
             }
         }
         #expect(outside / area < 0.005, "\(code): \(outside / area * 100)% of the mesh lies outside its outline")
+    }
+
+    /// The land has the larger lakes cut out, so the ocean shows through: also where a lake
+    /// lies across a border.
+    @Test(arguments: [
+        Place(name: "Lake Baikal", latitude: 53.5, longitude: 108.2, expected: "RU"),
+        Place(name: "Lake Victoria, Ugandan side", latitude: -0.5, longitude: 33.0, expected: "UG"),
+        Place(name: "Lake Victoria, Tanzanian side", latitude: -1.5, longitude: 32.8, expected: "TZ"),
+        Place(name: "Lake Superior, Canadian side", latitude: 48.0, longitude: -87.0, expected: "CA"),
+        Place(name: "Lake Titicaca", latitude: -15.8, longitude: -69.4, expected: "PE"),
+    ])
+    func lakesAreCutOutOfTheLand(_ place: Place) async throws {
+        let world = try await WorldGeometry.loadBundled()
+        let shape = try #require(world.countries.first { $0.code == place.expected })
+        #expect(!GeoMath.ringsContain(shape.rings, longitude: Float(place.longitude), latitude: Float(place.latitude)))
+        #expect(world.lakes.contains { GeoMath.ringsContain([$0.shore], longitude: Float(place.longitude), latitude: Float(place.latitude)) })
     }
 
     @Test func neighboursNeverShareAColor() async throws {

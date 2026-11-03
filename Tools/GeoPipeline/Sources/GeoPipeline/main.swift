@@ -7,7 +7,7 @@ import Foundation
 
 let arguments = CommandLine.arguments
 guard arguments.count >= 3 else {
-    print("usage: GeoPipeline <input.geojson> <output.nmgeo> [--catalog countries.json] [--places places.geojson --cities cities.json] [--tolerance degrees]")
+    print("usage: GeoPipeline <input.geojson> <output.nmgeo> [--lakes lakes.geojson] [--catalog countries.json] [--places places.geojson --cities cities.json] [--tolerance degrees]")
     exit(1)
 }
 
@@ -25,17 +25,31 @@ func fileArgument(_ flag: String) -> URL? {
 let catalogOutput = fileArgument("--catalog")
 let placesInput = fileArgument("--places")
 let citiesOutput = fileArgument("--cities")
+let lakesInput = fileArgument("--lakes")
 
 let started = Date()
 let features = try GeoJSONReader.read(input)
 let originals = CountryAssembler.assemble(features)
-let countries = TopologySimplifier.simplify(originals, tolerance: tolerance)
+// The globe's land, with the lakes taken out. Colors, the catalog and the city list keep
+// working from the whole countries.
+var shaped = originals
+var shores: [[GeoPoint]] = []
+var lakeSummary = ""
+if let lakesInput {
+    let lakes = LakeCutter.select(try GeoJSONReader.readLakes(lakesInput))
+    let result = LakeCutter.cut(originals, lakes: lakes)
+    shaped = result.countries
+    shores = result.shores.map { TopologySimplifier.simplifyClosed($0, tolerance: tolerance) }
+    lakeSummary = "\nlakes: \(lakes.count) selected, \(shores.count) cut into land"
+    if !result.skipped.isEmpty { lakeSummary += ", left as land: \(result.skipped.joined(separator: ", "))" }
+}
+let countries = TopologySimplifier.simplify(shaped, tolerance: tolerance)
 // Six slots, matching the six candy colors in the app's palette.
 let colorSlots = ColorAssigner.assign(originals, slotCount: 6)
 
 var built: [BuiltCountry] = []
 var fallbacks = 0
-for (index, (country, original)) in zip(countries, originals).enumerated() {
+for (index, (country, original)) in zip(countries, shaped).enumerated() {
     var builder = SphereMeshBuilder(maxEdgeDegrees: 1.5, densifyStepDegrees: 0.75)
     for (polygon, originalPolygon) in zip(country.polygons, original.polygons) {
         builder.add(polygon, original: originalPolygon)
@@ -51,7 +65,7 @@ for (index, (country, original)) in zip(countries, originals).enumerated() {
     ))
 }
 
-let data = WorldFileWriter.encode(built)
+let data = WorldFileWriter.encode(built, lakes: shores)
 try data.write(to: output)
 
 var catalogSummary = ""
@@ -77,5 +91,5 @@ countries: \(built.count) (selectable: \(built.filter { !$0.code.isEmpty }.count
 source vertices: \(features.reduce(0) { $0 + $1.vertexCount }), ring points after simplify+densify: \(ringPoints)
 mesh: \(vertices) vertices, \(triangles) triangles
 polygons rebuilt from the unsimplified outline: \(fallbacks)
-file: \(ByteCountFormatter.string(fromByteCount: Int64(data.count), countStyle: .file)) in \(String(format: "%.1f", Date().timeIntervalSince(started))) s\(catalogSummary)
+file: \(ByteCountFormatter.string(fromByteCount: Int64(data.count), countStyle: .file)) in \(String(format: "%.1f", Date().timeIntervalSince(started))) s\(lakeSummary)\(catalogSummary)
 """)
