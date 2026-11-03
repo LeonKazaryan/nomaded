@@ -45,10 +45,10 @@ struct WorldStats: Equatable, Sendable {
     var visitedContinents: Int { continents.filter(\.isVisited).count }
 }
 
-/// A continent's places the way its detail lists them, each list alphabetical in the
-/// user's language. Countries and territories are kept apart: only countries count
-/// toward "12 of 44".
-struct ContinentPlaces: Equatable, Sendable {
+/// Places the way the statistics' lists show them (a continent, or the whole world), each
+/// list alphabetical in the user's language. Countries and territories are kept apart:
+/// only countries count toward "12 of 44".
+struct PlaceLists: Equatable, Sendable {
     var discovered: [String] = []
     var undiscovered: [String] = []
     var discoveredTerritories: [String] = []
@@ -56,15 +56,16 @@ struct ContinentPlaces: Equatable, Sendable {
 }
 
 enum StatsCalculator {
-    static func places(on continent: Continent, visited: Set<String>, catalog: CountryCatalog, locale: Locale = .current) -> ContinentPlaces {
-        let here = catalog.countries.filter { $0.continent == continent }
+    /// `continent: nil` lists the whole world.
+    static func places(on continent: Continent?, visited: Set<String>, catalog: CountryCatalog, locale: Locale = .current) -> PlaceLists {
+        let here = catalog.countries.filter { continent == nil || $0.continent == continent }
         func codes(sovereign: Bool, visited isVisited: Bool) -> [String] {
             RegionDisplay.sortedByName(
                 here.filter { $0.isSovereign == sovereign && visited.contains($0.code) == isVisited }.map(\.code),
                 locale: locale
             )
         }
-        return ContinentPlaces(
+        return PlaceLists(
             discovered: codes(sovereign: true, visited: true),
             undiscovered: codes(sovereign: true, visited: false),
             discoveredTerritories: codes(sovereign: false, visited: true),

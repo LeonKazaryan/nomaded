@@ -1,64 +1,62 @@
 import SwiftUI
 
-/// One continent up close: its map flies up from the tile, then the countries you've been
-/// to (Nomaded) and the ones still waiting (Undiscovered). Tapping a country closes the
+/// A list inside the statistics, for one continent or the whole world: the countries you've
+/// been to (Nomaded) and the ones still waiting (Undiscovered), territories under their own
+/// heading in each. Its top card flies up from the overview. Tapping a place closes the
 /// statistics and flies the globe there, ready to be marked.
-struct ContinentDetail: View {
+struct PlacesDetail<Hero: View>: View {
     enum Segment: Hashable {
         case discovered, undiscovered
     }
 
-    let progress: WorldStats.ContinentProgress
-    let places: ContinentPlaces
-    /// `nil` while the maps are still being built.
-    let outlines: [ContinentMaps.Outline]?
+    let title: LocalizedStringResource
+    /// Shown under the title with a meter. `nil` when the top card already says it.
+    let tally: WorldStats.Tally?
+    let places: PlaceLists
     let visited: Set<String>
-    /// Shared with the tiles, so the map flies between them.
-    let hero: Namespace.ID
     let onPick: (String) -> Void
     let onBack: () -> Void
+    /// Shown in Undiscovered once nothing is left there.
+    let allDiscoveredNote: LocalizedStringKey
+    /// The card that flew up from the overview: a continent's map, or the world's ring.
+    let hero: Hero
 
     @State private var segment: Segment
     @State private var pull: CGFloat = 0
-    @ScaledMetric(relativeTo: .body) private var mapHeight = 230
     @ScaledMetric(relativeTo: .body) private var rowHeight = 56
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(
-        progress: WorldStats.ContinentProgress,
-        places: ContinentPlaces,
-        outlines: [ContinentMaps.Outline]?,
+        title: LocalizedStringResource,
+        tally: WorldStats.Tally?,
+        places: PlaceLists,
         visited: Set<String>,
-        hero: Namespace.ID,
         onPick: @escaping (String) -> Void,
-        onBack: @escaping () -> Void
+        onBack: @escaping () -> Void,
+        allDiscoveredNote: LocalizedStringKey,
+        @ViewBuilder hero: () -> Hero
     ) {
-        self.progress = progress
+        self.title = title
+        self.tally = tally
         self.places = places
-        self.outlines = outlines
         self.visited = visited
-        self.hero = hero
         self.onPick = onPick
         self.onBack = onBack
-        // Open on what's there: your countries if you have some, otherwise what's waiting.
+        self.allDiscoveredNote = allDiscoveredNote
+        self.hero = hero()
+        // Open on what's there: your places if you have some, otherwise what's waiting.
         let hasDiscovered = !places.discovered.isEmpty || !places.discoveredTerritories.isEmpty
         _segment = State(initialValue: hasDiscovered ? .discovered : .undiscovered)
     }
 
     /// Antarctica has no countries, only the territory itself: one list, no picker.
-    private var hasCountries: Bool { progress.countries.total > 0 }
+    private var hasCountries: Bool { !places.discovered.isEmpty || !places.undiscovered.isEmpty }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 header
-
-                ContinentMap(outlines: outlines ?? [], visited: visited, delay: reduceMotion ? 0 : 0.35)
-                    .frame(height: mapHeight)
-                    .frame(maxWidth: .infinity)
-                    .matchedGeometryEffect(id: progress.continent, in: hero)
-                    .padding(16)
-                    .glassCard(cornerRadius: 28)
+                hero
 
                 if hasCountries {
                     PillPicker(
@@ -101,17 +99,17 @@ struct ContinentDetail: View {
             .accessibilityLabel("Back")
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(progress.continent.name)
+                Text(title)
                     .font(Typography.largeTitle)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
-                if hasCountries {
+                if let tally, tally.total > 0 {
                     HStack(spacing: 8) {
-                        Text("\(progress.countries.visited) of \(progress.countries.total)")
+                        Text("\(tally.visited) of \(tally.total)")
                             .font(Typography.caption)
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
-                        Meter(share: progress.countries.share, delay: reduceMotion ? 0 : 0.3)
+                        Meter(share: tally.share, delay: reduceMotion ? 0 : 0.3)
                     }
                 }
             }
@@ -130,7 +128,7 @@ struct ContinentDetail: View {
             }
         case .undiscovered:
             if places.undiscovered.isEmpty, places.undiscoveredTerritories.isEmpty {
-                emptyNote("The whole continent is discovered!")
+                emptyNote(allDiscoveredNote)
             } else {
                 placeList(countries: places.undiscovered, territories: places.undiscoveredTerritories, marksVisited: false)
             }
@@ -141,13 +139,20 @@ struct ContinentDetail: View {
         LazyVStack(alignment: .leading, spacing: 0) {
             ForEach(countries, id: \.self) { row($0, marksVisited: marksVisited) }
             if !territories.isEmpty {
-                Text("Territories")
-                    .font(Typography.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 18)
-                    .padding(.top, countries.isEmpty ? 6 : 14)
-                    .padding(.bottom, 2)
-                    .accessibilityAddTraits(.isHeader)
+                // Territories don't count toward the picker's numbers, so they carry their own.
+                HStack(spacing: 6) {
+                    Text("Territories")
+                    Text(territories.count, format: .number)
+                        .monospacedDigit()
+                        .opacity(0.7)
+                }
+                .font(Typography.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 18)
+                .padding(.top, countries.isEmpty ? 6 : 14)
+                .padding(.bottom, 2)
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isHeader)
                 ForEach(territories, id: \.self) { row($0, marksVisited: marksVisited) }
             }
         }

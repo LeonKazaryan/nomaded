@@ -1,21 +1,31 @@
 import SwiftUI
 
 /// "My world" in numbers, over the receding globe. Cards cascade in, numbers count up,
-/// continents fill country by country. Tap a continent to see its countries, pull down past
-/// the top or tap ✕ to close.
+/// continents fill country by country. Tap the top card for every country, a continent for
+/// its own; pull down past the top or tap ✕ to close.
 struct StatisticsScreen: View {
+    /// What's open on top of the overview.
+    private enum Detail: Hashable {
+        case world
+        case continent(Continent)
+    }
+
+    /// The top card's id for the flight into the world list.
+    private static let worldHero = "world"
+
     let stats: WorldStats
     let visited: Set<String>
     /// `nil` while the continent maps are still being built.
     let maps: ContinentMaps?
-    /// A country picked in a continent's list: the screen closes and the globe flies there.
+    /// A place picked in one of the lists: the screen closes and the globe flies there.
     let onPick: (String) -> Void
     let onClose: () -> Void
 
     @State private var appeared = false
     @State private var pull: CGFloat = 0
-    @State private var openContinent: Continent?
+    @State private var openDetail: Detail?
     @Namespace private var hero
+    @ScaledMetric(relativeTo: .body) private var detailMapHeight = 230
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// How far to pull past the top before letting go closes the screen.
@@ -24,40 +34,68 @@ struct StatisticsScreen: View {
     var body: some View {
         ZStack {
             overview
-                // Steps back while a continent is open, the way the globe steps back for this screen.
-                .opacity(openContinent == nil ? 1 : 0)
-                .scaleEffect(openContinent == nil || reduceMotion ? 1 : 0.94)
-                .allowsHitTesting(openContinent == nil)
-                .accessibilityHidden(openContinent != nil)
+                // Steps back while a list is open, the way the globe steps back for this screen.
+                .opacity(openDetail == nil ? 1 : 0)
+                .scaleEffect(openDetail == nil || reduceMotion ? 1 : 0.94)
+                .allowsHitTesting(openDetail == nil)
+                .accessibilityHidden(openDetail != nil)
 
-            if let openContinent, let progress = stats.continents.first(where: { $0.continent == openContinent }) {
-                ContinentDetail(
-                    progress: progress,
-                    places: StatsCalculator.places(on: openContinent, visited: visited, catalog: .bundled),
-                    outlines: maps?.outlines[openContinent],
-                    visited: visited,
-                    hero: hero,
-                    onPick: onPick,
-                    onBack: { open(nil) }
-                )
-                .transition(.opacity)
+            if let openDetail {
+                detail(openDetail)
+                    .transition(.opacity)
             }
         }
-        .sensoryFeedback(Haptics.select, trigger: openContinent) { _, new in new != nil }
+        .sensoryFeedback(Haptics.select, trigger: openDetail) { _, new in new != nil }
         #if DEBUG
         .task {
-            // `-NomadedDebugContinent europe` opens a continent once the cards are in.
-            guard let raw = UserDefaults.standard.string(forKey: "NomadedDebugContinent"),
-                  let continent = Continent(rawValue: raw)
-            else { return }
+            // `-NomadedDebugContinent europe` (or `world`) opens a list once the cards are in.
+            guard let raw = UserDefaults.standard.string(forKey: "NomadedDebugContinent") else { return }
+            let detail: Detail? = raw == "world" ? .world : Continent(rawValue: raw).map(Detail.continent)
             try? await Task.sleep(for: .seconds(1.5))
-            open(continent)
+            open(detail)
         }
         #endif
     }
 
-    private func open(_ continent: Continent?) {
-        withAnimation(reduceMotion ? Motion.snappy : Motion.smooth) { openContinent = continent }
+    @ViewBuilder
+    private func detail(_ detail: Detail) -> some View {
+        switch detail {
+        case .world:
+            PlacesDetail(
+                title: "Whole world",
+                tally: nil,
+                places: StatsCalculator.places(on: nil, visited: visited, catalog: .bundled),
+                visited: visited,
+                onPick: onPick,
+                onBack: { open(nil) },
+                allDiscoveredNote: "The whole world is discovered!"
+            ) {
+                HeroCard(stats: stats)
+                    .matchedGeometryEffect(id: Self.worldHero, in: hero)
+            }
+        case .continent(let continent):
+            let progress = stats.continents.first { $0.continent == continent }
+            PlacesDetail(
+                title: continent.name,
+                tally: progress?.countries,
+                places: StatsCalculator.places(on: continent, visited: visited, catalog: .bundled),
+                visited: visited,
+                onPick: onPick,
+                onBack: { open(nil) },
+                allDiscoveredNote: "The whole continent is discovered!"
+            ) {
+                ContinentMap(outlines: maps?.outlines[continent] ?? [], visited: visited, delay: reduceMotion ? 0 : 0.35)
+                    .frame(height: detailMapHeight)
+                    .frame(maxWidth: .infinity)
+                    .matchedGeometryEffect(id: continent, in: hero)
+                    .padding(16)
+                    .glassCard(cornerRadius: 28)
+            }
+        }
+    }
+
+    private func open(_ detail: Detail?) {
+        withAnimation(reduceMotion ? Motion.snappy : Motion.smooth) { openDetail = detail }
     }
 
     private var overview: some View {
@@ -65,7 +103,7 @@ struct StatisticsScreen: View {
             VStack(spacing: 16) {
                 header
                     .cascade(0, appeared: appeared)
-                HeroCard(stats: stats)
+                worldCard
                     .cascade(1, appeared: appeared)
                 continents
                     .cascade(2, appeared: appeared)
@@ -129,7 +167,7 @@ struct StatisticsScreen: View {
 
     private func tile(_ progress: WorldStats.ContinentProgress, index: Int) -> some View {
         Button {
-            open(progress.continent)
+            open(.continent(progress.continent))
         } label: {
             ContinentTile(
                 progress: progress,
@@ -137,11 +175,28 @@ struct StatisticsScreen: View {
                 visited: visited,
                 delay: delay(of: 2) + Double(index) * Motion.stagger * 2,
                 hero: hero,
-                isOpen: openContinent == progress.continent
+                isOpen: openDetail == .continent(progress.continent)
             )
         }
         .buttonStyle(.pressable)
         .accessibilityHint("Shows the continent's countries")
+    }
+
+    /// The headline card. Tapping it opens every country; it flies up to head that list.
+    private var worldCard: some View {
+        Button {
+            open(.world)
+        } label: {
+            if openDetail == .world {
+                // Keeps its place while the card is up in the list.
+                HeroCard(stats: stats).hidden()
+            } else {
+                HeroCard(stats: stats)
+                    .matchedGeometryEffect(id: Self.worldHero, in: hero)
+            }
+        }
+        .buttonStyle(.pressable)
+        .accessibilityHint("Shows all countries")
     }
 
     private var emptyHint: some View {

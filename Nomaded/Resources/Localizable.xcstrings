@@ -650,6 +650,16 @@
         }
       }
     },
+    "Shows all countries" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показывает все страны"
+          }
+        }
+      }
+    },
     "Shows the continent's countries" : {
       "localizations" : {
         "ru" : {
@@ -760,6 +770,16 @@
         }
       }
     },
+    "The whole world is discovered!" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Весь мир открыт!"
+          }
+        }
+      }
+    },
     "Undiscovered" : {
       "localizations" : {
         "ru" : {
@@ -816,6 +836,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Западная Европа"
+          }
+        }
+      }
+    },
+    "Whole world" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Весь мир"
           }
         }
       }
