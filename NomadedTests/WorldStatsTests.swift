@@ -136,3 +136,55 @@ struct CityMathTests {
         #expect(!CityMath.isSamePlace(rome, CityDraft(name: "Rome", region: "", countryCode: "VA", latitude: 41.9, longitude: 12.45)))
     }
 }
+
+struct CityCatalogTests {
+    private static func city(_ name: String, ru: String? = nil, _ code: String, pop: Int, capital: Bool = false,
+                             lat: Double = 0, lon: Double = 0) -> KnownCity {
+        let json = """
+        {"name":"\(name)","nameRu":\(ru.map { "\"\($0)\"" } ?? "null"),"aliases":[],"region":null,"code":"\(code)",\
+        "lat":\(lat),"lon":\(lon),"population":\(pop),"capital":\(capital)}
+        """
+        return try! JSONDecoder().decode(KnownCity.self, from: Data(json.utf8))
+    }
+
+    private let catalog = CityCatalog([
+        city("London", ru: "Лондон", "US", pop: 7_844),
+        city("London", ru: "Лондон", "GB", pop: 8_567_000, capital: true, lat: 51.5, lon: -0.12),
+        city("London", ru: "Лондон", "CA", pop: 346_765),
+        city("Londrina", "BR", pop: 506_000),
+        city("New York City", ru: "Нью-Йорк", "US", pop: 19_040_000),
+        city("York", "GB", pop: 153_000),
+    ])
+
+    @Test func biggerCityWinsAmongEqualMatches() {
+        #expect(catalog.search("London").map(\.countryCode) == ["GB", "CA", "US"])
+        #expect(catalog.search("лон").map(\.countryCode) == ["GB", "CA", "US"])
+    }
+
+    @Test func wholeNameBeatsStartBeatsLaterWord() {
+        // All four start with "Lond", so size decides.
+        #expect(catalog.search("Lond").map(\.population) == [8_567_000, 506_000, 346_765, 7_844])
+        // "York" itself before New York, though New York is bigger.
+        #expect(catalog.search("York").map(\.name) == ["York", "New York City"])
+    }
+
+    @Test func staysInsideACountry() {
+        #expect(catalog.search("London", in: "CA").map(\.countryCode) == ["CA"])
+    }
+
+    @Test func findsCapitalsNearby() {
+        let westminster = CityPin(id: UUID(), name: "London", region: "", countryCode: "GB", latitude: 51.51, longitude: -0.13, createdAt: .now)
+        let ontario = CityPin(id: UUID(), name: "London", region: "", countryCode: "CA", latitude: 42.97, longitude: -81.25, createdAt: .now)
+        #expect(catalog.isCapital(westminster))
+        #expect(!catalog.isCapital(ontario))
+    }
+
+    @Test func bundledListHasTheCapitals() throws {
+        let bundled = try CityCatalog.loadBundled()
+        #expect(bundled.cities.count > 7_000)
+        let london = try #require(bundled.search("London").first)
+        #expect(london.countryCode == "GB" && london.isCapital)
+        #expect(bundled.search("Москва").first?.countryCode == "RU")
+        #expect(bundled.cities.filter(\.isCapital).count >= 195)
+    }
+}

@@ -16,6 +16,8 @@ struct GlobeScreen: View {
     /// The country to unmark once the user confirms losing its cities.
     @State private var confirmingUnmark: String?
     @State private var landings = 0
+    /// The bundled city list, loaded off the main thread at launch: capitals get stars.
+    @State private var cityCatalog: CityCatalog?
     @State private var initialCityQuery = ""
     /// Built in the background once the globe has loaded, so statistics open instantly.
     @State private var continentMaps: ContinentMaps?
@@ -186,22 +188,32 @@ struct GlobeScreen: View {
             controller.setVisited(codes)
         }
         .onChange(of: world.cities, initial: true) { _, cities in
-            controller.setCities(cities.map { city in
-                GlobeController.CityMarker(
-                    id: city.id,
-                    name: city.name,
-                    countryCode: city.countryCode,
-                    coordinate: GeoCoordinate(latitude: city.latitude, longitude: city.longitude)
-                )
-            })
+            updateCityMarkers()
             if let highlightedCity, !cities.contains(where: { $0.id == highlightedCity }) {
                 self.highlightedCity = nil
             }
+        }
+        .task {
+            // About a megabyte to decode; search uses it too, so it's ready before anyone types.
+            cityCatalog = await Task.detached(priority: .utility) { CityCatalog.bundled }.value
+            updateCityMarkers()
         }
         .onChange(of: controller.isReady) { _, isReady in
             guard isReady, let geometry = controller.world else { return }
             Task { continentMaps = await ContinentMaps.build(world: geometry, catalog: .bundled) }
         }
+    }
+
+    private func updateCityMarkers() {
+        controller.setCities(world.cities.map { city in
+            GlobeController.CityMarker(
+                id: city.id,
+                name: city.name,
+                countryCode: city.countryCode,
+                coordinate: GeoCoordinate(latitude: city.latitude, longitude: city.longitude),
+                isCapital: cityCatalog?.isCapital(city) ?? false
+            )
+        })
     }
 
     private func select(_ code: String?) {

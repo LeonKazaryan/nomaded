@@ -31,7 +31,8 @@ final class GlobeRenderer {
         /// xyz: on the globe before rotation, lifted with its country. w: radius in points.
         var position: SIMD4<Float>
         var color: SIMD4<Float>
-        /// x: size multiplier, y: landing ring 0…1 (below 0: none), z: highlight 0…1.
+        /// x: size multiplier, y: landing ring 0…1 (below 0: none), z: highlight 0…1,
+        /// w: 1 for a capital, drawn as a star.
         var params: SIMD4<Float>
     }
 

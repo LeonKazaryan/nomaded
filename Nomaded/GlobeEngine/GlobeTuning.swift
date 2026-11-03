@@ -56,6 +56,8 @@ enum GlobeTuning {
     static let cityDropSpring = SpringParameters(response: 0.45, dampingRatio: 0.45)
     /// How long the ring around a new city takes to spread and fade, in seconds.
     static let cityRippleDuration = 1.1
+    /// A name popping up out of its dot as it comes into view, and sinking back as it goes.
+    static let cityLabelSpring = SpringParameters(response: 0.32, dampingRatio: 0.62)
 
     // MARK: Taps
 

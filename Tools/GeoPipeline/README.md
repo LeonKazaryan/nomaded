@@ -13,6 +13,20 @@ swift run -c release --package-path Tools/GeoPipeline GeoPipeline \
   --catalog Nomaded/Resources/Geo/countries.json
 ```
 
+Справочник городов для поиска собирается из второго файла Natural Earth:
+
+```bash
+curl -L -o "$TMPDIR/places.geojson" \
+  https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_10m_populated_places.geojson
+
+swift run -c release --package-path Tools/GeoPipeline GeoPipeline \
+  "$TMPDIR/ne_usa.geojson" Nomaded/Resources/Geo/world.nmgeo \
+  --catalog Nomaded/Resources/Geo/countries.json \
+  --places "$TMPDIR/places.geojson" --cities Nomaded/Resources/Geo/cities.json
+```
+
+`--cities` (`CityCatalogBuilder.swift`): ~7 300 городов с населением, координатами, столицей (`ADM0CAP`, без «alt» вроде Гааги) и названиями en/ru. Места без ISO-кода (Косово, Северный Кипр, Сомалиленд) приписаны стране, в которой их показывает глобус.
+
 `--catalog` пишет справочник для статистики: континент, регион ООН, «одна из 195» и площадь каждой страны (`CountryCatalog.swift`).
 
 Опция `--tolerance 0.02` задаёт степень упрощения границ в градусах (по умолчанию 0.02°, это ~2 км).

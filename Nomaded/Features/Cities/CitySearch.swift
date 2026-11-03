@@ -1,16 +1,25 @@
 import MapKit
 import Observation
 
-/// Finds cities as the user types, with MapKit: names in the user's language, no API key,
-/// no location permission, only cities (iOS 18's address filter). Either the whole world,
-/// or strictly one country: the "+ City" button in a country's card.
+/// Finds cities as the user types, from two sources:
+/// - the bundled `CityCatalog` first: instant, offline, ranked by match and then by size,
+///   so London, UK comes before London, Kentucky, with capitals marked;
+/// - then MapKit for everything smaller: names in the user's language, no API key, no
+///   location permission, only cities (iOS 18's address filter), minus the ones above.
+/// Either the whole world, or strictly one country: the "+ City" button in a country's card.
 @Observable @MainActor
 final class CitySearch: NSObject {
     struct Result: Identifiable {
+        fileprivate enum Source {
+            case known(KnownCity)
+            case maps(MKLocalSearchCompletion)
+        }
+
         let id: String
         let title: String
         let subtitle: String
-        fileprivate let completion: MKLocalSearchCompletion
+        let isCapital: Bool
+        fileprivate let source: Source
     }
 
     /// Why there are no results to show.
@@ -31,21 +40,28 @@ final class CitySearch: NSObject {
     var query = "" {
         didSet {
             problem = nil
-            completer.queryFragment = query.trimmingCharacters(in: .whitespaces)
-            if query.trimmingCharacters(in: .whitespaces).isEmpty { results = [] }
+            let trimmed = query.trimmingCharacters(in: .whitespaces)
+            completer.queryFragment = trimmed
+            known = catalog.search(trimmed, in: country?.code)
+            if trimmed.isEmpty { fromMaps = [] }
+            merge()
         }
     }
 
     /// The country searched in, if any: its code and its name folded for matching.
     private let country: (code: String, name: String)?
+    @ObservationIgnored private let catalog: CityCatalog
+    @ObservationIgnored private var known: [KnownCity] = []
+    @ObservationIgnored private var fromMaps: [MKLocalSearchCompletion] = []
     @ObservationIgnored private let completer = MKLocalSearchCompleter()
     /// Held while it runs: MapKit cancels a lookup whose object goes away.
     @ObservationIgnored private var lookup: MKLocalSearch?
 
     /// `countryCode: nil` searches the whole world. With a country, only its cities come
     /// up, and `region` (its box) narrows what Maps looks through.
-    init(countryCode: String? = nil, region: MKCoordinateRegion? = nil) {
+    init(countryCode: String? = nil, region: MKCoordinateRegion? = nil, catalog: CityCatalog = .bundled) {
         country = countryCode.map { ($0, CountrySearchIndex.fold(RegionDisplay.name(for: $0))) }
+        self.catalog = catalog
         super.init()
         completer.delegate = self
         completer.resultTypes = .address
@@ -62,7 +78,13 @@ final class CitySearch: NSObject {
         resolving = result.id
         defer { resolving = nil }
         do {
-            return try await resolve(result, knownCountries: knownCountries)
+            switch result.source {
+            case .known(let city):
+                guard knownCountries.contains(city.countryCode) else { throw Problem.notOnGlobe }
+                return city.draft
+            case .maps(let completion):
+                return try await resolve(completion, title: result.title, knownCountries: knownCountries)
+            }
         } catch let problem as Problem {
             self.problem = problem
         } catch {
@@ -71,8 +93,8 @@ final class CitySearch: NSObject {
         return nil
     }
 
-    private func resolve(_ result: Result, knownCountries: Set<String>) async throws -> CityDraft {
-        let lookup = MKLocalSearch(request: MKLocalSearch.Request(completion: result.completion))
+    private func resolve(_ completion: MKLocalSearchCompletion, title: String, knownCountries: Set<String>) async throws -> CityDraft {
+        let lookup = MKLocalSearch(request: MKLocalSearch.Request(completion: completion))
         self.lookup = lookup
         defer { self.lookup = nil }
         // Only plain values leave MapKit's callback, which runs on the main thread.
@@ -92,25 +114,65 @@ final class CitySearch: NSObject {
         guard let code = place.code?.uppercased() else { throw Problem.notOnGlobe }
         if let country, code != country.code { throw Problem.otherCountry }
         guard knownCountries.contains(code) else { throw Problem.notOnGlobe }
-        return CityDraft(name: result.title, region: place.region ?? "", countryCode: code, latitude: place.latitude, longitude: place.longitude)
+        return CityDraft(name: title, region: place.region ?? "", countryCode: code, latitude: place.latitude, longitude: place.longitude)
     }
 
     fileprivate func update(_ completions: [MKLocalSearchCompletion]) {
-        let all = completions.map { completion in
-            Result(id: completion.title + "\u{1F}" + completion.subtitle, title: completion.title, subtitle: completion.subtitle, completion: completion)
-        }
-        // A country's region is a box, so its neighbours' towns slip in. Maps names the
-        // country in the subtitle ("Lazio, Italy"); keep only those.
-        guard let country else {
-            results = all
-            return
-        }
-        results = all.filter { CountrySearchIndex.fold($0.subtitle).contains(country.name) }
+        fromMaps = completions
+        merge()
     }
 
     fileprivate func fail() {
-        problem = .offline
-        results = []
+        // The bundled cities still work offline; only say so when there's nothing else.
+        fromMaps = []
+        merge()
+        if results.isEmpty { problem = .offline }
+    }
+
+    /// The bundled cities first, then whatever Maps adds that they don't already cover.
+    private func merge() {
+        let languages = Locale.preferredLanguages
+        let names = known.map { CountrySearchIndex.fold($0.name(in: languages)) }
+        let knownNames = Set(known.flatMap { city in
+            ([city.name, city.nameRu].compactMap { $0 } + city.aliases).map { CountrySearchIndex.fold($0) + "\u{1F}" + city.countryCode }
+        })
+
+        var merged = known.enumerated().map { index, city in
+            // Two cities of one name in one country: say which region.
+            let twin = names.indices.contains { $0 != index && names[$0] == names[index] && known[$0].countryCode == city.countryCode }
+            var place = RegionDisplay.name(for: city.countryCode)
+            if twin, let region = city.region { place = region + ", " + place }
+            let size = city.population > 0 ? " · " + city.population.formatted(.number.notation(.compactName)) : ""
+            return Result(
+                id: "known\u{1F}\(index)\u{1F}\(city.name)",
+                title: city.name(in: languages),
+                subtitle: RegionDisplay.flag(for: city.countryCode) + " " + place + size,
+                isCapital: city.isCapital,
+                source: .known(city)
+            )
+        }
+
+        for completion in fromMaps {
+            let subtitle = CountrySearchIndex.fold(completion.subtitle)
+            // A country's region is a box, so its neighbours' towns slip in. Maps names
+            // the country in the subtitle ("Lazio, Italy"); keep only those.
+            if let country, !subtitle.contains(country.name) { continue }
+            // Already above, from the bundled list: same name, same country.
+            let title = CountrySearchIndex.fold(completion.title.split(separator: ",").first.map(String.init) ?? completion.title)
+            let isDuplicate = known.contains { city in
+                knownNames.contains(title + "\u{1F}" + city.countryCode)
+                    && subtitle.contains(CountrySearchIndex.fold(RegionDisplay.name(for: city.countryCode)))
+            }
+            if isDuplicate { continue }
+            merged.append(Result(
+                id: "maps\u{1F}" + completion.title + "\u{1F}" + completion.subtitle,
+                title: completion.title,
+                subtitle: completion.subtitle,
+                isCapital: false,
+                source: .maps(completion)
+            ))
+        }
+        results = merged
     }
 }
 

@@ -28,6 +28,8 @@ final class GlobeController {
         let name: String
         let countryCode: String
         let coordinate: GeoCoordinate
+        /// Drawn as a star.
+        var isCapital = false
     }
 
     /// Drives the SwiftUI overlays. Changes only while zooming.
@@ -60,6 +62,8 @@ final class GlobeController {
     /// New cities wait, hidden, until the flight to them is over, then land.
     @ObservationIgnored private var pendingLandings: Set<UUID> = []
     @ObservationIgnored private var highlightedCity: UUID?
+    /// How far each name has popped up, including names on their way out.
+    @ObservationIgnored private var labelAppearance: [UUID: SpringValue] = [:]
 
     private let style: GlobeStyle
     /// `nil` only without Metal, which every iPhone on iOS 18 has.
@@ -278,31 +282,59 @@ final class GlobeController {
             markers.append(GlobeRenderer.Marker(
                 position: SIMD4(position, Float(radius)),
                 color: SIMD4(node.visitedColor, 1),
-                params: SIMD4(Float(motion.scale.value), ripple, city.id == highlightedCity ? 1 : 0, 0)
+                params: SIMD4(Float(motion.scale.value), ripple, city.id == highlightedCity ? 1 : 0, city.isCapital ? 1 : 0)
             ))
         }
         renderer.markers = markers
-        updateCityLabels()
+        updateCityLabels(dt)
     }
 
     /// Names for the cities in view, most important first: the highlighted one, then the
-    /// selected country's, then the newest. Shown from `cityLabelZoom` on.
-    private func updateCityLabels() {
+    /// selected country's, then names already showing (so two close names don't flicker
+    /// back and forth), then the newest. Shown from `cityLabelZoom` on. Each pops up out of
+    /// its dot on a spring and sinks back into it when it goes.
+    private func updateCityLabels(_ dt: Double) {
         let showsAll = zoom.value >= GlobeTuning.cityLabelZoom
         var candidates: [(label: CityLabel, rank: Int)] = []
-        if showsAll || highlightedCity != nil {
-            for (order, city) in cities.enumerated().reversed() {
-                let isHighlighted = city.id == highlightedCity
-                guard showsAll || isHighlighted,
-                      !pendingLandings.contains(city.id),
-                      let point = screenPoint(of: city)
-                else { continue }
-                let rank = isHighlighted ? 0 : city.countryCode == selected ? 1 : 2
-                candidates.append((CityLabel(id: city.id, name: city.name, point: point, isHighlighted: isHighlighted), rank * 100_000 - order))
-            }
+        var points: [UUID: CGPoint] = [:]
+        for (order, city) in cities.enumerated().reversed() {
+            guard !pendingLandings.contains(city.id), let point = screenPoint(of: city) else { continue }
+            points[city.id] = point
+            let isHighlighted = city.id == highlightedCity
+            guard showsAll || isHighlighted else { continue }
+            let isShowing = (labelAppearance[city.id]?.target ?? 0) > 0
+            let rank = isHighlighted ? 0 : city.countryCode == selected ? 1 : isShowing ? 2 : 3
+            let label = CityLabel(id: city.id, name: city.name, point: point, isHighlighted: isHighlighted, isCapital: city.isCapital)
+            candidates.append((label, rank * 100_000 - order))
         }
         let ordered = candidates.sorted { $0.rank < $1.rank }.map(\.label)
-        let labels = CityLabelLayout.place(ordered, in: CGRect(origin: .zero, size: camera.viewportSize))
+        let placed = CityLabelLayout.place(ordered, in: CGRect(origin: .zero, size: camera.viewportSize))
+        let placedIDs = Set(placed.map(\.id))
+
+        for label in placed where labelAppearance[label.id] == nil {
+            labelAppearance[label.id] = SpringValue(0)
+        }
+        let candidatesByID = Dictionary(uniqueKeysWithValues: ordered.map { ($0.id, $0) })
+        let citiesByID = Dictionary(uniqueKeysWithValues: cities.map { ($0.id, $0) })
+        var labels: [CityLabel] = []
+        for (id, var appearance) in labelAppearance {
+            appearance.target = placedIDs.contains(id) ? 1 : 0
+            if reduceMotion { appearance.snap() } else { appearance.step(dt, GlobeTuning.cityLabelSpring) }
+            // Gone once it has sunk back in, or once its dot went over the horizon.
+            guard appearance.target > 0 || appearance.value > 0.01,
+                  let point = points[id], let city = citiesByID[id]
+            else {
+                labelAppearance[id] = nil
+                continue
+            }
+            labelAppearance[id] = appearance
+            var label = candidatesByID[id]
+                ?? CityLabel(id: id, name: city.name, point: point, isHighlighted: false, isCapital: city.isCapital)
+            label.appearance = appearance.value
+            labels.append(label)
+        }
+        // Stable order, so names don't swap places in the view every frame.
+        labels.sort { $0.id.uuidString < $1.id.uuidString }
         if labels != cityLabels { cityLabels = labels }
     }
 

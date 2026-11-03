@@ -43,7 +43,7 @@ struct Marker {
     /// The country's color, for the rim and the glow.
     float4 color;
     /// x: size multiplier (a landing city starts big). y: landing ring 0…1, below 0 none.
-    /// z: highlight 0…1.
+    /// z: highlight 0…1. w: 1 for a capital, drawn as a star.
     float4 params;
 };
 
@@ -55,6 +55,7 @@ struct MarkerFragment {
     float ripple;
     float highlight;
     float fade;
+    float star;
     float4 color;
 };
 
@@ -71,8 +72,10 @@ vertex MarkerFragment markerVertex(uint vertexID [[vertex_id]],
 
     float radius = marker.position.w * marker.params.x * (1 + 0.35 * marker.params.z);
     float ripple = marker.params.y;
+    // A star's points reach well past a dot's edge.
+    float reach = radius * (marker.params.w > 0.5 ? 1.8 : 1);
     // Room for the glow, and for the landing ring while it spreads.
-    float extent = max(radius * 3.2, ripple >= 0 ? radius + 34 : 0);
+    float extent = max(reach * 3.2, ripple >= 0 ? reach + 34 : 0);
     float2 corner = float2((vertexID & 1) ? 1 : -1, (vertexID & 2) ? 1 : -1);
 
     float4 clip = frame.viewProjection * float4(world, 1);
@@ -85,8 +88,24 @@ vertex MarkerFragment markerVertex(uint vertexID [[vertex_id]],
     out.ripple = ripple;
     out.highlight = marker.params.z;
     out.fade = smoothstep(0.0, 0.15, facing);
+    out.star = marker.params.w;
     out.color = marker.color;
     return out;
+}
+
+/// Signed distance to a five-pointed star pointing up, in the units of `p`: negative
+/// inside. `r` is the tips' radius, `rf` how deep the notches cut (Inigo Quilez's sdStar5).
+static float starDistance(float2 p, float r, float rf) {
+    const float2 k1 = float2(0.809016994375, -0.587785252292);
+    const float2 k2 = float2(-k1.x, k1.y);
+    p.x = abs(p.x);
+    p -= 2.0 * max(dot(k1, p), 0.0) * k1;
+    p -= 2.0 * max(dot(k2, p), 0.0) * k2;
+    p.x = abs(p.x);
+    p.y -= r;
+    float2 ba = rf * float2(-k1.y, k1.x) - float2(0, 1);
+    float h = clamp(dot(p, ba) / dot(ba, ba), 0.0, r);
+    return length(p - ba * h) * sign(p.y * ba.x - p.x * ba.y);
 }
 
 /// Premultiplied `source` over `destination`.
@@ -95,15 +114,17 @@ static float4 over(float4 destination, float3 color, float alpha) {
 }
 
 // White core, a rim in the country's color, a dark hairline so it reads on any land, and
-// a soft glow. A landing city also sends out a ring.
+// a soft glow. A capital is the same, shaped as a star. A landing city also sends out a ring.
 fragment float4 markerFragment(MarkerFragment in [[stage_in]]) {
     float r = length(in.local);
     float core = in.radius;
+    // Distance to the shape's edge, in points: negative inside.
+    float d = in.star > 0.5 ? starDistance(in.local, core * 1.8, 0.48) : r - core;
     float3 tint = in.color.rgb;
     float4 result = float4(0);
 
-    float glow = exp(-pow(max(r - core, 0.0) / (core * (1.1 + in.highlight)), 2)) * (0.45 + 0.4 * in.highlight);
-    result = over(result, tint, glow * step(core, r));
+    float glow = exp(-pow(max(d, 0.0) / (core * (1.1 + in.highlight)), 2)) * (0.45 + 0.4 * in.highlight);
+    result = over(result, tint, glow * step(0.0, d));
 
     if (in.ripple >= 0) {
         float rippleRadius = mix(core, core + 32, in.ripple);
@@ -111,11 +132,12 @@ fragment float4 markerFragment(MarkerFragment in [[stage_in]]) {
         result = over(result, mix(float3(1), tint, in.ripple), ring * pow(1 - in.ripple, 1.5));
     }
 
-    float outline = 1 - smoothstep(core + 1.6, core + 2.4, r);
+    float outline = 1 - smoothstep(1.6, 2.4, d);
     result = over(result, float3(0.05, 0.04, 0.12), outline * 0.55);
-    float rim = 1 - smoothstep(core + 0.6, core + 1.4, r);
+    float rim = 1 - smoothstep(0.6, 1.4, d);
     result = over(result, tint, rim);
-    float inner = 1 - smoothstep(core * 0.62 - 0.5, core * 0.62 + 0.5, r);
+    // The white inside, inset from the edge as far as a dot's is.
+    float inner = 1 - smoothstep(-0.5, 0.5, d + core * 0.38);
     result = over(result, float3(1), inner);
 
     return result * in.fade;

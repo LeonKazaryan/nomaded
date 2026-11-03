@@ -73,44 +73,54 @@ private struct GlobeSurface: UIViewRepresentable {
     }
 }
 
-/// City names over their dots. The engine places them every frame; this only draws.
-/// Its own view, so a moving name redraws just these labels.
+/// City names over their dots. The engine places them every frame and springs each one in
+/// and out (`CityLabel.appearance`); this only draws, with no animation of its own, so a
+/// name never slides from anywhere but its dot. Its own view, so a moving name redraws
+/// just these labels.
 private struct CityNames: View {
     let controller: GlobeController
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        let labels = controller.cityLabels
         ZStack {
-            ForEach(labels) { label in
-                CityName(name: label.name, isHighlighted: label.isHighlighted)
+            ForEach(controller.cityLabels) { label in
+                CityName(name: label.name, isHighlighted: label.isHighlighted, isCapital: label.isCapital)
+                    // Grows out of the dot just below it.
+                    .scaleEffect(reduceMotion ? 1 : 0.5 + 0.5 * label.appearance, anchor: .bottom)
+                    .opacity(min(1, max(0, label.appearance)))
                     .position(x: label.point.x, y: label.point.y - 21)
-                    .transition(reduceMotion ? .opacity : .scale(scale: 0.6, anchor: .bottom).combined(with: .opacity))
             }
         }
-        // Names pop in and out as they come into view; their moves follow the globe exactly.
-        .animation(Motion.snappy, value: labels.map(\.id))
+        .transaction { $0.animation = nil }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
 }
 
 /// A plain dark pill rather than glass: a blurred backdrop under every name would be
-/// redrawn every frame the globe moves.
+/// redrawn every frame the globe moves. Capitals get a star.
 private struct CityName: View {
     let name: String
     let isHighlighted: Bool
+    let isCapital: Bool
 
     var body: some View {
-        Text(verbatim: name)
-            .font(Typography.caption.weight(.semibold))
-            .foregroundStyle(.white)
-            .lineLimit(1)
-            .padding(.horizontal, 9)
-            .padding(.vertical, 4)
-            .background(isHighlighted ? AnyShapeStyle(Palette.accent) : AnyShapeStyle(.black.opacity(0.55)), in: Capsule())
-            .overlay(Capsule().strokeBorder(.white.opacity(isHighlighted ? 0.35 : 0.12), lineWidth: 1))
-            .fixedSize()
+        HStack(spacing: 4) {
+            if isCapital {
+                Image(systemName: "star.fill")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(isHighlighted ? .white : Palette.capital)
+            }
+            Text(verbatim: name)
+                .font(Typography.caption.weight(.semibold))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 4)
+        .background(isHighlighted ? AnyShapeStyle(Palette.accent) : AnyShapeStyle(.black.opacity(0.55)), in: Capsule())
+        .overlay(Capsule().strokeBorder(.white.opacity(isHighlighted ? 0.35 : 0.12), lineWidth: 1))
+        .fixedSize()
     }
 }
 

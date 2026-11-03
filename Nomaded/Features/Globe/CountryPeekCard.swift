@@ -151,8 +151,8 @@ private struct CityChips: View {
             .contentMargins(.horizontal, 20, for: .scrollContent)
             .padding(.horizontal, -20)
             .animation(reduceMotion ? Motion.snappy : Motion.bouncy, value: cities.map(\.id))
-            // Also when the highlighted chip has only just been added.
-            .onChange(of: [highlighted] + cities.map(\.id)) {
+            // Also when the card opens on a highlighted city, or its chip has only just been added.
+            .onChange(of: [highlighted] + cities.map(\.id), initial: true) {
                 guard let highlighted else { return }
                 withAnimation(Motion.smooth) { proxy.scrollTo(highlighted, anchor: .center) }
             }

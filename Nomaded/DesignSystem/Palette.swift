@@ -7,6 +7,8 @@ enum Palette {
     static let accent = Color(rgb: 0x7C5CFF)
     static let accentLight = Color(rgb: 0xA88BFF)
     static let atmosphere = Color(rgb: 0x7DD3FC)
+    /// The capital star, in search and on city names. The candy palette's Lemon.
+    static let capital = Color(rgb: RGB.candy[2])
 
     /// Visited-country colors, in slot order. Validated for colorblind separation and
     /// 3:1 contrast against the ocean and land (docs/02-design.md); re-validate before

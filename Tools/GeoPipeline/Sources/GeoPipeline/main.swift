@@ -1,12 +1,13 @@
 import Foundation
 
-// Natural Earth GeoJSON → Nomaded globe geometry (.nmgeo) and, with --catalog, the
-// country catalog (countries.json) the statistics read.
+// Natural Earth GeoJSON → Nomaded globe geometry (.nmgeo); with --catalog, the country
+// catalog (countries.json) the statistics read; with --places and --cities, the city list
+// (cities.json) the city search reads.
 // See Tools/GeoPipeline/README.md for the exact command and data source.
 
 let arguments = CommandLine.arguments
 guard arguments.count >= 3 else {
-    print("usage: GeoPipeline <input.geojson> <output.nmgeo> [--catalog countries.json] [--tolerance degrees]")
+    print("usage: GeoPipeline <input.geojson> <output.nmgeo> [--catalog countries.json] [--places places.geojson --cities cities.json] [--tolerance degrees]")
     exit(1)
 }
 
@@ -18,9 +19,12 @@ if let flag = arguments.firstIndex(of: "--tolerance"), flag + 1 < arguments.coun
     tolerance = value
 }
 
-let catalogOutput = arguments.firstIndex(of: "--catalog").flatMap { flag in
-    flag + 1 < arguments.count ? URL(fileURLWithPath: arguments[flag + 1]) : nil
+func fileArgument(_ flag: String) -> URL? {
+    arguments.firstIndex(of: flag).flatMap { $0 + 1 < arguments.count ? URL(fileURLWithPath: arguments[$0 + 1]) : nil }
 }
+let catalogOutput = fileArgument("--catalog")
+let placesInput = fileArgument("--places")
+let citiesOutput = fileArgument("--cities")
 
 let started = Date()
 let features = try GeoJSONReader.read(input)
@@ -56,6 +60,13 @@ if let catalogOutput {
     let entries = try CountryCatalog.entries(originals)
     try CountryCatalog.encode(entries).write(to: catalogOutput)
     catalogSummary = "\ncatalog: \(entries.count) places, \(entries.filter(\.sovereign).count) countries"
+}
+if let placesInput, let citiesOutput {
+    let cities = try CityCatalogBuilder.entries(placesInput, countries: Set(originals.map(\.code).filter { !$0.isEmpty }))
+    let data = try CityCatalogBuilder.encode(cities)
+    try data.write(to: citiesOutput)
+    catalogSummary += "\ncities: \(cities.count), \(cities.filter(\.capital).count) capitals, "
+        + ByteCountFormatter.string(fromByteCount: Int64(data.count), countStyle: .file)
 }
 
 let ringPoints = built.reduce(0) { $0 + $1.rings.reduce(0) { $0 + $1.count } }

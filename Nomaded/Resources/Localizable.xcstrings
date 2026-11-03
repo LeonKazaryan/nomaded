@@ -260,6 +260,16 @@
         }
       }
     },
+    "Capital" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Столица"
+          }
+        }
+      }
+    },
     "Caribbean" : {
       "localizations" : {
         "ru" : {

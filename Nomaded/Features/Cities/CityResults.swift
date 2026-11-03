@@ -66,14 +66,19 @@ struct CityResults: View {
             Group {
                 if search.resolving == result.id {
                     ProgressView()
+                } else if result.isCapital {
+                    Image(systemName: "star.circle.fill")
+                        .font(.system(size: 24))
+                        .foregroundStyle(Palette.capital)
+                        .accessibilityLabel("Capital")
                 } else {
                     Image(systemName: "mappin.circle.fill")
                         .font(.system(size: 24))
                         .foregroundStyle(Palette.accentLight)
+                        .accessibilityHidden(true)
                 }
             }
             .frame(width: 28)
-            .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(verbatim: result.title)

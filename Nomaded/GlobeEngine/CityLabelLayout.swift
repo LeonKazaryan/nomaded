@@ -8,6 +8,9 @@ struct CityLabel: Identifiable, Equatable, Sendable {
     /// The dot, in view points. The label sits just above it.
     let point: CGPoint
     let isHighlighted: Bool
+    var isCapital = false
+    /// 0 → 1 as the name pops up out of its dot, back to 0 as it goes. Springs a little past 1.
+    var appearance = 1.0
 }
 
 /// Which city names fit on screen without overlapping. Greedy, in priority order: a name
@@ -15,8 +18,8 @@ struct CityLabel: Identifiable, Equatable, Sendable {
 enum CityLabelLayout {
     /// Room a label takes, from a rough per-character width. Close enough to keep names
     /// apart without measuring text every frame.
-    static func box(for name: String, at point: CGPoint) -> CGRect {
-        let width = CGFloat(name.count) * 7.5 + 22
+    static func box(for name: String, at point: CGPoint, isCapital: Bool = false) -> CGRect {
+        let width = CGFloat(name.count) * 7.5 + 22 + (isCapital ? 12 : 0)
         let height: CGFloat = 26
         return CGRect(x: point.x - width / 2, y: point.y - height - 8, width: width, height: height)
     }
@@ -26,7 +29,7 @@ enum CityLabelLayout {
         var placed: [CityLabel] = []
         var boxes: [CGRect] = []
         for label in candidates {
-            let box = box(for: label.name, at: label.point)
+            let box = box(for: label.name, at: label.point, isCapital: label.isCapital)
             guard bounds.intersects(box), !boxes.contains(where: { $0.intersects(box) }) else { continue }
             placed.append(label)
             boxes.append(box)
