@@ -8,6 +8,15 @@ enum RegionDisplay {
         locale.localizedString(forRegionCode: code) ?? code
     }
 
+    /// Alphabetical by name in `locale`'s language and collation: "США" sorts under С in
+    /// Russian, "United States" under U in English.
+    static func sortedByName(_ codes: some Sequence<String>, locale: Locale = .current) -> [String] {
+        codes
+            .map { (code: $0, name: name(for: $0, locale: locale)) }
+            .sorted { $0.name.compare($1.name, locale: locale) == .orderedAscending }
+            .map { $0.code }
+    }
+
     /// Emoji flag built from regional indicator symbols ("IT" → 🇮🇹).
     static func flag(for code: String) -> String {
         let regionalIndicatorA: UInt32 = 0x1F1E6

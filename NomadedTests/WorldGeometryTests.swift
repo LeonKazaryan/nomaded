@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 import simd
 @testable import Nomaded
@@ -70,6 +71,12 @@ struct WorldGeometryTests {
         for (a, b) in [("FR", "ES"), ("FR", "DE"), ("DE", "PL"), ("KZ", "RU"), ("US", "CA"), ("BR", "AR"), ("IN", "PK"), ("ZA", "LS")] {
             #expect(slots[a] != slots[b], "\(a) and \(b) share a color")
         }
+    }
+
+    @Test func sortsByNameInTheUsersLanguage() {
+        // Switzerland/United States in English, but Соединенные Штаты/Швейцария in Russian.
+        #expect(RegionDisplay.sortedByName(["US", "CH", "AT"], locale: Locale(identifier: "en_US")) == ["AT", "CH", "US"])
+        #expect(RegionDisplay.sortedByName(["US", "CH", "AT"], locale: Locale(identifier: "ru_RU")) == ["AT", "US", "CH"])
     }
 
     @Test func flagsAndNames() {

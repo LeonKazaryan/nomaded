@@ -7,6 +7,7 @@ struct GlobeScreen: View {
     @State private var selected: String?
     @State private var celebrations = 0
     @State private var isSearching = false
+    @State private var isShowingVisited = false
     @State private var searchIndex: CountrySearchIndex?
     @State private var initialSearchQuery = ""
     @FocusState private var isSearchFieldFocused: Bool
@@ -23,11 +24,14 @@ struct GlobeScreen: View {
                 .opacity(isGlobeHidden ? 0 : 1)
                 .accessibilityValue(Text("\(world.visitedCodes.count) countries"))
 
-            if isSearching {
-                // Dims the globe so results stay readable; tapping it cancels the search.
+            if isSearching || isShowingVisited {
+                // Dims the globe so lists stay readable; tapping it closes them.
                 Color.black.opacity(0.35)
                     .ignoresSafeArea()
-                    .onTapGesture { setSearching(false) }
+                    .onTapGesture {
+                        setSearching(false)
+                        setShowingVisited(false)
+                    }
                     .accessibilityHidden(true)
                     .transition(.opacity)
             }
@@ -36,15 +40,26 @@ struct GlobeScreen: View {
             // still sliding away, and the card must not ride up on it and then drop.
             VStack(spacing: 0) {
                 if !isSearching {
-                    TopBar(visitedCount: world.visitedCodes.count, canSearch: controller.isReady) {
-                        setSearching(true)
-                    }
+                    TopBar(
+                        visitedCount: world.visitedCodes.count,
+                        isShowingVisited: isShowingVisited,
+                        canSearch: controller.isReady,
+                        onToggleVisited: { setShowingVisited(!isShowingVisited) },
+                        onSearch: { setSearching(true) }
+                    )
                     .transition(.opacity)
                 }
 
-                Spacer()
+                if isShowingVisited {
+                    VisitedCountriesPanel(codes: RegionDisplay.sortedByName(world.visitedCodes), onPick: flyTo)
+                        .padding(.top, 12)
+                        // Drops out of the counter above it.
+                        .transition(reduceMotion ? .opacity : .scale(scale: 0.5, anchor: .top).combined(with: .opacity))
+                }
 
-                if !isSearching, let selected {
+                Spacer(minLength: 0)
+
+                if !isSearching, !isShowingVisited, let selected {
                     CountryPeekCard(
                         code: selected,
                         isVisited: world.isVisited(selected),
@@ -106,13 +121,21 @@ struct GlobeScreen: View {
         // Drop the keyboard right away. Otherwise it leaves only once the panel's exit
         // animation is over, after the globe has already started flying.
         if !searching { isSearchFieldFocused = false }
-        withAnimation(Motion.bouncy) { isSearching = searching }
+        withAnimation(Motion.bouncy) {
+            isSearching = searching
+            if searching { isShowingVisited = false }
+        }
         if !searching { initialSearchQuery = "" }
     }
 
-    /// A search result: the panel closes and the globe flies to the country.
+    private func setShowingVisited(_ showing: Bool) {
+        withAnimation(Motion.bouncy) { isShowingVisited = showing }
+    }
+
+    /// A pick from search or the visited list: the list closes and the globe flies there.
     private func flyTo(_ code: String) {
         setSearching(false)
+        setShowingVisited(false)
         withAnimation(Motion.bouncy) { selected = code }
         guard reduceMotion else {
             controller.select(code, framing: .flight)
@@ -141,7 +164,7 @@ struct GlobeScreen: View {
     /// `-NomadedDebugVisited IT,FR -NomadedDebugSelect IT -NomadedDebugTap 186,459 -NomadedDebugMarkAfterTap YES`
     /// `-NomadedDebugFly LU` flies to a country after the intro, `-NomadedDebugSearch Ita`
     /// opens the search with a query typed in, `-NomadedDebugSearchPick YES` then picks the
-    /// first result. These runs use an empty in-memory store
+    /// first result, `-NomadedDebugVisitedList YES` opens the visited list. These runs use an empty in-memory store
     /// (see `NomadedApp`), so they never touch countries marked by hand.
     private func applyDebugLaunchArguments() {
         let defaults = UserDefaults.standard
@@ -154,7 +177,8 @@ struct GlobeScreen: View {
         let tap = defaults.string(forKey: "NomadedDebugTap")?.split(separator: ",").compactMap { Double($0) }
         let fly = defaults.string(forKey: "NomadedDebugFly")
         let search = defaults.string(forKey: "NomadedDebugSearch")
-        guard (tap?.count == 2) || fly != nil || search != nil else { return }
+        let showsList = defaults.bool(forKey: "NomadedDebugVisitedList")
+        guard (tap?.count == 2) || fly != nil || search != nil || showsList else { return }
         Task {
             // Wait for the intro to settle.
             try? await Task.sleep(for: .seconds(4))
@@ -165,6 +189,7 @@ struct GlobeScreen: View {
                 }
             }
             if let fly { flyTo(fly) }
+            if showsList { setShowingVisited(true) }
             if let search {
                 initialSearchQuery = search
                 setSearching(true)
@@ -180,28 +205,37 @@ struct GlobeScreen: View {
 
 private struct TopBar: View {
     let visitedCount: Int
+    let isShowingVisited: Bool
     let canSearch: Bool
+    let onToggleVisited: () -> Void
     let onSearch: () -> Void
 
     var body: some View {
-        WorldSummaryChip(visitedCount: visitedCount)
-            .frame(maxWidth: .infinity)
-            .overlay(alignment: .trailing) {
-                Button(action: onSearch) {
-                    Image(systemName: "magnifyingglass")
-                        .font(Typography.headline)
-                        .frame(width: 44, height: 44)
-                        .glass(Circle())
-                }
-                .buttonStyle(.pressable)
-                .disabled(!canSearch)
-                .accessibilityLabel("Search countries")
+        Button(action: onToggleVisited) {
+            WorldSummaryChip(visitedCount: visitedCount, isExpanded: isShowingVisited)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.pressable)
+        .accessibilityHint(isShowingVisited ? "Hides the list" : "Shows the countries you've visited")
+        .frame(maxWidth: .infinity)
+        .overlay(alignment: .trailing) {
+            Button(action: onSearch) {
+                Image(systemName: "magnifyingglass")
+                    .font(Typography.headline)
+                    .frame(width: 44, height: 44)
+                    .glass(Circle())
             }
+            .buttonStyle(.pressable)
+            .disabled(!canSearch)
+            .accessibilityLabel("Search countries")
+        }
     }
 }
 
 private struct WorldSummaryChip: View {
     let visitedCount: Int
+    let isExpanded: Bool
 
     var body: some View {
         HStack(spacing: 8) {
@@ -209,12 +243,19 @@ private struct WorldSummaryChip: View {
                 .symbolEffect(.bounce, value: visitedCount)
             Text("\(visitedCount) countries")
                 .contentTransition(.numericText(value: Double(visitedCount)))
+            // Hints that the counter opens the list.
+            Image(systemName: "chevron.down")
+                .font(Typography.caption.weight(.bold))
+                .foregroundStyle(.secondary)
+                .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                .accessibilityHidden(true)
         }
         .font(Typography.label)
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .glass(Capsule())
         .animation(Motion.bouncy, value: visitedCount)
+        .animation(Motion.snappy, value: isExpanded)
         .accessibilityElement(children: .combine)
     }
 }

@@ -50,7 +50,8 @@ struct CountrySearchPanel: View {
                     .glassCard(cornerRadius: 24)
                     .transition(.opacity)
             } else {
-                resultList(results)
+                CountryList(codes: results, marked: visited, onPick: onPick)
+                    .scrollDismissesKeyboard(.interactively)
             }
         }
         .frame(maxHeight: .infinity, alignment: .top)
@@ -91,55 +92,6 @@ struct CountrySearchPanel: View {
         .frame(minHeight: 48)
         .glass(Capsule())
         .animation(Motion.snappy, value: query.isEmpty)
-    }
-
-    private func resultList(_ results: [String]) -> some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                ForEach(results, id: \.self) { code in
-                    Button {
-                        onPick(code)
-                    } label: {
-                        CountrySearchRow(code: code, isVisited: visited.contains(code))
-                            .frame(minHeight: rowHeight)
-                    }
-                    .buttonStyle(.pressable)
-                }
-            }
-            .padding(.vertical, 6)
-        }
-        .scrollDismissesKeyboard(.interactively)
-        .scrollBounceBehavior(.basedOnSize)
-        // Hug short result lists; long ones scroll inside the space above the keyboard.
-        .frame(maxHeight: CGFloat(results.count) * rowHeight + 12)
-        .glassCard(cornerRadius: 24)
-    }
-}
-
-private struct CountrySearchRow: View {
-    let code: String
-    let isVisited: Bool
-
-    var body: some View {
-        HStack(spacing: 14) {
-            Text(verbatim: RegionDisplay.flag(for: code))
-                .font(.system(size: 28))
-                .accessibilityHidden(true)
-            Text(verbatim: RegionDisplay.name(for: code))
-                .font(Typography.body)
-                .foregroundStyle(.primary)
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
-            Spacer(minLength: 0)
-            if isVisited {
-                Image(systemName: "checkmark.seal.fill")
-                    .foregroundStyle(Palette.accentLight)
-                    .accessibilityLabel("Visited")
-            }
-        }
-        .padding(.horizontal, 18)
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
     }
 }
 

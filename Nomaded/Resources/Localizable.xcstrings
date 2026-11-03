@@ -146,6 +146,16 @@
         }
       }
     },
+    "Hides the list" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Скрывает список"
+          }
+        }
+      }
+    },
     "Mark as visited" : {
       "localizations" : {
         "ru" : {
@@ -172,6 +182,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ничего не нашлось"
+          }
+        }
+      }
+    },
+    "No visited countries yet" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пока нет посещённых стран"
           }
         }
       }
@@ -226,6 +246,16 @@
         }
       }
     },
+    "Shows the countries you've visited" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показывает страны, где вы были"
+          }
+        }
+      }
+    },
     "Statistics" : {
       "localizations" : {
         "ru" : {
@@ -242,6 +272,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Посещена"
+          }
+        }
+      }
+    },
+    "Visited countries" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Посещённые страны"
           }
         }
       }
