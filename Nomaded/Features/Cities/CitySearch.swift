@@ -122,11 +122,14 @@ final class CitySearch: NSObject {
         merge()
     }
 
-    fileprivate func fail() {
-        // The bundled cities still work offline; only say so when there's nothing else.
+    /// Maps also "fails" on an empty or abandoned query and when typing outruns it; only a
+    /// network error means offline. The bundled cities still work then, so it's only worth
+    /// saying when there's nothing else to show.
+    fileprivate func fail(isNetworkError: Bool) {
         fromMaps = []
         merge()
-        if results.isEmpty { problem = .offline }
+        let isTyping = !query.trimmingCharacters(in: .whitespaces).isEmpty
+        if isNetworkError, isTyping, results.isEmpty { problem = .offline }
     }
 
     /// The bundled cities first, then whatever Maps adds that they don't already cover.
@@ -184,6 +187,9 @@ extension CitySearch: MKLocalSearchCompleterDelegate {
     }
 
     nonisolated func completer(_ completer: MKLocalSearchCompleter, didFailWithError error: any Error) {
-        MainActor.assumeIsolated { fail() }
+        let error = error as NSError
+        let isNetworkError = error.domain == NSURLErrorDomain
+            || (error.domain == MKErrorDomain && error.code == MKError.Code.serverFailure.rawValue)
+        MainActor.assumeIsolated { fail(isNetworkError: isNetworkError) }
     }
 }

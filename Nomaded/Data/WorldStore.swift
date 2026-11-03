@@ -57,8 +57,8 @@ final class WorldStore {
         cities.filter { $0.countryCode == code }
     }
 
-    /// Saves the city and marks its country visited. A city already saved (same country,
-    /// within `CityMath.sameCityKm`) isn't added twice; the saved one comes back.
+    /// Saves the city and marks its country visited. A city already saved (see
+    /// `CityMath.isSamePlace`) isn't added twice; the saved one comes back.
     @discardableResult
     func addCity(_ draft: CityDraft) -> CityPin {
         if let existing = cities.first(where: { CityMath.isSamePlace($0, draft) }) {

@@ -29,13 +29,14 @@ struct CityResults: View {
     }
 
     private var note: LocalizedStringKey? {
+        // An empty field only ever asks for a name, whatever happened before.
+        if search.query.trimmingCharacters(in: .whitespaces).isEmpty { return hint }
         switch search.problem {
         case .offline: return "Can't reach Maps. Check the connection and try again."
         case .otherCountry: return "That city is in another country"
         case .notOnGlobe: return "That place isn't on the globe"
         case nil: break
         }
-        if search.query.trimmingCharacters(in: .whitespaces).isEmpty { return hint }
         if search.results.isEmpty { return "No cities found" }
         return nil
     }

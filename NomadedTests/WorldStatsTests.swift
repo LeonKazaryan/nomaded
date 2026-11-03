@@ -131,8 +131,12 @@ struct CityMathTests {
 
     @Test func sameCityNeedsSameCountryAndCloseness() {
         let rome = CityPin(id: UUID(), name: "Rome", region: "", countryCode: "IT", latitude: 41.9, longitude: 12.5, createdAt: .now)
-        #expect(CityMath.isSamePlace(rome, CityDraft(name: "Roma", region: "", countryCode: "IT", latitude: 41.95, longitude: 12.45)))
-        #expect(!CityMath.isSamePlace(rome, CityDraft(name: "Tivoli", region: "", countryCode: "IT", latitude: 41.96, longitude: 12.8)))
+        // The same name a few kilometres off: another source's Rome.
+        #expect(CityMath.isSamePlace(rome, CityDraft(name: "Rome", region: "", countryCode: "IT", latitude: 41.95, longitude: 12.45)))
+        // Another name on the same spot.
+        #expect(CityMath.isSamePlace(rome, CityDraft(name: "Roma", region: "", countryCode: "IT", latitude: 41.905, longitude: 12.505)))
+        // A town next door is its own city.
+        #expect(!CityMath.isSamePlace(rome, CityDraft(name: "Ciampino", region: "", countryCode: "IT", latitude: 41.8, longitude: 12.6)))
         #expect(!CityMath.isSamePlace(rome, CityDraft(name: "Rome", region: "", countryCode: "VA", latitude: 41.9, longitude: 12.45)))
     }
 }

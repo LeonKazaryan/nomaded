@@ -4,6 +4,11 @@ import SwiftUI
 struct GlobeView: View {
     let controller: GlobeController
 
+    /// SwiftUI resets these when a gesture ends *or* is cancelled; `onEnded` only runs for
+    /// the first. Watching them catches the cancelled ones.
+    @GestureState private var isDragging = false
+    @GestureState private var isPinching = false
+
     var body: some View {
         GeometryReader { proxy in
             GlobeSurface(controller: controller, isPaused: controller.isPaused)
@@ -24,6 +29,9 @@ struct GlobeView: View {
             .onChange(of: proxy.size, initial: true) { _, size in
                 controller.setViewportSize(size)
             }
+            .onChange(of: isDragging || isPinching) { _, isTouching in
+                if !isTouching { controller.touchesEnded() }
+            }
         }
         .accessibilityElement()
         .accessibilityLabel("Globe")
@@ -33,6 +41,7 @@ struct GlobeView: View {
     private var rotateGesture: some Gesture {
         // Zero distance so a touch catches a spinning globe immediately.
         DragGesture(minimumDistance: 0)
+            .updating($isDragging) { _, isDragging, _ in isDragging = true }
             .onChanged { value in
                 controller.dragChanged(translation: value.translation)
             }
@@ -48,6 +57,7 @@ struct GlobeView: View {
 
     private var zoomGesture: some Gesture {
         MagnifyGesture()
+            .updating($isPinching) { _, isPinching, _ in isPinching = true }
             .onChanged { value in
                 controller.pinchChanged(magnification: value.magnification, anchor: value.startLocation)
             }

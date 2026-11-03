@@ -12,8 +12,13 @@ enum GlobeTuning {
 
     // MARK: Rotation
 
-    /// How far north/south the globe can tilt, in radians (~69°).
+    /// How far north/south the globe can tilt, in radians (~69°), seen whole…
     static let pitchLimit = 1.2
+    /// …and zoomed in (~83°), so far-north and far-south places (Tromsø, Svalbard) can come
+    /// to the center of the screen.
+    static let pitchLimitClose = 1.45
+    /// The zoom over which the limit opens from one to the other.
+    static let pitchLimitOpening = 2.0...4.0
     /// Spin decay per second after a flick. Higher stops sooner.
     static let friction = 1.6
     static let maxSpinVelocity = 9.0

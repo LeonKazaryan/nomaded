@@ -66,8 +66,8 @@ struct WorldStoreTests {
     @Test func theSameCityIsNotAddedTwice() {
         let store = WorldStore(container: container)
         let first = store.addCity(Self.rome)
-        // A few kilometres off, as another search result for Rome might be.
-        let again = store.addCity(CityDraft(name: "Roma", region: "", countryCode: "IT", latitude: 41.93, longitude: 12.48))
+        // A few kilometres off, as Rome from another source might be.
+        let again = store.addCity(CityDraft(name: "Rome", region: "", countryCode: "IT", latitude: 41.93, longitude: 12.48))
 
         #expect(again == first)
         #expect(store.cities.count == 1)

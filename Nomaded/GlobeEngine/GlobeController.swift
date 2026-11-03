@@ -395,12 +395,23 @@ final class GlobeController {
         yaw.value += dx / pointsPerRadian
         var pitchDelta = dy / pointsPerRadian
         // Rubber band past the tilt limit.
-        let limit = GlobeTuning.pitchLimit
+        let limit = pitchLimit(atZoom: zoom.value)
         if (pitch.value > limit && pitchDelta > 0) || (pitch.value < -limit && pitchDelta < 0) {
             pitchDelta *= 0.25
         }
         pitch.value += pitchDelta
         lastInteraction = CACurrentMediaTime()
+    }
+
+    /// Every finger is off the globe, whether its gestures ended or the system cancelled them
+    /// (the app went to the background, a system gesture took the touch). A cancelled gesture
+    /// never reports its end, and a drag or pinch left "on" would freeze flights and taps.
+    func touchesEnded() {
+        if isDragging {
+            isDragging = false
+            lastInteraction = CACurrentMediaTime()
+        }
+        if isPinching { pinchEnded() }
     }
 
     func dragEnded(velocity: CGSize) {
@@ -489,7 +500,7 @@ final class GlobeController {
               let placed = GlobeOrientation(yaw: yaw.value, pitch: pitch.value).placing(coordinate, at: target)
         else { return }
         // Don't let a pinch tilt past the limit, but don't yank back a tilt that already is.
-        let limit = max(GlobeTuning.pitchLimit, abs(pitch.value))
+        let limit = max(pitchLimit(atZoom: zoom.value), abs(pitch.value))
         yaw.value = placed.yaw
         pitch.value = max(-limit, min(limit, placed.pitch))
     }
@@ -532,7 +543,7 @@ final class GlobeController {
         pitch.velocity *= exp(-GlobeTuning.friction * dt)
 
         // A soft wall pulls the tilt back inside its limit.
-        let limit = GlobeTuning.pitchLimit
+        let limit = pitchLimit(atZoom: zoom.value)
         let overshoot = pitch.value - max(-limit, min(limit, pitch.value))
         if overshoot != 0 {
             let spring = GlobeTuning.pitchWallSpring
@@ -545,9 +556,20 @@ final class GlobeController {
         pitch.value += pitch.velocity * dt
     }
 
-    private func focus(on coordinate: GeoCoordinate, spring: SpringParameters) {
+    /// The tilt limit at a zoom: tight on the whole globe, open enough up close to center
+    /// places near the poles.
+    private func pitchLimit(atZoom zoom: Double) -> Double {
+        let range = GlobeTuning.pitchLimitOpening
+        let t = min(1, max(0, (zoom - range.lowerBound) / (range.upperBound - range.lowerBound)))
+        let eased = t * t * (3 - 2 * t)
+        return GlobeTuning.pitchLimit + (GlobeTuning.pitchLimitClose - GlobeTuning.pitchLimit) * eased
+    }
+
+    /// `zoom` is where the turn will end up: a flight to a far-north city lands zoomed in,
+    /// where it may tilt further than the globe allows now.
+    private func focus(on coordinate: GeoCoordinate, spring: SpringParameters, atZoom zoom: Double? = nil) {
         let target = GlobeOrientation(facing: coordinate)
-        let limit = GlobeTuning.pitchLimit
+        let limit = pitchLimit(atZoom: zoom ?? self.zoom.value)
         yaw.target = yaw.value + GeoMath.wrapAngle(target.yaw - yaw.value)
         pitch.target = max(-limit, min(limit, target.pitch))
         rotationSpring = reduceMotion ? GlobeTuning.focusSpring : spring
@@ -587,7 +609,7 @@ final class GlobeController {
 
     private func fly(to coordinate: GeoCoordinate, arrivalZoom: Double) {
         let start = GlobeOrientation(yaw: yaw.value, pitch: pitch.value).centerCoordinate
-        focus(on: coordinate, spring: GlobeTuning.flightSpring)
+        focus(on: coordinate, spring: GlobeTuning.flightSpring, atZoom: arrivalZoom)
 
         if reduceMotion {
             yaw.snap()

@@ -23,13 +23,18 @@ struct CityDraft: Equatable, Sendable {
 }
 
 enum CityMath {
-    /// Closer than this, two cities in the same country are the same city: search can
-    /// return "Rome" a few hundred metres apart depending on the query.
-    static let sameCityKm = 10.0
+    /// Two entries of one name this close are one city: search can place "Rome" a few
+    /// kilometres apart depending on the source.
+    static let sameNameKm = 25.0
+    /// Closer than this, two entries are one place whatever they're called ("Rome" and
+    /// "Roma"). Small, so a suburb isn't mistaken for the city next to it.
+    static let samePlaceKm = 1.5
 
     static func isSamePlace(_ city: CityPin, _ draft: CityDraft) -> Bool {
-        city.countryCode == draft.countryCode
-            && distanceKm(city.latitude, city.longitude, draft.latitude, draft.longitude) < sameCityKm
+        guard city.countryCode == draft.countryCode else { return false }
+        let km = distanceKm(city.latitude, city.longitude, draft.latitude, draft.longitude)
+        let sameName = CountrySearchIndex.fold(city.name) == CountrySearchIndex.fold(draft.name)
+        return km < samePlaceKm || (sameName && km < sameNameKm)
     }
 
     /// Great-circle distance (haversine), in kilometres.
