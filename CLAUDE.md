@@ -51,7 +51,7 @@ xcodebuild -project Nomaded.xcodeproj -scheme Nomaded \
     -NomadedDebugVisited IT,FR -NomadedDebugSelect FR -NomadedDebugTap 186,459 -NomadedDebugMarkAfterTap YES
   xcrun simctl io "iPhone 16 Pro" screenshot shot.png
   ```
-  Ещё: `-NomadedDebugFly LU` (перелёт к стране после интро), `-NomadedDebugSearch Ита` (открыть поиск с запросом).
+  Ещё: `-NomadedDebugFly LU` (перелёт к стране после интро), `-NomadedDebugSearch Ита` (открыть поиск с запросом), `-NomadedDebugSearchPick YES` (вместе с Search: через 2 с выбрать первый результат).
   С любым `-NomadedDebug…` приложение берёт пустое хранилище в памяти, настоящие отметки не трогаются.
 
 ## Окружение

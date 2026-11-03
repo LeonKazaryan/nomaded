@@ -9,6 +9,7 @@ struct GlobeScreen: View {
     @State private var isSearching = false
     @State private var searchIndex: CountrySearchIndex?
     @State private var initialSearchQuery = ""
+    @FocusState private var isSearchFieldFocused: Bool
     /// Reduce Motion: the globe dissolves to a search result instead of flying.
     @State private var isGlobeHidden = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -31,39 +32,47 @@ struct GlobeScreen: View {
                     .transition(.opacity)
             }
 
+            // Laid out as if there were no keyboard: right after a search pick the keyboard is
+            // still sliding away, and the card must not ride up on it and then drop.
             VStack(spacing: 0) {
-                if isSearching, let searchIndex {
-                    CountrySearchPanel(
-                        index: searchIndex,
-                        visited: world.visitedCodes,
-                        initialQuery: initialSearchQuery,
-                        onPick: flyTo,
-                        onCancel: { setSearching(false) }
-                    )
-                    .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
-                } else {
+                if !isSearching {
                     TopBar(visitedCount: world.visitedCodes.count, canSearch: controller.isReady) {
                         setSearching(true)
                     }
                     .transition(.opacity)
+                }
 
-                    Spacer()
+                Spacer()
 
-                    if let selected {
-                        CountryPeekCard(
-                            code: selected,
-                            isVisited: world.isVisited(selected),
-                            onToggleVisited: { toggleVisited(selected) },
-                            onFindNext: { setSearching(true) },
-                            onClose: { select(nil) }
-                        )
-                        .id(selected)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                    }
+                if !isSearching, let selected {
+                    CountryPeekCard(
+                        code: selected,
+                        isVisited: world.isVisited(selected),
+                        onToggleVisited: { toggleVisited(selected) },
+                        onFindNext: { setSearching(true) },
+                        onClose: { select(nil) }
+                    )
+                    .id(selected)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 8)
+            .ignoresSafeArea(.keyboard)
+
+            if isSearching, let searchIndex {
+                CountrySearchPanel(
+                    index: searchIndex,
+                    visited: world.visitedCodes,
+                    initialQuery: initialSearchQuery,
+                    isFieldFocused: $isSearchFieldFocused,
+                    onPick: flyTo,
+                    onCancel: { setSearching(false) }
+                )
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+                .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
+            }
 
             #if DEBUG
             FrameRateBadge(framesPerSecond: controller.framesPerSecond)
@@ -94,6 +103,9 @@ struct GlobeScreen: View {
         if searching, searchIndex == nil {
             searchIndex = CountrySearchIndex(codes: controller.countryCodes)
         }
+        // Drop the keyboard right away. Otherwise it leaves only once the panel's exit
+        // animation is over, after the globe has already started flying.
+        if !searching { isSearchFieldFocused = false }
         withAnimation(Motion.bouncy) { isSearching = searching }
         if !searching { initialSearchQuery = "" }
     }
@@ -128,7 +140,8 @@ struct GlobeScreen: View {
     /// Lets screenshots be scripted from the command line (and later, App Store shots):
     /// `-NomadedDebugVisited IT,FR -NomadedDebugSelect IT -NomadedDebugTap 186,459 -NomadedDebugMarkAfterTap YES`
     /// `-NomadedDebugFly LU` flies to a country after the intro, `-NomadedDebugSearch Ita`
-    /// opens the search with a query typed in. These runs use an empty in-memory store
+    /// opens the search with a query typed in, `-NomadedDebugSearchPick YES` then picks the
+    /// first result. These runs use an empty in-memory store
     /// (see `NomadedApp`), so they never touch countries marked by hand.
     private func applyDebugLaunchArguments() {
         let defaults = UserDefaults.standard
@@ -155,6 +168,10 @@ struct GlobeScreen: View {
             if let search {
                 initialSearchQuery = search
                 setSearching(true)
+                if defaults.bool(forKey: "NomadedDebugSearchPick") {
+                    try? await Task.sleep(for: .seconds(2))
+                    if let first = searchIndex?.results(for: search).first { flyTo(first) }
+                }
             }
         }
     }

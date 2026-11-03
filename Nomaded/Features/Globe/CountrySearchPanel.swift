@@ -5,22 +5,25 @@ import SwiftUI
 struct CountrySearchPanel: View {
     let index: CountrySearchIndex
     let visited: Set<String>
+    /// Owned by the screen, so every way of closing the search drops the keyboard at once.
+    let isFieldFocused: FocusState<Bool>.Binding
     let onPick: (String) -> Void
     let onCancel: () -> Void
 
     @State private var query: String
-    @FocusState private var isFieldFocused: Bool
     @ScaledMetric(relativeTo: .body) private var rowHeight = 56
 
     init(
         index: CountrySearchIndex,
         visited: Set<String>,
         initialQuery: String = "",
+        isFieldFocused: FocusState<Bool>.Binding,
         onPick: @escaping (String) -> Void,
         onCancel: @escaping () -> Void
     ) {
         self.index = index
         self.visited = visited
+        self.isFieldFocused = isFieldFocused
         self.onPick = onPick
         self.onCancel = onCancel
         _query = State(initialValue: initialQuery)
@@ -52,7 +55,7 @@ struct CountrySearchPanel: View {
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .animation(Motion.snappy, value: results.isEmpty)
-        .onAppear { isFieldFocused = true }
+        .onAppear { isFieldFocused.wrappedValue = true }
     }
 
     private func field(firstResult: String?) -> some View {
@@ -61,7 +64,7 @@ struct CountrySearchPanel: View {
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
             TextField("Search countries", text: $query)
-                .focused($isFieldFocused)
+                .focused(isFieldFocused)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.words)
                 .submitLabel(.search)
@@ -141,12 +144,14 @@ private struct CountrySearchRow: View {
 }
 
 #Preview {
+    @Previewable @FocusState var isFocused: Bool
     ZStack {
         SpaceBackground()
         CountrySearchPanel(
             index: CountrySearchIndex(codes: ["IT", "IS", "IN", "ID", "IE", "IL", "KZ"]),
             visited: ["IT"],
             initialQuery: "I",
+            isFieldFocused: $isFocused,
             onPick: { _ in },
             onCancel: {}
         )
