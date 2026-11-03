@@ -9,6 +9,14 @@ struct GlobeScreen: View {
     @State private var isSearching = false
     @State private var isShowingVisited = false
     @State private var isShowingStats = false
+    /// The country whose city search is open.
+    @State private var addingCityTo: String?
+    /// The city picked in the card or on the globe: its name always shows.
+    @State private var highlightedCity: UUID?
+    /// The country to unmark once the user confirms losing its cities.
+    @State private var confirmingUnmark: String?
+    @State private var landings = 0
+    @State private var initialCityQuery = ""
     /// Built in the background once the globe has loaded, so statistics open instantly.
     @State private var continentMaps: ContinentMaps?
     @State private var searchIndex: CountrySearchIndex?
@@ -36,13 +44,14 @@ struct GlobeScreen: View {
                 .accessibilityHidden(isShowingStats)
                 .accessibilityValue(Text("\(visitedPlaces.countries.count) countries"))
 
-            if isSearching || isShowingVisited {
+            if isSearching || isShowingVisited || addingCityTo != nil {
                 // Dims the globe so lists stay readable; tapping it closes them.
                 Color.black.opacity(0.35)
                     .ignoresSafeArea()
                     .onTapGesture {
                         setSearching(false)
                         setShowingVisited(false)
+                        setAddingCity(nil)
                     }
                     .accessibilityHidden(true)
                     .transition(.opacity)
@@ -51,7 +60,7 @@ struct GlobeScreen: View {
             // Laid out as if there were no keyboard: right after a search pick the keyboard is
             // still sliding away, and the card must not ride up on it and then drop.
             VStack(spacing: 0) {
-                if !isSearching, !isShowingStats {
+                if !isSearching, !isShowingStats, addingCityTo == nil {
                     TopBar(
                         visited: visitedPlaces,
                         isShowingVisited: isShowingVisited,
@@ -78,12 +87,18 @@ struct GlobeScreen: View {
 
                 Spacer(minLength: 0)
 
-                if !isSearching, !isShowingVisited, !isShowingStats, let selected {
+                if !isSearching, !isShowingVisited, !isShowingStats, addingCityTo == nil, let selected {
                     CountryPeekCard(
                         code: selected,
                         isVisited: world.isVisited(selected),
+                        // Newest first: a city just added is the first chip.
+                        cities: world.cities(in: selected).reversed(),
+                        highlightedCity: highlightedCity,
                         onToggleVisited: { toggleVisited(selected) },
                         onFindNext: { setSearching(true) },
+                        onAddCity: { setAddingCity(selected) },
+                        onSelectCity: selectCity,
+                        onRemoveCity: removeCity,
                         onClose: { select(nil) }
                     )
                     .id(selected)
@@ -108,9 +123,24 @@ struct GlobeScreen: View {
                 .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
             }
 
+            if let code = addingCityTo {
+                CitySearchPanel(
+                    countryCode: code,
+                    bounds: controller.world?.countries.first { $0.code == code }?.bounds,
+                    initialQuery: initialCityQuery,
+                    knownCountries: Set(controller.countryCodes),
+                    isFieldFocused: $isSearchFieldFocused,
+                    onPick: addCity,
+                    onCancel: { setAddingCity(nil) }
+                )
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+                .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
+            }
+
             if isShowingStats {
                 StatisticsScreen(
-                    stats: StatsCalculator.stats(visited: world.visitedCodes, catalog: .bundled),
+                    stats: StatsCalculator.stats(visited: world.visitedCodes, catalog: .bundled, cities: world.cities.count),
                     visited: world.visitedCodes,
                     maps: continentMaps,
                     onPick: flyTo,
@@ -125,8 +155,22 @@ struct GlobeScreen: View {
         }
         .sensoryFeedback(Haptics.select, trigger: selected) { _, new in new != nil }
         .sensoryFeedback(Haptics.markVisited, trigger: celebrations)
+        .sensoryFeedback(Haptics.cityLanded, trigger: landings)
+        .confirmationDialog(
+            Text("Remove \(RegionDisplay.name(for: confirmingUnmark ?? "")) from visited?"),
+            isPresented: Binding(get: { confirmingUnmark != nil }, set: { if !$0 { confirmingUnmark = nil } }),
+            titleVisibility: .visible,
+            presenting: confirmingUnmark
+        ) { code in
+            Button("Remove", role: .destructive) { world.unmarkVisited(code) }
+            Button("Cancel", role: .cancel) {}
+        } message: { code in
+            Text("\(world.cities(in: code).count) cities will be removed with it.")
+        }
         .onAppear {
             controller.onCountryTap = { select($0) }
+            controller.onCityTap = { selectCity($0) }
+            controller.onCityLanded = { landings += 1 }
             #if DEBUG
             applyDebugLaunchArguments()
             #endif
@@ -137,6 +181,19 @@ struct GlobeScreen: View {
         .onChange(of: world.visitedCodes, initial: true) { _, codes in
             controller.setVisited(codes)
         }
+        .onChange(of: world.cities, initial: true) { _, cities in
+            controller.setCities(cities.map { city in
+                GlobeController.CityMarker(
+                    id: city.id,
+                    name: city.name,
+                    countryCode: city.countryCode,
+                    coordinate: GeoCoordinate(latitude: city.latitude, longitude: city.longitude)
+                )
+            })
+            if let highlightedCity, !cities.contains(where: { $0.id == highlightedCity }) {
+                self.highlightedCity = nil
+            }
+        }
         .onChange(of: controller.isReady) { _, isReady in
             guard isReady, let geometry = controller.world else { return }
             Task { continentMaps = await ContinentMaps.build(world: geometry, catalog: .bundled) }
@@ -144,8 +201,57 @@ struct GlobeScreen: View {
     }
 
     private func select(_ code: String?) {
-        withAnimation(Motion.bouncy) { selected = code }
+        withAnimation(Motion.bouncy) {
+            selected = code
+            highlightedCity = nil
+        }
+        controller.highlightCity(nil)
         controller.select(code)
+    }
+
+    private func setAddingCity(_ code: String?) {
+        if code == nil {
+            isSearchFieldFocused = false
+            initialCityQuery = ""
+        }
+        withAnimation(Motion.bouncy) { addingCityTo = code }
+    }
+
+    /// A city picked in search: it's saved (marking its country, if needed), the globe flies
+    /// there, and the dot drops in once the camera arrives.
+    private func addCity(_ draft: CityDraft) {
+        let wasVisited = world.isVisited(draft.countryCode)
+        setAddingCity(nil)
+        let city = world.addCity(draft)
+        controller.landCity(city.id)
+        focus(on: city)
+        if !wasVisited {
+            controller.celebrate(city.countryCode)
+            celebrations += 1
+        }
+    }
+
+    /// A city chip or dot: its country is selected and the globe flies close to it.
+    private func selectCity(_ id: UUID) {
+        guard let city = world.cities.first(where: { $0.id == id }) else { return }
+        focus(on: city)
+    }
+
+    private func focus(on city: CityPin) {
+        withAnimation(Motion.bouncy) {
+            selected = city.countryCode
+            highlightedCity = city.id
+        }
+        controller.highlightCity(city.id)
+        controller.select(city.countryCode, framing: .point(GeoCoordinate(latitude: city.latitude, longitude: city.longitude)))
+    }
+
+    private func removeCity(_ id: UUID) {
+        world.removeCity(id)
+        if highlightedCity == id {
+            withAnimation(Motion.bouncy) { highlightedCity = nil }
+            controller.highlightCity(nil)
+        }
     }
 
     private func setSearching(_ searching: Bool) {
@@ -197,7 +303,12 @@ struct GlobeScreen: View {
 
     private func toggleVisited(_ code: String) {
         if world.isVisited(code) {
-            world.unmarkVisited(code)
+            // Losing cities is worth a question; a bare mark isn't.
+            if world.cities(in: code).isEmpty {
+                world.unmarkVisited(code)
+            } else {
+                confirmingUnmark = code
+            }
         } else {
             world.markVisited(code)
             controller.celebrate(code)
@@ -211,8 +322,11 @@ struct GlobeScreen: View {
     /// `-NomadedDebugFly LU` flies to a country after the intro, `-NomadedDebugSearch Ita`
     /// opens the search with a query typed in, `-NomadedDebugSearchPick YES` then picks the
     /// first result, `-NomadedDebugVisitedList YES` opens the visited list,
-    /// `-NomadedDebugStats YES` the statistics. These runs use an empty in-memory store
-    /// (see `NomadedApp`), so they never touch countries marked by hand.
+    /// `-NomadedDebugStats YES` the statistics. `-NomadedDebugCities "Rome:IT:41.9:12.5,…"`
+    /// adds cities, `-NomadedDebugCityFocus YES` flies to the first,
+    /// `-NomadedDebugAddCity IT` opens the city search (`-NomadedDebugCityQuery Фл` types in it),
+    /// `-NomadedDebugLandCity "Genoa:IT:44.41:8.93"` adds one as if picked in search. These runs
+    /// use an empty in-memory store (see `NomadedApp`), so they never touch countries marked by hand.
     private func applyDebugLaunchArguments() {
         let defaults = UserDefaults.standard
         if let list = defaults.string(forKey: "NomadedDebugVisited") {
@@ -221,12 +335,19 @@ struct GlobeScreen: View {
         if let code = defaults.string(forKey: "NomadedDebugSelect") {
             select(code)
         }
+        let cities = defaults.string(forKey: "NomadedDebugCities")?.split(separator: ",").compactMap(Self.debugCity) ?? []
+        cities.forEach { world.addCity($0) }
+        let focusesCity = defaults.bool(forKey: "NomadedDebugCityFocus")
+        let addsCityTo = defaults.string(forKey: "NomadedDebugAddCity")
+        let landsCity = defaults.string(forKey: "NomadedDebugLandCity").flatMap { Self.debugCity($0[...]) }
         let tap = defaults.string(forKey: "NomadedDebugTap")?.split(separator: ",").compactMap { Double($0) }
         let fly = defaults.string(forKey: "NomadedDebugFly")
         let search = defaults.string(forKey: "NomadedDebugSearch")
         let showsList = defaults.bool(forKey: "NomadedDebugVisitedList")
         let showsStats = defaults.bool(forKey: "NomadedDebugStats")
-        guard (tap?.count == 2) || fly != nil || search != nil || showsList || showsStats else { return }
+        guard (tap?.count == 2) || fly != nil || search != nil || showsList || showsStats || focusesCity
+                || addsCityTo != nil || landsCity != nil
+        else { return }
         Task {
             // Wait for the intro to settle.
             try? await Task.sleep(for: .seconds(4))
@@ -239,6 +360,13 @@ struct GlobeScreen: View {
             if let fly { flyTo(fly) }
             if showsList { setShowingVisited(true) }
             if showsStats { setShowingStats(true) }
+            if focusesCity, let first = world.cities.first { focus(on: first) }
+            if let addsCityTo {
+                select(addsCityTo)
+                initialCityQuery = defaults.string(forKey: "NomadedDebugCityQuery") ?? ""
+                setAddingCity(addsCityTo)
+            }
+            if let landsCity { addCity(landsCity) }
             if let search {
                 initialSearchQuery = search
                 setSearching(true)
@@ -248,6 +376,13 @@ struct GlobeScreen: View {
                 }
             }
         }
+    }
+
+    /// "Name:CC:latitude:longitude".
+    private static func debugCity(_ entry: Substring) -> CityDraft? {
+        let parts = entry.split(separator: ":").map(String.init)
+        guard parts.count == 4, let latitude = Double(parts[2]), let longitude = Double(parts[3]) else { return nil }
+        return CityDraft(name: parts[0], region: "", countryCode: parts[1], latitude: latitude, longitude: longitude)
     }
     #endif
 }

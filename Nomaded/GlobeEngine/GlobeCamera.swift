@@ -51,6 +51,22 @@ struct GlobeCamera: Equatable, Sendable {
         return (SIMD3(0, 0, distance), simd_normalize(SIMD3(x, y, -focalLength)))
     }
 
+    /// Where a world-space point lands on screen (points, origin top-left): the inverse of
+    /// `ray(through:)`. `nil` at or behind the camera.
+    func screenPoint(ofWorld point: SIMD3<Double>) -> CGPoint? {
+        let depth = distance - point.z
+        guard depth > 1e-6 else { return nil }
+        return CGPoint(
+            x: Double(viewportSize.width) / 2 + focalLength * point.x / depth,
+            y: Double(viewportSize.height) / 2 - focalLength * point.y / depth
+        )
+    }
+
+    /// Whether a point on the globe faces the camera, i.e. lies on the near side of the horizon.
+    func faces(worldPoint point: SIMD3<Double>) -> Bool {
+        simd_dot(point, SIMD3(0, 0, distance) - point) > 0
+    }
+
     /// Clip planes hugging the visible half of the globe. Lifted land stays well under 0.2
     /// radii above it, and tight planes keep land and ocean apart in the depth buffer even
     /// when the camera is far away.

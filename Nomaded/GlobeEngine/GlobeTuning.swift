@@ -38,6 +38,25 @@ enum GlobeTuning {
     static let selectedBrightening: Float = 0.22
     static let wallShade: Float = 0.5
 
+    // MARK: Cities
+
+    /// Dot radius in points: small sparks on the whole globe, full size up close.
+    static let cityDotRadius = 2.6...4.4
+    /// Zoom at which dots reach full size.
+    static let cityDotFullZoom = 5.0
+    /// Names show from this zoom on, when a region fills the screen. The highlighted city's
+    /// name shows at any zoom.
+    static let cityLabelZoom = 2.6
+    /// How close a flight to a city lands: a city and its surroundings.
+    static let cityZoom = 9.0
+    /// A tap this close to a dot picks the city, in points.
+    static let cityTapRadius = 22.0
+    /// A new city lands: it starts this many times its size and springs down to it.
+    static let cityDropScale = 3.2
+    static let cityDropSpring = SpringParameters(response: 0.45, dampingRatio: 0.45)
+    /// How long the ring around a new city takes to spread and fade, in seconds.
+    static let cityRippleDuration = 1.1
+
     // MARK: Taps
 
     static let tapSlop = 10.0

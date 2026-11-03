@@ -13,6 +13,8 @@ final class Visit {
     /// `nil` = "I was there, but I don't remember when".
     var startDate: Date?
     var endDate: Date?
+    /// Unused: cities live in `VisitedCity`, with coordinates. Kept so stores on existing
+    /// installs open without a migration.
     var cities: [String] = []
     var note: String = ""
     var createdAt: Date = Date.now

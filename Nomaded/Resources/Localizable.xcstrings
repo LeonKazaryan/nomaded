@@ -14,6 +14,58 @@
         }
       }
     },
+    "%lld cities will be removed with it." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld city will be removed with it."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld cities will be removed with it."
+                }
+              }
+            }
+          }
+        },
+        "ru" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld город удалится вместе с ней."
+                }
+              },
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld города удалятся вместе с ней."
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld городов удалятся вместе с ней."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld города удалятся вместе с ней."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld countries" : {
       "localizations" : {
         "en" : {
@@ -128,6 +180,16 @@
         }
       }
     },
+    "Add a city" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Добавить город"
+          }
+        }
+      }
+    },
     "Africa" : {
       "localizations" : {
         "ru" : {
@@ -178,6 +240,16 @@
         }
       }
     },
+    "Can't reach Maps. Check the connection and try again." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Карты не отвечают. Проверь интернет и попробуй ещё раз."
+          }
+        }
+      }
+    },
     "Cancel" : {
       "localizations" : {
         "ru" : {
@@ -224,6 +296,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Города"
+          }
+        }
+      }
+    },
+    "Cities in %@" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Города: %@"
+          }
+        }
+      }
+    },
+    "City" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Город"
           }
         }
       }
@@ -438,6 +530,16 @@
         }
       }
     },
+    "No cities found" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Города не нашлись"
+          }
+        }
+      }
+    },
     "No countries found" : {
       "localizations" : {
         "ru" : {
@@ -630,6 +732,36 @@
         }
       }
     },
+    "Remove" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Убрать"
+          }
+        }
+      }
+    },
+    "Remove %@ from visited?" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Убрать %@ из посещённых?"
+          }
+        }
+      }
+    },
+    "Remove city" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Удалить город"
+          }
+        }
+      }
+    },
     "Removes the country from your visited list" : {
       "localizations" : {
         "ru" : {
@@ -656,6 +788,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Показывает все страны"
+          }
+        }
+      }
+    },
+    "Shows the city on the globe" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показывает город на глобусе"
           }
         }
       }
@@ -736,6 +878,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Южная Европа"
+          }
+        }
+      }
+    },
+    "Start typing a city's name" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Начни вводить название города"
           }
         }
       }

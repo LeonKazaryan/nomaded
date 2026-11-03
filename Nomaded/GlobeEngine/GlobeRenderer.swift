@@ -26,10 +26,21 @@ final class GlobeRenderer {
         var showsWalls: Bool { scale > 1.0005 }
     }
 
+    /// A city dot, drawn over the land. Mirrors `Marker` in GlobeShaders.metal.
+    struct Marker {
+        /// xyz: on the globe before rotation, lifted with its country. w: radius in points.
+        var position: SIMD4<Float>
+        var color: SIMD4<Float>
+        /// x: size multiplier, y: landing ring 0…1 (below 0: none), z: highlight 0…1.
+        var params: SIMD4<Float>
+    }
+
     // Mirror the structs in GlobeShaders.metal.
     private struct FrameUniforms {
         var viewProjection: simd_float4x4
         var rotation: simd_float4x4
+        var viewport: SIMD2<Float>
+        var cameraDistance: Float
     }
 
     private struct DrawUniforms {
@@ -50,11 +61,19 @@ final class GlobeRenderer {
 
     let device: MTLDevice
     var pieces: [Piece] = []
+    var markers: [Marker] = []
     var oceanColor = SIMD3<Float>(0, 0, 0)
 
     private let queue: MTLCommandQueue
     private let pipeline: MTLRenderPipelineState
+    private let markerPipeline: MTLRenderPipelineState
     private let depthState: MTLDepthStencilState
+    /// Markers sit on top of the land and fade at the horizon themselves.
+    private let overlayDepthState: MTLDepthStencilState
+    /// One per frame in flight: the CPU fills the next while the GPU reads the others.
+    /// Three drawables means at most three frames in flight.
+    private var markerBuffers: [MTLBuffer] = []
+    private var markerBufferIndex = 0
     private var ocean: GPUMesh?
     private var land: GPUMesh?
     private var walls: GPUMesh?
@@ -66,7 +85,9 @@ final class GlobeRenderer {
         }
         guard let library = device.makeDefaultLibrary(),
               let vertex = library.makeFunction(name: "globeVertex"),
-              let fragment = library.makeFunction(name: "globeFragment")
+              let fragment = library.makeFunction(name: "globeFragment"),
+              let markerVertex = library.makeFunction(name: "markerVertex"),
+              let markerFragment = library.makeFunction(name: "markerFragment")
         else { throw GlobeRendererError.noShaders }
 
         let descriptor = MTLRenderPipelineDescriptor()
@@ -76,15 +97,35 @@ final class GlobeRenderer {
         descriptor.depthAttachmentPixelFormat = Self.depthFormat
         descriptor.rasterSampleCount = Self.sampleCount
 
+        let markers = MTLRenderPipelineDescriptor()
+        markers.vertexFunction = markerVertex
+        markers.fragmentFunction = markerFragment
+        markers.colorAttachments[0].pixelFormat = Self.pixelFormat
+        markers.colorAttachments[0].isBlendingEnabled = true
+        // The fragment shader returns premultiplied alpha.
+        markers.colorAttachments[0].sourceRGBBlendFactor = .one
+        markers.colorAttachments[0].sourceAlphaBlendFactor = .one
+        markers.colorAttachments[0].destinationRGBBlendFactor = .oneMinusSourceAlpha
+        markers.colorAttachments[0].destinationAlphaBlendFactor = .oneMinusSourceAlpha
+        markers.depthAttachmentPixelFormat = Self.depthFormat
+        markers.rasterSampleCount = Self.sampleCount
+
         let depth = MTLDepthStencilDescriptor()
         depth.depthCompareFunction = .less
         depth.isDepthWriteEnabled = true
-        guard let depthState = device.makeDepthStencilState(descriptor: depth) else { throw GlobeRendererError.noMetal }
+        let overlay = MTLDepthStencilDescriptor()
+        overlay.depthCompareFunction = .always
+        overlay.isDepthWriteEnabled = false
+        guard let depthState = device.makeDepthStencilState(descriptor: depth),
+              let overlayDepthState = device.makeDepthStencilState(descriptor: overlay)
+        else { throw GlobeRendererError.noMetal }
 
         self.device = device
         self.queue = queue
         self.pipeline = try device.makeRenderPipelineState(descriptor: descriptor)
+        self.markerPipeline = try device.makeRenderPipelineState(descriptor: markers)
         self.depthState = depthState
+        self.overlayDepthState = overlayDepthState
     }
 
     func setScene(ocean: MeshData, land: MeshData) throws {
@@ -123,7 +164,12 @@ final class GlobeRenderer {
         encoder.setDepthStencilState(depthState)
         encoder.setFrontFacing(.counterClockwise)
         encoder.setCullMode(.back)
-        var frame = FrameUniforms(viewProjection: camera.viewProjection, rotation: simd_float4x4(rotation))
+        var frame = FrameUniforms(
+            viewProjection: camera.viewProjection,
+            rotation: simd_float4x4(rotation),
+            viewport: SIMD2(Float(camera.viewportSize.width), Float(camera.viewportSize.height)),
+            cameraDistance: Float(camera.distance)
+        )
         encoder.setVertexBytes(&frame, length: MemoryLayout<FrameUniforms>.stride, index: 1)
 
         encoder.setVertexBuffer(ocean.vertices, offset: 0, index: 0)
@@ -142,9 +188,42 @@ final class GlobeRenderer {
             }
         }
 
+        drawMarkers(with: encoder)
+
         encoder.endEncoding()
-        commandBuffer.present(drawable)
-        commandBuffer.commit()
+        if layer.presentsWithTransaction {
+            // Lands in the same Core Animation commit as the SwiftUI overlays (city names,
+            // shading), so they never trail the globe by a frame.
+            commandBuffer.commit()
+            commandBuffer.waitUntilScheduled()
+            drawable.present()
+        } else {
+            commandBuffer.present(drawable)
+            commandBuffer.commit()
+        }
+    }
+
+    private func drawMarkers(with encoder: MTLRenderCommandEncoder) {
+        guard !markers.isEmpty, let buffer = nextMarkerBuffer() else { return }
+        markers.withUnsafeBytes { buffer.contents().copyMemory(from: $0.baseAddress!, byteCount: $0.count) }
+        encoder.setRenderPipelineState(markerPipeline)
+        encoder.setDepthStencilState(overlayDepthState)
+        encoder.setCullMode(.none)
+        encoder.setVertexBuffer(buffer, offset: 0, index: 0)
+        encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4, instanceCount: markers.count)
+    }
+
+    /// The next buffer in the ring, grown to fit every marker.
+    private func nextMarkerBuffer() -> MTLBuffer? {
+        let length = markers.count * MemoryLayout<Marker>.stride
+        if markerBuffers.isEmpty || markerBuffers[0].length < length {
+            // Room to spare, so adding a city doesn't reallocate every time.
+            let capacity = max(length * 2, 64 * MemoryLayout<Marker>.stride)
+            markerBuffers = (0..<3).compactMap { _ in device.makeBuffer(length: capacity, options: .storageModeShared) }
+            guard markerBuffers.count == 3 else { return nil }
+        }
+        markerBufferIndex = (markerBufferIndex + 1) % markerBuffers.count
+        return markerBuffers[markerBufferIndex]
     }
 
     private func draw(_ range: MeshRange, of mesh: GPUMesh, color: SIMD3<Float>, scale: Float, with encoder: MTLRenderCommandEncoder) {

@@ -30,6 +30,8 @@ final class GlobeMetalView: UIView {
         metalLayer.colorspace = CGColorSpace(name: CGColorSpace.sRGB)
         metalLayer.isOpaque = false
         metalLayer.framebufferOnly = true
+        // Frames show in step with SwiftUI's overlays (see `GlobeRenderer.draw`).
+        metalLayer.presentsWithTransaction = true
         backgroundColor = .clear
         isOpaque = false
     }

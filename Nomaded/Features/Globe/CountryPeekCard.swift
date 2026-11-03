@@ -1,14 +1,20 @@
 import SwiftUI
 
-/// Compact card for the selected country with the main action.
+/// Compact card for the selected country with the main action and its cities.
 ///
 /// Once the country is marked, the button splits: a small ✓ stays (tap to unmark) and
 /// "Next country" grows out of it, so adding countries one after another is a single tap.
+/// Below, the cities you've been to there, and "+ City".
 struct CountryPeekCard: View {
     let code: String
     let isVisited: Bool
+    let cities: [CityPin]
+    let highlightedCity: UUID?
     let onToggleVisited: () -> Void
     let onFindNext: () -> Void
+    let onAddCity: () -> Void
+    let onSelectCity: (UUID) -> Void
+    let onRemoveCity: (UUID) -> Void
     let onClose: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -79,6 +85,14 @@ struct CountryPeekCard: View {
                     .transition(nextTransition)
                 }
             }
+
+            CityChips(
+                cities: cities,
+                highlighted: highlightedCity,
+                onSelect: onSelectCity,
+                onRemove: onRemoveCity,
+                onAdd: onAddCity
+            )
         }
         .padding(20)
         .glassCard(cornerRadius: 30)
@@ -96,12 +110,101 @@ struct CountryPeekCard: View {
     }
 }
 
+/// The country's cities as chips. Tap one to fly to it, hold it to remove it; the last
+/// chip adds a city. A new chip springs in, and the row scrolls to the highlighted one.
+private struct CityChips: View {
+    let cities: [CityPin]
+    let highlighted: UUID?
+    let onSelect: (UUID) -> Void
+    let onRemove: (UUID) -> Void
+    let onAdd: () -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal) {
+                HStack(spacing: 8) {
+                    ForEach(cities) { city in
+                        chip(city)
+                            .id(city.id)
+                            .transition(reduceMotion ? .opacity : .scale(scale: 0.4).combined(with: .opacity))
+                    }
+                    Button(action: onAdd) {
+                        Label("City", systemImage: "plus")
+                            .font(Typography.label)
+                            .foregroundStyle(Palette.accentLight)
+                            .padding(.horizontal, 14)
+                            .frame(minHeight: 40)
+                            .overlay(Capsule().strokeBorder(Palette.accentLight.opacity(0.6), style: StrokeStyle(lineWidth: 1.5, dash: [4, 3])))
+                            .padding(.vertical, 2)
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.pressable)
+                    .accessibilityLabel("Add a city")
+                }
+            }
+            .scrollIndicators(.hidden)
+            // Runs to the card's edges, so chips scroll out under its rim instead of being
+            // cut off inside the padding.
+            .contentMargins(.horizontal, 20, for: .scrollContent)
+            .padding(.horizontal, -20)
+            .animation(reduceMotion ? Motion.snappy : Motion.bouncy, value: cities.map(\.id))
+            // Also when the highlighted chip has only just been added.
+            .onChange(of: [highlighted] + cities.map(\.id)) {
+                guard let highlighted else { return }
+                withAnimation(Motion.smooth) { proxy.scrollTo(highlighted, anchor: .center) }
+            }
+        }
+    }
+
+    private func chip(_ city: CityPin) -> some View {
+        let isHighlighted = city.id == highlighted
+        return Button {
+            onSelect(city.id)
+        } label: {
+            Label {
+                Text(verbatim: city.name)
+            } icon: {
+                Image(systemName: "mappin")
+            }
+            .font(Typography.label)
+            .foregroundStyle(isHighlighted ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
+            .lineLimit(1)
+            .padding(.horizontal, 14)
+            .frame(minHeight: 40)
+            .background(isHighlighted ? AnyShapeStyle(Palette.accent) : AnyShapeStyle(.white.opacity(0.12)), in: Capsule())
+            .padding(.vertical, 2)
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.pressable)
+        .contextMenu {
+            Button(role: .destructive) {
+                onRemove(city.id)
+            } label: {
+                Label("Remove city", systemImage: "trash")
+            }
+        }
+        .accessibilityAddTraits(isHighlighted ? .isSelected : [])
+        .accessibilityHint("Shows the city on the globe")
+        .animation(Motion.snappy, value: isHighlighted)
+    }
+}
+
 #Preview {
+    let rome = CityPin(id: UUID(), name: "Rome", region: "Lazio", countryCode: "IT", latitude: 41.9, longitude: 12.5, createdAt: .now)
+    let florence = CityPin(id: UUID(), name: "Florence", region: "Tuscany", countryCode: "IT", latitude: 43.77, longitude: 11.25, createdAt: .now)
     ZStack {
         SpaceBackground()
         VStack(spacing: 16) {
-            CountryPeekCard(code: "IT", isVisited: false, onToggleVisited: {}, onFindNext: {}, onClose: {})
-            CountryPeekCard(code: "KZ", isVisited: true, onToggleVisited: {}, onFindNext: {}, onClose: {})
+            CountryPeekCard(
+                code: "IT", isVisited: true, cities: [rome, florence], highlightedCity: rome.id,
+                onToggleVisited: {}, onFindNext: {}, onAddCity: {}, onSelectCity: { _ in }, onRemoveCity: { _ in }, onClose: {}
+            )
+            CountryPeekCard(
+                code: "KZ", isVisited: false, cities: [], highlightedCity: nil,
+                onToggleVisited: {}, onFindNext: {}, onAddCity: {}, onSelectCity: { _ in }, onRemoveCity: { _ in }, onClose: {}
+            )
         }
         .padding(16)
     }

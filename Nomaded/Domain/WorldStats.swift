@@ -41,6 +41,8 @@ struct WorldStats: Equatable, Sendable {
     /// Biggest and smallest visited place by area. `nil` with nothing visited.
     let largest: String?
     let smallest: String?
+    /// Cities the user has added.
+    let cities: Int
 
     var visitedContinents: Int { continents.filter(\.isVisited).count }
 }
@@ -73,7 +75,7 @@ enum StatsCalculator {
         )
     }
 
-    static func stats(visited: Set<String>, catalog: CountryCatalog) -> WorldStats {
+    static func stats(visited: Set<String>, catalog: CountryCatalog, cities: Int = 0) -> WorldStats {
         let split = catalog.split(visited)
         let places = visited.compactMap { catalog[$0] }
         let all = catalog.countries
@@ -111,7 +113,8 @@ enum StatsCalculator {
             regions: regions,
             landShare: totalArea > 0 ? visitedArea / totalArea : 0,
             largest: bySize.last?.code,
-            smallest: bySize.first?.code
+            smallest: bySize.first?.code,
+            cities: cities
         )
     }
 }

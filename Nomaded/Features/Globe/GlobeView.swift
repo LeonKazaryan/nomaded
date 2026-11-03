@@ -15,6 +15,9 @@ struct GlobeView: View {
                     .opacity(controller.isReady ? 1 : 0)
                     .animation(Motion.smooth, value: controller.isReady)
             }
+            .overlay {
+                CityNames(controller: controller)
+            }
             .contentShape(Rectangle())
             .gesture(rotateGesture)
             .simultaneousGesture(zoomGesture)
@@ -67,6 +70,47 @@ private struct GlobeSurface: UIViewRepresentable {
 
     func updateUIView(_ view: GlobeMetalView, context: Context) {
         view.isPaused = isPaused
+    }
+}
+
+/// City names over their dots. The engine places them every frame; this only draws.
+/// Its own view, so a moving name redraws just these labels.
+private struct CityNames: View {
+    let controller: GlobeController
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        let labels = controller.cityLabels
+        ZStack {
+            ForEach(labels) { label in
+                CityName(name: label.name, isHighlighted: label.isHighlighted)
+                    .position(x: label.point.x, y: label.point.y - 21)
+                    .transition(reduceMotion ? .opacity : .scale(scale: 0.6, anchor: .bottom).combined(with: .opacity))
+            }
+        }
+        // Names pop in and out as they come into view; their moves follow the globe exactly.
+        .animation(Motion.snappy, value: labels.map(\.id))
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+/// A plain dark pill rather than glass: a blurred backdrop under every name would be
+/// redrawn every frame the globe moves.
+private struct CityName: View {
+    let name: String
+    let isHighlighted: Bool
+
+    var body: some View {
+        Text(verbatim: name)
+            .font(Typography.caption.weight(.semibold))
+            .foregroundStyle(.white)
+            .lineLimit(1)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 4)
+            .background(isHighlighted ? AnyShapeStyle(Palette.accent) : AnyShapeStyle(.black.opacity(0.55)), in: Capsule())
+            .overlay(Capsule().strokeBorder(.white.opacity(isHighlighted ? 0.35 : 0.12), lineWidth: 1))
+            .fixedSize()
     }
 }
 

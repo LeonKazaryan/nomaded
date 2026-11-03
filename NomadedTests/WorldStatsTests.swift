@@ -121,3 +121,18 @@ struct WorldStatsTests {
         #expect(land > 140_000_000 && land < 150_000_000)
     }
 }
+
+struct CityMathTests {
+    @Test func distanceBetweenKnownCities() {
+        // Paris – London is about 344 km.
+        let km = CityMath.distanceKm(48.8566, 2.3522, 51.5074, -0.1278)
+        #expect(abs(km - 344) < 3)
+    }
+
+    @Test func sameCityNeedsSameCountryAndCloseness() {
+        let rome = CityPin(id: UUID(), name: "Rome", region: "", countryCode: "IT", latitude: 41.9, longitude: 12.5, createdAt: .now)
+        #expect(CityMath.isSamePlace(rome, CityDraft(name: "Roma", region: "", countryCode: "IT", latitude: 41.95, longitude: 12.45)))
+        #expect(!CityMath.isSamePlace(rome, CityDraft(name: "Tivoli", region: "", countryCode: "IT", latitude: 41.96, longitude: 12.8)))
+        #expect(!CityMath.isSamePlace(rome, CityDraft(name: "Rome", region: "", countryCode: "VA", latitude: 41.9, longitude: 12.45)))
+    }
+}

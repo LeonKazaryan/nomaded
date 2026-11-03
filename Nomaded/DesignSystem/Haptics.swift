@@ -12,4 +12,6 @@ enum Haptics {
     static let markVisited = SensoryFeedback.success
     /// The passport stamp lands.
     static let stamp = SensoryFeedback.impact(weight: .heavy)
+    /// A new city's dot touches down on the globe.
+    static let cityLanded = SensoryFeedback.impact(weight: .medium)
 }

@@ -277,6 +277,11 @@ private struct FactsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             SectionHeader(title: "Facts") { EmptyView() }
+            if stats.cities > 0 {
+                FactRow(systemImage: "building.2.fill", title: "Cities") {
+                    Text(stats.cities, format: .number)
+                }
+            }
             FactRow(systemImage: "mountain.2.fill", title: "Land") {
                 Text("\(stats.landShare.formatted(.percent.precision(.significantDigits(1...2)))) of all land")
             }

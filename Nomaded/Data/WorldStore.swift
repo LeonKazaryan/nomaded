@@ -3,11 +3,13 @@ import Observation
 import SwiftData
 import os
 
-/// The user's visited countries, saved on the device. Every screen marks and unmarks
-/// countries through this one store, so the globe, search and stats never disagree.
+/// The user's visited countries and cities, saved on the device. Every screen marks and
+/// unmarks through this one store, so the globe, search and stats never disagree.
 @Observable @MainActor
 final class WorldStore {
     private(set) var visitedCodes: Set<String> = []
+    /// Oldest first.
+    private(set) var cities: [CityPin] = []
 
     /// Held so it outlives `context`: SwiftData crashes if a container goes away while its
     /// context is still in use.
@@ -24,7 +26,7 @@ final class WorldStore {
     /// A container for every model the store saves. The default configuration is the app's
     /// store on disk.
     static func makeContainer(_ configuration: ModelConfiguration = ModelConfiguration()) throws -> ModelContainer {
-        try ModelContainer(for: Visit.self, configurations: configuration)
+        try ModelContainer(for: Visit.self, VisitedCity.self, configurations: configuration)
     }
 
     func isVisited(_ code: String) -> Bool {
@@ -38,13 +40,46 @@ final class WorldStore {
         save()
     }
 
-    /// Removes every visit to the country.
+    /// Removes every visit to the country, and its cities with them.
     func unmarkVisited(_ code: String) {
         let visits = FetchDescriptor<Visit>(predicate: #Predicate { $0.countryCode == code })
+        let cities = FetchDescriptor<VisitedCity>(predicate: #Predicate { $0.countryCode == code })
         do {
             try context.fetch(visits).forEach { context.delete($0) }
+            try context.fetch(cities).forEach { context.delete($0) }
         } catch {
             Self.log.error("Unmark \(code) failed: \(error)")
+        }
+        save()
+    }
+
+    func cities(in code: String) -> [CityPin] {
+        cities.filter { $0.countryCode == code }
+    }
+
+    /// Saves the city and marks its country visited. A city already saved (same country,
+    /// within `CityMath.sameCityKm`) isn't added twice; the saved one comes back.
+    @discardableResult
+    func addCity(_ draft: CityDraft) -> CityPin {
+        if let existing = cities.first(where: { CityMath.isSamePlace($0, draft) }) {
+            return existing
+        }
+        let city = VisitedCity(draft)
+        context.insert(city)
+        if !isVisited(draft.countryCode) {
+            context.insert(Visit(countryCode: draft.countryCode))
+        }
+        save()
+        return city.pin
+    }
+
+    /// The country stays visited: you were there even without the city.
+    func removeCity(_ id: UUID) {
+        let match = FetchDescriptor<VisitedCity>(predicate: #Predicate { $0.id == id })
+        do {
+            try context.fetch(match).forEach { context.delete($0) }
+        } catch {
+            Self.log.error("Remove city failed: \(error)")
         }
         save()
     }
@@ -64,6 +99,8 @@ final class WorldStore {
         do {
             let visits = try context.fetch(FetchDescriptor<Visit>())
             visitedCodes = Set(visits.map(\.countryCode))
+            let cities = try context.fetch(FetchDescriptor<VisitedCity>(sortBy: [SortDescriptor(\.createdAt)]))
+            self.cities = cities.map(\.pin)
         } catch {
             Self.log.error("Fetch failed: \(error)")
         }

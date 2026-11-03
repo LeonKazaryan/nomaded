@@ -18,6 +18,16 @@ final class GlobeController {
         case turn
         /// A search result: fly there and zoom in until the whole country fits.
         case flight
+        /// A city: fly close to this spot.
+        case point(GeoCoordinate)
+    }
+
+    /// A city's dot on the globe.
+    struct CityMarker: Equatable, Sendable {
+        let id: UUID
+        let name: String
+        let countryCode: String
+        let coordinate: GeoCoordinate
     }
 
     /// Drives the SwiftUI overlays. Changes only while zooming.
@@ -31,12 +41,25 @@ final class GlobeController {
     /// While paused nothing moves or redraws, e.g. under a full-screen panel.
     var isPaused = false
 
+    /// City names to show this frame, already placed so none overlap.
+    private(set) var cityLabels: [CityLabel] = []
+
     /// Every country that can be selected. Empty until `isReady`.
     var countryCodes: [String] { Array(nodes.keys) }
 
     /// Called with the tapped country's code, or `nil` for the ocean / empty space.
     @ObservationIgnored var onCountryTap: (@MainActor (String?) -> Void)?
+    /// Called with a tapped city dot's id. Takes priority over the country under it.
+    @ObservationIgnored var onCityTap: (@MainActor (UUID) -> Void)?
+    /// A new city just touched down: the moment for a haptic.
+    @ObservationIgnored var onCityLanded: (@MainActor () -> Void)?
     @ObservationIgnored var reduceMotion = false
+
+    @ObservationIgnored private var cities: [CityMarker] = []
+    @ObservationIgnored private var cityMotion: [UUID: CityMotion] = [:]
+    /// New cities wait, hidden, until the flight to them is over, then land.
+    @ObservationIgnored private var pendingLandings: Set<UUID> = []
+    @ObservationIgnored private var highlightedCity: UUID?
 
     private let style: GlobeStyle
     /// `nil` only without Metal, which every iPhone on iOS 18 has.
@@ -184,9 +207,122 @@ final class GlobeController {
             switch framing {
             case .turn: focus(on: shape.label, spring: GlobeTuning.focusSpring)
             case .flight: fly(to: shape)
+            case .point(let coordinate): fly(to: coordinate, arrivalZoom: GlobeTuning.cityZoom)
             }
         }
         lastInteraction = CACurrentMediaTime()
+    }
+
+    // MARK: - Cities
+
+    private struct CityMotion {
+        /// Size multiplier: a landing city springs down from big.
+        var scale = SpringValue(1)
+        var landedAt: CFTimeInterval?
+    }
+
+    func setCities(_ markers: [CityMarker]) {
+        cities = markers
+        let ids = Set(markers.map(\.id))
+        cityMotion = cityMotion.filter { ids.contains($0.key) }
+        for id in ids where cityMotion[id] == nil {
+            cityMotion[id] = CityMotion()
+        }
+        if let highlightedCity, !ids.contains(highlightedCity) { self.highlightedCity = nil }
+    }
+
+    /// Lands a just-added city once the camera arrives: it drops onto the globe and sends
+    /// out a ring. Works before `setCities` has it, too.
+    func landCity(_ id: UUID) {
+        pendingLandings.insert(id)
+    }
+
+    /// The city whose name always shows and whose dot glows a little brighter.
+    func highlightCity(_ id: UUID?) {
+        highlightedCity = id
+    }
+
+    private func stepCities(_ dt: Double) {
+        guard let renderer else { return }
+        let now = CACurrentMediaTime()
+        let isSettled = !isFocusing && flight == nil && abs(zoom.value - zoom.target) < 0.05 * zoom.target
+        var markers: [GlobeRenderer.Marker] = []
+        markers.reserveCapacity(cities.count)
+        let full = GlobeTuning.cityDotFullZoom
+        let growth = min(1, max(0, (zoom.value - 1) / (full - 1)))
+        let radius = GlobeTuning.cityDotRadius.lowerBound + (GlobeTuning.cityDotRadius.upperBound - GlobeTuning.cityDotRadius.lowerBound) * growth
+
+        for city in cities {
+            guard var motion = cityMotion[city.id], let node = nodes[city.countryCode] else { continue }
+            if pendingLandings.contains(city.id) {
+                guard isSettled else { continue }
+                pendingLandings.remove(city.id)
+                if !reduceMotion {
+                    motion.scale = SpringValue(GlobeTuning.cityDropScale)
+                    motion.scale.target = 1
+                    motion.landedAt = now
+                }
+                onCityLanded?()
+            }
+            motion.scale.step(dt, GlobeTuning.cityDropSpring)
+            var ripple: Float = -1
+            if let landedAt = motion.landedAt {
+                let progress = (now - landedAt) / GlobeTuning.cityRippleDuration
+                if progress < 1 { ripple = Float(progress) } else { motion.landedAt = nil }
+            }
+            cityMotion[city.id] = motion
+
+            // Rides on top of its country, lifted or not.
+            let lift = renderer.pieces[node.index].scale * GlobeTuning.landRadius * 1.0005
+            let position = SIMD3<Float>(GeoMath.unitVector(city.coordinate)) * lift
+            markers.append(GlobeRenderer.Marker(
+                position: SIMD4(position, Float(radius)),
+                color: SIMD4(node.visitedColor, 1),
+                params: SIMD4(Float(motion.scale.value), ripple, city.id == highlightedCity ? 1 : 0, 0)
+            ))
+        }
+        renderer.markers = markers
+        updateCityLabels()
+    }
+
+    /// Names for the cities in view, most important first: the highlighted one, then the
+    /// selected country's, then the newest. Shown from `cityLabelZoom` on.
+    private func updateCityLabels() {
+        let showsAll = zoom.value >= GlobeTuning.cityLabelZoom
+        var candidates: [(label: CityLabel, rank: Int)] = []
+        if showsAll || highlightedCity != nil {
+            for (order, city) in cities.enumerated().reversed() {
+                let isHighlighted = city.id == highlightedCity
+                guard showsAll || isHighlighted,
+                      !pendingLandings.contains(city.id),
+                      let point = screenPoint(of: city)
+                else { continue }
+                let rank = isHighlighted ? 0 : city.countryCode == selected ? 1 : 2
+                candidates.append((CityLabel(id: city.id, name: city.name, point: point, isHighlighted: isHighlighted), rank * 100_000 - order))
+            }
+        }
+        let ordered = candidates.sorted { $0.rank < $1.rank }.map(\.label)
+        let labels = CityLabelLayout.place(ordered, in: CGRect(origin: .zero, size: camera.viewportSize))
+        if labels != cityLabels { cityLabels = labels }
+    }
+
+    /// The city's dot on screen, or `nil` past the horizon.
+    private func screenPoint(of city: CityMarker) -> CGPoint? {
+        guard let node = nodes[city.countryCode], let renderer else { return nil }
+        let lift = Double(renderer.pieces[node.index].scale * GlobeTuning.landRadius)
+        let orientation = GlobeOrientation(yaw: yaw.value, pitch: pitch.value)
+        let world = orientation.quaternion.act(GeoMath.unitVector(city.coordinate) * lift)
+        guard camera.faces(worldPoint: world) else { return nil }
+        return camera.screenPoint(ofWorld: world)
+    }
+
+    private func city(at point: CGPoint) -> UUID? {
+        let radius = GlobeTuning.cityTapRadius
+        return cities
+            .compactMap { city in screenPoint(of: city).map { (city.id, hypot($0.x - point.x, $0.y - point.y)) } }
+            .filter { $0.1 < radius }
+            .min { $0.1 < $1.1 }?
+            .0
     }
 
     private func retarget(_ code: String) {
@@ -254,7 +390,11 @@ final class GlobeController {
         pitch.velocity = 0
         lastInteraction = CACurrentMediaTime()
         guard !touchIncludedPinch else { return }
-        onCountryTap?(country(at: point))
+        if let city = city(at: point), let onCityTap {
+            onCityTap(city)
+        } else {
+            onCountryTap?(country(at: point))
+        }
     }
 
     /// Zooms toward `anchor`, the point between the fingers when the pinch began: the
@@ -334,6 +474,7 @@ final class GlobeController {
         stepFlight()
         stepZoom(dt)
         stepCountries(dt)
+        stepCities(dt)
     }
 
     private func stepRotation(_ dt: Double) {
@@ -409,9 +550,12 @@ final class GlobeController {
     /// `flightFitFraction` of the screen. Reduce Motion jumps straight there.
     private func fly(to shape: CountryShape) {
         let extent = GeoMath.capRadius(around: shape.label, rings: shape.rings, limit: GlobeTuning.framingExtentLimit)
-        let arrivalZoom = max(1, zoom(fitting: extent, widthFraction: GlobeTuning.flightFitFraction))
+        fly(to: shape.label, arrivalZoom: max(1, zoom(fitting: extent, widthFraction: GlobeTuning.flightFitFraction)))
+    }
+
+    private func fly(to coordinate: GeoCoordinate, arrivalZoom: Double) {
         let start = GlobeOrientation(yaw: yaw.value, pitch: pitch.value).centerCoordinate
-        focus(on: shape.label, spring: GlobeTuning.flightSpring)
+        focus(on: coordinate, spring: GlobeTuning.flightSpring)
 
         if reduceMotion {
             yaw.snap()

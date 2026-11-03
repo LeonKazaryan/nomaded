@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 import Testing
 import simd
 @testable import Nomaded
@@ -55,5 +56,37 @@ struct GlobeMeshesTests {
             #expect(abs(x - point.x) < 0.01 && abs(y - point.y) < 0.01, "distance \(distance): (\(x), \(y))")
             #expect(ndc.z > 0 && ndc.z < 1, "depth \(ndc.z) is clipped at distance \(distance)")
         }
+    }
+}
+
+struct CityLabelLayoutTests {
+    private func label(_ name: String, _ x: CGFloat, _ y: CGFloat, highlighted: Bool = false) -> CityLabel {
+        CityLabel(id: UUID(), name: name, point: CGPoint(x: x, y: y), isHighlighted: highlighted)
+    }
+
+    @Test func overlappingNamesKeepTheFirst() {
+        let screen = CGRect(x: 0, y: 0, width: 402, height: 874)
+        let rome = label("Rome", 200, 400, highlighted: true)
+        let tivoli = label("Tivoli", 215, 405)
+        let naples = label("Naples", 260, 520)
+
+        #expect(CityLabelLayout.place([rome, tivoli, naples], in: screen).map(\.name) == ["Rome", "Naples"])
+    }
+
+    @Test func offScreenNamesAreDropped() {
+        let screen = CGRect(x: 0, y: 0, width: 402, height: 874)
+        #expect(CityLabelLayout.place([label("Far", -200, 400)], in: screen).isEmpty)
+    }
+
+    @Test func screenPointInvertsTheTapRay() throws {
+        let camera = GlobeCamera(viewportSize: CGSize(width: 402, height: 874), distance: 2.5)
+        let tap = CGPoint(x: 150, y: 380)
+        let ray = camera.ray(through: tap)
+        let hit = try #require(GeoMath.intersectUnitSphere(origin: ray.origin, direction: ray.direction))
+        let back = try #require(camera.screenPoint(ofWorld: hit))
+
+        #expect(abs(back.x - tap.x) < 1e-6 && abs(back.y - tap.y) < 1e-6)
+        #expect(camera.faces(worldPoint: hit))
+        #expect(!camera.faces(worldPoint: -hit))
     }
 }
