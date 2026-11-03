@@ -69,6 +69,16 @@ struct WorldStatsTests {
         #expect(north.discovered.isEmpty && north.undiscovered.isEmpty)
     }
 
+    /// The top counter, the visited list and the statistics all count through `split`.
+    @Test func splitSeparatesCountriesFromTerritories() {
+        let places = catalog.split(["GL", "FR", "ZZ", "AQ", "VA"])
+        #expect(places == VisitedPlaces(countries: ["FR", "VA"], territories: ["GL", "AQ"]))
+
+        let stats = StatsCalculator.stats(visited: ["GL", "FR", "ZZ", "AQ", "VA"], catalog: catalog)
+        #expect(stats.countries.visited == places.countries.count)
+        #expect(stats.territories == places.territories.count)
+    }
+
     @Test func unknownCodesAreIgnored() {
         let stats = StatsCalculator.stats(visited: ["FR", "ZZ"], catalog: catalog)
         #expect(stats.countries.visited == 1)

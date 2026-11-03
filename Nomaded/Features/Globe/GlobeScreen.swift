@@ -18,7 +18,13 @@ struct GlobeScreen: View {
     @State private var isGlobeHidden = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// The one split every counter on this screen uses.
+    private var visitedPlaces: VisitedPlaces {
+        CountryCatalog.bundled.split(world.visitedCodes)
+    }
+
     var body: some View {
+        let visitedPlaces = visitedPlaces
         ZStack {
             SpaceBackground()
 
@@ -28,7 +34,7 @@ struct GlobeScreen: View {
                 .scaleEffect(isShowingStats && !reduceMotion ? 0.8 : 1)
                 .opacity(isGlobeHidden ? 0 : isShowingStats ? 0.45 : 1)
                 .accessibilityHidden(isShowingStats)
-                .accessibilityValue(Text("\(world.visitedCodes.count) countries"))
+                .accessibilityValue(Text("\(visitedPlaces.countries.count) countries"))
 
             if isSearching || isShowingVisited {
                 // Dims the globe so lists stay readable; tapping it closes them.
@@ -47,7 +53,7 @@ struct GlobeScreen: View {
             VStack(spacing: 0) {
                 if !isSearching, !isShowingStats {
                     TopBar(
-                        visitedCount: world.visitedCodes.count,
+                        visited: visitedPlaces,
                         isShowingVisited: isShowingVisited,
                         isReady: controller.isReady,
                         onStats: { setShowingStats(true) },
@@ -58,7 +64,13 @@ struct GlobeScreen: View {
                 }
 
                 if isShowingVisited {
-                    VisitedCountriesPanel(codes: RegionDisplay.sortedByName(world.visitedCodes), onPick: flyTo)
+                    VisitedCountriesPanel(
+                        places: VisitedPlaces(
+                            countries: RegionDisplay.sortedByName(visitedPlaces.countries),
+                            territories: RegionDisplay.sortedByName(visitedPlaces.territories)
+                        ),
+                        onPick: flyTo
+                    )
                         .padding(.top, 12)
                         // Drops out of the counter above it.
                         .transition(reduceMotion ? .opacity : .scale(scale: 0.5, anchor: .top).combined(with: .opacity))
@@ -241,7 +253,7 @@ struct GlobeScreen: View {
 }
 
 private struct TopBar: View {
-    let visitedCount: Int
+    let visited: VisitedPlaces
     let isShowingVisited: Bool
     /// The globe has loaded: search and statistics need its countries.
     let isReady: Bool
@@ -251,7 +263,11 @@ private struct TopBar: View {
 
     var body: some View {
         Button(action: onToggleVisited) {
-            WorldSummaryChip(visitedCount: visitedCount, isExpanded: isShowingVisited)
+            WorldSummaryChip(
+                countries: visited.countries.count,
+                territories: visited.territories.count,
+                isExpanded: isShowingVisited
+            )
                 .frame(minHeight: 44)
                 .contentShape(Rectangle())
         }
@@ -286,16 +302,26 @@ private struct RoundButton: View {
     }
 }
 
+/// "90 countries +10": the 195-country count the statistics use, with territories beside
+/// it, so marking Greenland still visibly counts.
 private struct WorldSummaryChip: View {
-    let visitedCount: Int
+    let countries: Int
+    let territories: Int
     let isExpanded: Bool
 
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "globe.europe.africa.fill")
-                .symbolEffect(.bounce, value: visitedCount)
-            Text("\(visitedCount) countries")
-                .contentTransition(.numericText(value: Double(visitedCount)))
+                .symbolEffect(.bounce, value: countries + territories)
+            Text("\(countries) countries")
+                .contentTransition(.numericText(value: Double(countries)))
+            if territories > 0 {
+                Text(verbatim: "+\(territories)")
+                    .foregroundStyle(.secondary)
+                    .contentTransition(.numericText(value: Double(territories)))
+                    .accessibilityLabel(Text("+\(territories) territories"))
+                    .transition(.scale(scale: 0.5).combined(with: .opacity))
+            }
             // Hints that the counter opens the list.
             Image(systemName: "chevron.down")
                 .font(Typography.caption.weight(.bold))
@@ -307,7 +333,8 @@ private struct WorldSummaryChip: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .glass(Capsule())
-        .animation(Motion.bouncy, value: visitedCount)
+        .animation(Motion.bouncy, value: countries)
+        .animation(Motion.bouncy, value: territories)
         .animation(Motion.snappy, value: isExpanded)
         .accessibilityElement(children: .combine)
     }

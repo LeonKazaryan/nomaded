@@ -94,6 +94,13 @@ struct Country: Codable, Sendable, Identifiable {
     }
 }
 
+/// Visited places split by the one rule every counter in the app follows: the 195 countries
+/// ("90 countries", "% of the world") on one side, territories ("+10") on the other.
+struct VisitedPlaces: Equatable, Sendable {
+    var countries: [String] = []
+    var territories: [String] = []
+}
+
 struct CountryCatalog: Sendable {
     let countries: [Country]
     private let byCode: [String: Country]
@@ -104,6 +111,20 @@ struct CountryCatalog: Sendable {
     }
 
     subscript(code: String) -> Country? { byCode[code] }
+
+    /// Keeps the order of `codes`. Codes the catalog doesn't know are dropped.
+    func split(_ codes: some Sequence<String>) -> VisitedPlaces {
+        var places = VisitedPlaces()
+        for code in codes {
+            guard let country = self[code] else { continue }
+            if country.isSovereign {
+                places.countries.append(code)
+            } else {
+                places.territories.append(code)
+            }
+        }
+        return places
+    }
 
     /// The bundled catalog. A few dozen kilobytes, so it loads on first use.
     static let bundled: CountryCatalog = {

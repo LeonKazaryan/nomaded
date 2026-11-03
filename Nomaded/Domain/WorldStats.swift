@@ -73,6 +73,7 @@ enum StatsCalculator {
     }
 
     static func stats(visited: Set<String>, catalog: CountryCatalog) -> WorldStats {
+        let split = catalog.split(visited)
         let places = visited.compactMap { catalog[$0] }
         let all = catalog.countries
         let sovereign = all.filter(\.isSovereign)
@@ -103,8 +104,8 @@ enum StatsCalculator {
         let bySize = places.sorted { ($0.areaKm2, $0.code) < ($1.areaKm2, $1.code) }
 
         return WorldStats(
-            countries: tally(sovereign),
-            territories: places.filter { !$0.isSovereign }.count,
+            countries: WorldStats.Tally(visited: split.countries.count, total: sovereign.count),
+            territories: split.territories.count,
             continents: continents,
             regions: regions,
             landShare: totalArea > 0 ? visitedArea / totalArea : 0,

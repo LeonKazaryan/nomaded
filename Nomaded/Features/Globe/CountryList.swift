@@ -4,30 +4,48 @@ import SwiftUI
 /// inside whatever height the card gets. Used by search and by the visited list.
 struct CountryList: View {
     let codes: [String]
+    /// Listed after `codes` under their own heading, so they never pass for countries.
+    var territories: [String] = []
     /// Gets a ✓. Search marks the ones you've been to; the visited list leaves this empty.
     var marked: Set<String> = []
     let onPick: (String) -> Void
 
     @ScaledMetric(relativeTo: .body) private var rowHeight = 56
+    @ScaledMetric(relativeTo: .footnote) private var headingHeight = 34
 
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 0) {
-                ForEach(codes, id: \.self) { code in
-                    Button {
-                        onPick(code)
-                    } label: {
-                        CountryRow(code: code, isMarked: marked.contains(code))
-                            .frame(minHeight: rowHeight)
-                    }
-                    .buttonStyle(.pressable)
+            LazyVStack(alignment: .leading, spacing: 0) {
+                ForEach(codes, id: \.self, content: row)
+                if !territories.isEmpty {
+                    Text("Territories")
+                        .font(Typography.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 18)
+                        .frame(minHeight: headingHeight, alignment: .bottomLeading)
+                        .accessibilityAddTraits(.isHeader)
+                    ForEach(territories, id: \.self, content: row)
                 }
             }
             .padding(.vertical, 6)
         }
         .scrollBounceBehavior(.basedOnSize)
-        .frame(maxHeight: CGFloat(codes.count) * rowHeight + 12)
+        .frame(maxHeight: contentHeight)
         .glassCard(cornerRadius: 24)
+    }
+
+    private var contentHeight: CGFloat {
+        CGFloat(codes.count + territories.count) * rowHeight + (territories.isEmpty ? 0 : headingHeight) + 12
+    }
+
+    private func row(_ code: String) -> some View {
+        Button {
+            onPick(code)
+        } label: {
+            CountryRow(code: code, isMarked: marked.contains(code))
+                .frame(minHeight: rowHeight)
+        }
+        .buttonStyle(.pressable)
     }
 }
 
