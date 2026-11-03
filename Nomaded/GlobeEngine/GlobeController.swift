@@ -140,6 +140,30 @@ final class GlobeController {
         hitTester = GlobeHitTester(world: world)
         isReady = true
         playIntro()
+        Task { await buildWalls() }
+    }
+
+    /// Side walls for every country, built in the background once the globe is up, so that
+    /// lifting a country never waits for them. Visited countries go first: they lift right away.
+    private func buildWalls() async {
+        let codes = nodes.keys.sorted { visited.contains($0) && !visited.contains($1) }
+        for code in codes {
+            guard let shape = nodes[code]?.shape else { continue }
+            do {
+                let mesh = try await GlobeMeshFactory.walls(shape, top: GlobeTuning.landRadius, bottom: GlobeTuning.wallBottom)
+                guard var node = nodes[code] else { continue }
+                let walls = ModelEntity(mesh: mesh, materials: [])
+                // Shown, and colored, by the next `apply`.
+                walls.isEnabled = false
+                node.entity.addChild(walls)
+                node.walls = walls
+                node.appliedColor = nil
+                nodes[code] = node
+                animating.insert(code)
+            } catch {
+                Self.log.error("Walls for \(code) failed: \(error)")
+            }
+        }
     }
 
     // MARK: - Countries
@@ -474,25 +498,15 @@ final class GlobeController {
                 node.tint.step(dt, GlobeTuning.colorSpring)
                 node.highlight.step(dt, GlobeTuning.colorSpring)
             }
-            try? apply(&node)
+            apply(&node)
             nodes[code] = node
             if node.isSettled { animating.remove(code) }
         }
     }
 
-    private func apply(_ node: inout CountryNode) throws {
+    private func apply(_ node: inout CountryNode) {
         let lift = Float(max(0, node.lift.value) * liftScale)
         node.entity.scale = SIMD3(repeating: 1 + lift)
-
-        if lift > 0.0005, node.walls == nil {
-            let walls = ModelEntity(
-                mesh: try GlobeMeshFactory.walls(node.shape, top: GlobeTuning.landRadius, bottom: GlobeTuning.wallBottom),
-                materials: []
-            )
-            node.entity.addChild(walls)
-            node.walls = walls
-            node.appliedColor = nil
-        }
         node.walls?.isEnabled = lift > 0.0005
 
         let color = node.currentColor

@@ -203,11 +203,15 @@ private struct WorldSummaryChip: View {
 }
 
 #if DEBUG
+/// The globe's render rate next to the rate the screen can give the app. "60 fps · display 120"
+/// means the renderer holds the globe at 60; both at 60 means the phone does (Low Power Mode,
+/// or Accessibility → Motion → Limit Frame Rate).
 private struct FrameRateBadge: View {
     let framesPerSecond: Int
+    @State private var display = DisplayRateMeter()
 
     var body: some View {
-        Text(verbatim: "\(framesPerSecond) fps")
+        Text(verbatim: "\(framesPerSecond) fps · display \(display.framesPerSecond)")
             .font(.system(.caption2, design: .monospaced, weight: .semibold))
             .foregroundStyle(framesPerSecond >= 55 ? .green : .orange)
             .padding(.horizontal, 8)
@@ -217,6 +221,37 @@ private struct FrameRateBadge: View {
             .padding(.leading, 16)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
+            .onAppear { display.start() }
+            .onDisappear { display.stop() }
+    }
+}
+
+/// Counts the frames a display link asking for 120 Hz actually gets.
+@Observable @MainActor
+private final class DisplayRateMeter: NSObject {
+    private(set) var framesPerSecond = 0
+    @ObservationIgnored private var link: CADisplayLink?
+    @ObservationIgnored private var sample = (frames: 0, start: CACurrentMediaTime())
+
+    func start() {
+        guard link == nil else { return }
+        let link = CADisplayLink(target: self, selector: #selector(step))
+        link.preferredFrameRateRange = CAFrameRateRange(minimum: 80, maximum: 120, preferred: 120)
+        link.add(to: .main, forMode: .common)
+        self.link = link
+    }
+
+    func stop() {
+        link?.invalidate()
+        link = nil
+    }
+
+    @objc private func step() {
+        sample.frames += 1
+        let elapsed = CACurrentMediaTime() - sample.start
+        guard elapsed >= 0.5 else { return }
+        framesPerSecond = Int((Double(sample.frames) / elapsed).rounded())
+        sample = (0, CACurrentMediaTime())
     }
 }
 #endif

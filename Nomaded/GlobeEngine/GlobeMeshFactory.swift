@@ -42,8 +42,9 @@ enum GlobeMeshFactory {
     }
 
     /// Side walls along the country's outline, visible only while it's lifted. Double-sided,
-    /// so ring winding doesn't matter.
-    static func walls(_ shape: CountryShape, top: Float, bottom: Float) throws -> MeshResource {
+    /// so ring winding doesn't matter. Runs off the main thread: Canada's walls take ~13 ms,
+    /// almost a whole frame.
+    nonisolated static func walls(_ shape: CountryShape, top: Float, bottom: Float) async throws -> MeshResource {
         var positions: [SIMD3<Float>] = []
         var indices: [UInt32] = []
         for ring in shape.rings where ring.count > 1 {
@@ -64,13 +65,17 @@ enum GlobeMeshFactory {
         var descriptor = MeshDescriptor(name: "\(shape.code)-walls")
         descriptor.positions = MeshBuffer(positions)
         descriptor.primitives = .triangles(indices)
-        return try MeshResource.generate(from: [descriptor])
+        return try await MeshResource(from: [descriptor])
     }
+
+    /// Made once and copied: a new `UnlitMaterial` costs ~0.5 ms, a copy with another tint
+    /// ~0.01 ms, and an animating country changes color every frame.
+    private static let unlit = UnlitMaterial(applyPostProcessToneMap: false)
 
     /// Flat, unlit color: the globe gets its volume from the SwiftUI shading overlay instead
     /// of 3D lights, so palette colors render exactly as designed.
     static func material(_ color: SIMD3<Float>) -> UnlitMaterial {
-        var material = UnlitMaterial(applyPostProcessToneMap: false)
+        var material = unlit
         material.color = .init(tint: UIColor(
             red: CGFloat(color.x), green: CGFloat(color.y), blue: CGFloat(color.z), alpha: 1
         ))
