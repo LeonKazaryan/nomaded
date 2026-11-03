@@ -16,7 +16,7 @@ struct GlobeView: View {
             // An overlay, not a ZStack sibling: the glow is wider than the screen and must
             // not push the globe off-center.
             .overlay {
-                GlobeShading(radius: controller.camera.silhouetteRadius)
+                GlobeShading(radius: controller.camera.silhouetteRadius, center: controller.camera.center)
                     .opacity(controller.isReady ? 1 : 0)
                     .animation(Motion.smooth, value: controller.isReady)
             }
@@ -141,6 +141,8 @@ private struct CityName: View {
 /// bigger than the screen, and full-size shapes would need huge offscreen layers.
 private struct GlobeShading: View {
     let radius: Double
+    /// Where the globe sits in the view: not the middle while a panel is below it.
+    let center: CGPoint
 
     private static let edges = Gradient(stops: [
         .init(color: .clear, location: 0.5),
@@ -159,7 +161,7 @@ private struct GlobeShading: View {
 
     var body: some View {
         Canvas { context, size in
-            let center = CGPoint(x: size.width / 2, y: size.height / 2)
+            let center = self.center
             let screen = Path(CGRect(origin: .zero, size: size))
             let globe = Path(ellipseIn: CGRect(
                 x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2

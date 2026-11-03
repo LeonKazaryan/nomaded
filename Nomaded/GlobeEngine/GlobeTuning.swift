@@ -57,6 +57,19 @@ enum GlobeTuning {
     static let ringDelay = 0.3
     static let ringSpring = SpringParameters(response: 1.6, dampingRatio: 1)
     static let ringReach = 1.25
+    /// A quiet mark (picking countries while onboarding) jumps this much of a full one.
+    static let quietKickScale = 0.5
+
+    // MARK: First launch
+
+    /// The globe flies in from deep space: it starts this small…
+    static let arrivalStartZoom = 0.04
+    /// …unwinding this much spin (radians) on the way…
+    static let arrivalSpin = 7.0
+    /// …on this spring, slower than the everyday intro.
+    static let arrivalSpring = SpringParameters(response: 2.4, dampingRatio: 1)
+    /// Sliding the globe up over a panel and back, and resizing it with it.
+    static let framingSpring = SpringParameters(response: 0.8, dampingRatio: 1)
     static let selectedBrightening: Float = 0.22
     static let wallShade: Float = 0.5
 

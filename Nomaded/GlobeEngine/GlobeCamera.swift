@@ -11,6 +11,13 @@ struct GlobeCamera: Equatable, Sendable {
     var viewportSize: CGSize
     /// Distance from the camera to the globe's center, in globe radii.
     var distance: Double
+    /// How far above the view's middle the globe sits, in points: room for a panel below it.
+    var centerOffset = 0.0
+
+    /// The globe's center on screen.
+    var center: CGPoint {
+        CGPoint(x: viewportSize.width / 2, y: viewportSize.height / 2 - centerOffset)
+    }
 
     var focalLength: Double {
         Double(viewportSize.height) / 2 / tan(Double(Self.verticalFieldOfView) * .pi / 360)
@@ -46,8 +53,8 @@ struct GlobeCamera: Equatable, Sendable {
 
     /// World-space ray through a point in the view (points, origin top-left).
     func ray(through point: CGPoint) -> (origin: SIMD3<Double>, direction: SIMD3<Double>) {
-        let x = Double(point.x - viewportSize.width / 2)
-        let y = Double(viewportSize.height / 2 - point.y)
+        let x = Double(point.x - center.x)
+        let y = Double(center.y - point.y)
         return (SIMD3(0, 0, distance), simd_normalize(SIMD3(x, y, -focalLength)))
     }
 
@@ -57,8 +64,8 @@ struct GlobeCamera: Equatable, Sendable {
         let depth = distance - point.z
         guard depth > 1e-6 else { return nil }
         return CGPoint(
-            x: Double(viewportSize.width) / 2 + focalLength * point.x / depth,
-            y: Double(viewportSize.height) / 2 - focalLength * point.y / depth
+            x: Double(center.x) + focalLength * point.x / depth,
+            y: Double(center.y) - focalLength * point.y / depth
         )
     }
 
@@ -82,12 +89,14 @@ struct GlobeCamera: Equatable, Sendable {
         let aspect = Double(viewportSize.width / viewportSize.height)
         let a = far / (near - far)
         let b = near * far / (near - far)
+        // `centerOffset` slides the picture up: clip y gains ty·w, with w = distance − z.
+        let ty = 2 * centerOffset / Double(viewportSize.height)
         // A perspective projection times a view matrix that moves the world by -distance in z.
         return simd_float4x4(columns: (
             SIMD4(Float(f / aspect), 0, 0, 0),
             SIMD4(0, Float(f), 0, 0),
-            SIMD4(0, 0, Float(a), -1),
-            SIMD4(0, 0, Float(b - distance * a), Float(distance))
+            SIMD4(0, Float(-ty), Float(a), -1),
+            SIMD4(0, Float(ty * distance), Float(b - distance * a), Float(distance))
         ))
     }
 }

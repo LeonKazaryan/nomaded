@@ -22,6 +22,14 @@ final class GlobeController {
         case point(GeoCoordinate)
     }
 
+    /// How the globe appears once loaded.
+    enum IntroStyle {
+        /// Every launch: a short swing in to the user's region.
+        case standard
+        /// The very first: out of deep space, tiny and spinning.
+        case arrival
+    }
+
     /// A city's dot on the globe.
     struct CityMarker: Equatable, Sendable {
         let id: UUID
@@ -57,6 +65,8 @@ final class GlobeController {
     /// for confetti if it marked its country (`true`).
     @ObservationIgnored var onCityLanded: (@MainActor (UUID, CGPoint?, Bool) -> Void)?
     @ObservationIgnored var reduceMotion = false
+    /// Set before the globe loads.
+    @ObservationIgnored var introStyle = IntroStyle.standard
 
     @ObservationIgnored private var cities: [CityMarker] = []
     @ObservationIgnored private var cityMotion: [UUID: CityMotion] = [:]
@@ -71,6 +81,10 @@ final class GlobeController {
     /// Where the user last touched a country, so marking it fills from under their finger.
     @ObservationIgnored private var lastTouch: (code: String, coordinate: GeoCoordinate)?
     @ObservationIgnored private var ring: Ring?
+    /// Points the globe sits above the view's middle, springing as panels come and go.
+    @ObservationIgnored private var centerOffset = SpringValue(0)
+    /// The zoom the globe comes to rest at when framed for a panel (1 = whole globe).
+    @ObservationIgnored private var restingZoom = 1.0
     /// How far each name has popped up, including names on their way out.
     @ObservationIgnored private var labelAppearance: [UUID: SpringValue] = [:]
 
@@ -207,8 +221,9 @@ final class GlobeController {
     /// where it was last touched, else its middle) with a bright front, the country jumps
     /// out of the globe and settles back, and a ring runs off across the planet. Returns
     /// where it starts on screen, for confetti; `nil` if that's out of sight.
+    /// `quietly`: a smaller jump and no ring, for marking many countries one after another.
     @discardableResult
-    func celebrate(_ code: String, from origin: GeoCoordinate? = nil) -> CGPoint? {
+    func celebrate(_ code: String, from origin: GeoCoordinate? = nil, quietly: Bool = false) -> CGPoint? {
         guard var node = nodes[code] else { return nil }
         let start = origin ?? (lastTouch?.code == code ? lastTouch?.coordinate : nil) ?? node.shape.label
         let reach = GeoMath.spreadRadius(from: start, rings: node.shape.rings)
@@ -218,7 +233,9 @@ final class GlobeController {
         var progress = SpringValue(0)
         progress.target = 1
         node.wave = FillWave(origin: axis, reach: reach, progress: progress, isDrain: false)
-        if !reduceMotion {
+        if !reduceMotion, quietly {
+            node.lift.velocity += GlobeTuning.celebrationKick * GlobeTuning.quietKickScale
+        } else if !reduceMotion {
             node.lift.velocity += GlobeTuning.celebrationKick
             var travel = SpringValue(0)
             travel.target = 1
@@ -228,6 +245,29 @@ final class GlobeController {
         nodes[code] = node
         animating.insert(code)
         return screenPoint(onGlobe: start, lift: 1 + GlobeTuning.visitedLift)
+    }
+
+    /// Slides the globe up by `offset` points and settles it at `zoom`, leaving room for a
+    /// panel underneath. `frame(offset: 0, zoom: 1)` puts it back.
+    func frame(offset: Double, zoom: Double) {
+        centerOffset.target = offset
+        restingZoom = zoom
+        flight = nil
+        // May go below the pinch range: a panel can leave little room.
+        self.zoom.target = min(GlobeTuning.zoomRange.upperBound, max(0.3, zoom))
+        zoomSpring = GlobeTuning.framingSpring
+        if reduceMotion {
+            centerOffset.snap()
+            self.zoom.snap()
+            applyCamera()
+        }
+    }
+
+    /// Turns the country to the middle without selecting it.
+    func lookAt(_ code: String) {
+        guard let label = nodes[code]?.shape.label else { return }
+        focus(on: label, spring: GlobeTuning.focusSpring)
+        lastInteraction = CACurrentMediaTime()
     }
 
     /// Unmarking, the calm way back: the color drains to the country's middle.
@@ -761,6 +801,10 @@ final class GlobeController {
 
     private func stepZoom(_ dt: Double) {
         if !isPinching { zoom.step(dt, zoomSpring) }
+        if !centerOffset.isSettled {
+            centerOffset.step(dt, GlobeTuning.framingSpring)
+            camera.centerOffset = centerOffset.value
+        }
         applyCamera()
         updateLiftScale()
     }
@@ -841,14 +885,17 @@ final class GlobeController {
         if reduceMotion {
             yaw = SpringValue(target.yaw)
             pitch = SpringValue(target.pitch)
+            zoom = SpringValue(restingZoom)
             return
         }
-        yaw = SpringValue(target.yaw - 2.6)
+        let isArrival = introStyle == .arrival
+        let spring = isArrival ? GlobeTuning.arrivalSpring : GlobeTuning.introSpring
+        yaw = SpringValue(target.yaw - (isArrival ? GlobeTuning.arrivalSpin : 2.6))
         pitch = SpringValue(0)
-        zoom = SpringValue(0.35)
-        zoom.target = 1
-        zoomSpring = GlobeTuning.introSpring
-        focus(on: home, spring: GlobeTuning.introSpring)
+        zoom = SpringValue(isArrival ? GlobeTuning.arrivalStartZoom : 0.35)
+        zoom.target = restingZoom
+        zoomSpring = spring
+        focus(on: home, spring: spring)
     }
 
     #if DEBUG
