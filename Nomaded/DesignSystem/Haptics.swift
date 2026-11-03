@@ -20,4 +20,6 @@ enum Haptics {
     static let medalLanded = SensoryFeedback.impact(weight: .heavy)
     /// A milestone's title appears.
     static let milestone = SensoryFeedback.success
+    /// A letter of the welcome title lands: barely there.
+    static let letter = SensoryFeedback.impact(weight: .light, intensity: 0.35)
 }

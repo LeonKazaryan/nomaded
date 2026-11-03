@@ -35,6 +35,13 @@ struct GlobeScreen: View {
     /// Reduce Motion: the globe dissolves to a search result instead of flying.
     @State private var isGlobeHidden = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Set once the first-launch introduction is done (or wasn't needed).
+    @AppStorage("hasOnboarded") private var hasOnboarded = false
+    /// The first-launch step on screen; `nil` once it's done.
+    @State private var onboarding: OnboardingStep?
+    /// When the jump out of hyperspace began, on first launch.
+    @State private var warpStart: Date?
+    @State private var picks = 0
 
     /// The one split every counter on this screen uses.
     private var visitedPlaces: VisitedPlaces {
@@ -45,6 +52,11 @@ struct GlobeScreen: View {
         let visitedPlaces = visitedPlaces
         ZStack {
             SpaceBackground()
+
+            if onboarding == .welcome, let warpStart {
+                // Behind the globe: the stars stream past it as it arrives.
+                WarpField(start: warpStart)
+            }
 
             GlobeView(controller: controller)
                 .ignoresSafeArea()
@@ -68,60 +80,63 @@ struct GlobeScreen: View {
                     .transition(.opacity)
             }
 
-            // Laid out as if there were no keyboard: right after a search pick the keyboard is
-            // still sliding away, and the card must not ride up on it and then drop.
-            VStack(spacing: 0) {
-                if !isSearching, !isShowingStats, addingCityTo == nil {
-                    TopBar(
-                        visited: visitedPlaces,
-                        isShowingVisited: isShowingVisited,
-                        isReady: controller.isReady,
-                        onStats: { setShowingStats(true) },
-                        onToggleVisited: { setShowingVisited(!isShowingVisited) },
-                        onSearch: { setSearching(true) }
-                    )
-                    .transition(.opacity)
-                }
+            if onboarding == nil {
+                // Laid out as if there were no keyboard: right after a search pick the keyboard is
+                // still sliding away, and the card must not ride up on it and then drop.
+                VStack(spacing: 0) {
+                    if !isSearching, !isShowingStats, addingCityTo == nil {
+                        TopBar(
+                            visited: visitedPlaces,
+                            isShowingVisited: isShowingVisited,
+                            isReady: controller.isReady,
+                            onStats: { setShowingStats(true) },
+                            onToggleVisited: { setShowingVisited(!isShowingVisited) },
+                            onSearch: { setSearching(true) }
+                        )
+                        .transition(.opacity)
+                    }
 
-                if isShowingVisited {
-                    VisitedCountriesPanel(
-                        places: VisitedPlaces(
-                            countries: RegionDisplay.sortedByName(visitedPlaces.countries),
-                            territories: RegionDisplay.sortedByName(visitedPlaces.territories)
-                        ),
-                        onPick: flyTo
-                    )
-                        .padding(.top, 12)
-                        // Drops out of the counter above it.
-                        .transition(reduceMotion ? .opacity : .scale(scale: 0.5, anchor: .top).combined(with: .opacity))
-                }
+                    if isShowingVisited {
+                        VisitedCountriesPanel(
+                            places: VisitedPlaces(
+                                countries: RegionDisplay.sortedByName(visitedPlaces.countries),
+                                territories: RegionDisplay.sortedByName(visitedPlaces.territories)
+                            ),
+                            onPick: flyTo
+                        )
+                            .padding(.top, 12)
+                            // Drops out of the counter above it.
+                            .transition(reduceMotion ? .opacity : .scale(scale: 0.5, anchor: .top).combined(with: .opacity))
+                    }
 
-                Spacer(minLength: 0)
+                    Spacer(minLength: 0)
 
-                if !isSearching, !isShowingVisited, !isShowingStats, addingCityTo == nil, let selected {
-                    CountryPeekCard(
-                        code: selected,
-                        isVisited: world.isVisited(selected),
-                        // Newest first: a city just added is the first chip.
-                        cities: world.cities(in: selected).reversed(),
-                        highlightedCity: highlightedCity,
-                        visitedSince: awaitingLanding == selected ? nil : world.firstVisits[selected],
-                        stampInk: controller.visitedColor(of: selected).map(Color.init(components:)) ?? Palette.accentLight,
-                        stampSlams: justMarked == selected,
-                        onToggleVisited: { toggleVisited(selected) },
-                        onFindNext: { setSearching(true) },
-                        onAddCity: { setAddingCity(selected) },
-                        onSelectCity: selectCity,
-                        onRemoveCity: removeCity,
-                        onClose: { select(nil) }
-                    )
-                    .id(selected)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    if !isSearching, !isShowingVisited, !isShowingStats, addingCityTo == nil, let selected {
+                        CountryPeekCard(
+                            code: selected,
+                            isVisited: world.isVisited(selected),
+                            // Newest first: a city just added is the first chip.
+                            cities: world.cities(in: selected).reversed(),
+                            highlightedCity: highlightedCity,
+                            visitedSince: awaitingLanding == selected ? nil : world.firstVisits[selected],
+                            stampInk: controller.visitedColor(of: selected).map(Color.init(components:)) ?? Palette.accentLight,
+                            stampSlams: justMarked == selected,
+                            onToggleVisited: { toggleVisited(selected) },
+                            onFindNext: { setSearching(true) },
+                            onAddCity: { setAddingCity(selected) },
+                            onSelectCity: selectCity,
+                            onRemoveCity: removeCity,
+                            onClose: { select(nil) }
+                        )
+                        .id(selected)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
                 }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+                .ignoresSafeArea(.keyboard)
+                .transition(.opacity)
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 8)
-            .ignoresSafeArea(.keyboard)
 
             ConfettiView(bursts: confetti)
 
@@ -169,6 +184,16 @@ struct GlobeScreen: View {
                 .transition(.opacity)
             }
 
+            if onboarding != nil {
+                OnboardingFlow(
+                    step: Binding(get: { onboarding ?? .welcome }, set: { onboarding = $0 }),
+                    controller: controller,
+                    onToggle: togglePick,
+                    onFinish: finishOnboarding
+                )
+                .transition(.opacity)
+            }
+
             if let shownMilestone {
                 MilestoneCelebration(
                     event: shownMilestone,
@@ -185,6 +210,7 @@ struct GlobeScreen: View {
         .sensoryFeedback(Haptics.select, trigger: selected) { _, new in new != nil }
         .sensoryFeedback(Haptics.markVisited, trigger: celebrations)
         .sensoryFeedback(Haptics.cityLanded, trigger: landings)
+        .sensoryFeedback(Haptics.select, trigger: picks)
         .confirmationDialog(
             Text("Remove \(RegionDisplay.name(for: confirmingUnmark ?? "")) from visited?"),
             isPresented: Binding(get: { confirmingUnmark != nil }, set: { if !$0 { confirmingUnmark = nil } }),
@@ -197,7 +223,15 @@ struct GlobeScreen: View {
             Text("\(world.cities(in: code).count) cities will be removed with it.")
         }
         .onAppear {
-            controller.onCountryTap = { select($0) }
+            startOnboardingIfNeeded()
+            controller.onCountryTap = { code in
+                // While picking countries on first launch, a tap ticks the country off.
+                if let onboarding {
+                    if onboarding == .pick, let code { togglePick(code) }
+                } else {
+                    select(code)
+                }
+            }
             controller.onCityTap = { selectCity($0) }
             controller.onCityLanded = { id, point, marksCountry in
                 landings += 1
@@ -229,7 +263,55 @@ struct GlobeScreen: View {
         }
         .onChange(of: controller.isReady) { _, isReady in
             guard isReady, let geometry = controller.world else { return }
+            // The globe starts flying in now, not at launch: loading can take a moment.
+            if onboarding == .welcome, !reduceMotion { warpStart = .now }
             Task { continentMaps = await ContinentMaps.build(world: geometry, catalog: .bundled) }
+        }
+    }
+
+    // MARK: - First launch
+
+    /// New users, with nothing marked, get the introduction. Anyone who already has marks
+    /// (from before onboarding existed) is simply counted as done.
+    private func startOnboardingIfNeeded() {
+        var shows = !hasOnboarded && world.visitedCodes.isEmpty
+        #if DEBUG
+        // Scripted screenshot runs skip it unless they ask for it.
+        if ProcessInfo.processInfo.arguments.contains(where: { $0.hasPrefix("-NomadedDebug") }) {
+            shows = UserDefaults.standard.bool(forKey: "NomadedDebugOnboarding")
+        } else if !shows, !hasOnboarded {
+            hasOnboarded = true
+        }
+        #else
+        if !shows, !hasOnboarded { hasOnboarded = true }
+        #endif
+        guard shows else { return }
+        onboarding = .welcome
+        controller.introStyle = .arrival
+    }
+
+    /// A country ticked off in the onboarding list or on the globe: it fills in quietly (no
+    /// ring, a small jump) as the globe turns to it; tapped again, it drains away.
+    private func togglePick(_ code: String) {
+        if world.isVisited(code) {
+            world.unmarkVisited(code)
+            controller.drain(code)
+        } else {
+            world.markVisited(code)
+            controller.lookAt(code)
+            controller.celebrate(code, quietly: true)
+        }
+        picks += 1
+    }
+
+    private func finishOnboarding() {
+        controller.frame(offset: 0, zoom: 1)
+        // The picks reach their milestones quietly; celebrations start with the next mark.
+        world.earnMilestones()
+        hasOnboarded = true
+        withAnimation(Motion.smooth) {
+            onboarding = nil
+            warpStart = nil
         }
     }
 
@@ -437,6 +519,9 @@ struct GlobeScreen: View {
     /// adds cities, `-NomadedDebugCityFocus YES` flies to the first,
     /// `-NomadedDebugAddCity IT` opens the city search (`-NomadedDebugCityQuery Фл` types in it),
     /// `-NomadedDebugLandCity "Genoa:IT:44.41:8.93"` adds one as if picked in search,
+    /// `-NomadedDebugOnboarding YES` shows the first-launch introduction
+    /// (`-NomadedDebugOnboardingStep pick` or `ready` jumps into it; `-NomadedDebugOnboardingQuery Ита`
+    /// types into the pick step's search),
     /// `-NomadedDebugMark IT` flies to a country and marks it, celebration and all
     /// (`-NomadedDebugUnmarkAfter YES` unmarks it 3 s later), `-NomadedDebugMilestone countries.25`
     /// shows a milestone's celebration. These runs
@@ -454,6 +539,11 @@ struct GlobeScreen: View {
         // Seeded marks reach milestones quietly; only the next real mark celebrates.
         world.earnMilestones()
         let debugMilestone = defaults.string(forKey: "NomadedDebugMilestone").flatMap(Milestone.init(id:))
+        switch defaults.string(forKey: "NomadedDebugOnboardingStep") {
+        case "pick": onboarding = .pick
+        case "ready": onboarding = .ready
+        default: break
+        }
         let focusesCity = defaults.bool(forKey: "NomadedDebugCityFocus")
         let marks = defaults.string(forKey: "NomadedDebugMark")
         let addsCityTo = defaults.string(forKey: "NomadedDebugAddCity")

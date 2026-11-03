@@ -13,7 +13,7 @@
 - [ ] **Bundle ID** `com.leonkazaryan.nomaded`. При автоматической подписи Xcode зарегистрирует его сам.
 - [ ] **Team** в Signing & Capabilities = платный аккаунт разработчика.
 - [ ] **Иконка** 1024×1024 без прозрачности, плюс варианты dark и tinted (слоты уже есть в `Assets.xcassets/AppIcon`). На Xcode 26 можно сделать «стеклянную» иконку в Icon Composer.
-- [ ] **Privacy Manifest** (`PrivacyInfo.xcprivacy`). Обязателен, если используем «API с обоснованием»: например, `UserDefaults` / `@AppStorage` (причина `CA92.1`). Почти наверняка понадобится.
+- [x] **Privacy Manifest** (`Nomaded/PrivacyInfo.xcprivacy`): `UserDefaults` / `@AppStorage`, причина `CA92.1`. Трекинга и сбора данных нет.
 - [x] **Экспортное шифрование:** `ITSAppUsesNonExemptEncryption = NO` уже в `Info.plist`, вопрос при каждой загрузке задаваться не будет.
 - [ ] **Строки разрешений** (если добавим фичи): геолокация (`NSLocationWhenInUseUsageDescription`) для «ты здесь», фото (`NSPhotoLibraryUsageDescription`) для импорта поездок. Без них приложение упадёт при запросе.
 - [ ] Сборка **Release** без warnings, протестирована на устройстве.

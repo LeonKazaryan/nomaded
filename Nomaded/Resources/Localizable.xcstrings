@@ -232,6 +232,16 @@
         }
       }
     },
+    "%lld of %lld continents" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld из %2$lld континентов"
+          }
+        }
+      }
+    },
     "+%lld territories" : {
       "localizations" : {
         "en" : {
@@ -310,6 +320,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Африка"
+          }
+        }
+      }
+    },
+    "All" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Все"
           }
         }
       }
@@ -464,12 +484,32 @@
         }
       }
     },
+    "Collect medals as you go" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Собирай медали за новые страны и континенты"
+          }
+        }
+      }
+    },
     "Continents" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Континенты"
+          }
+        }
+      }
+    },
+    "Continue" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Продолжить"
           }
         }
       }
@@ -584,12 +624,32 @@
         }
       }
     },
+    "Find countries and cities" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ищи страны и города"
+          }
+        }
+      }
+    },
     "First stop: %@" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Первая остановка — %@"
+          }
+        }
+      }
+    },
+    "Get started" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Начать"
           }
         }
       }
@@ -644,12 +704,32 @@
         }
       }
     },
+    "Let's go!" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поехали!"
+          }
+        }
+      }
+    },
     "Mark as visited" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Отметить как посещённую"
+          }
+        }
+      }
+    },
+    "Mark the countries you've been to and watch your world fill with color." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отмечай страны, где ты был, и смотри, как твой мир наполняется цветом."
           }
         }
       }
@@ -1026,6 +1106,16 @@
         }
       }
     },
+    "Skip" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пропустить"
+          }
+        }
+      }
+    },
     "Smallest" : {
       "localizations" : {
         "ru" : {
@@ -1102,6 +1192,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Статистика"
+          }
+        }
+      }
+    },
+    "Tap a country to mark it" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отмечай страны тапом по глобусу"
+          }
+        }
+      }
+    },
+    "Tap the countries you've visited. You can change this any time." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отметь страны, где ты уже был. Это можно поменять в любой момент."
           }
         }
       }
@@ -1236,12 +1346,52 @@
         }
       }
     },
+    "Where have you been?" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Где ты уже был?"
+          }
+        }
+      }
+    },
     "Whole world" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Весь мир"
+          }
+        }
+      }
+    },
+    "Your map is empty, for now" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пока карта пуста — это ненадолго"
+          }
+        }
+      }
+    },
+    "Your travel passport" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Твой паспорт путешественника"
+          }
+        }
+      }
+    },
+    "Your world" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Твой мир"
           }
         }
       }
