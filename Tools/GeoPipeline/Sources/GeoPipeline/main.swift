@@ -1,11 +1,12 @@
 import Foundation
 
-// Natural Earth GeoJSON → Nomaded globe geometry (.nmgeo).
+// Natural Earth GeoJSON → Nomaded globe geometry (.nmgeo) and, with --catalog, the
+// country catalog (countries.json) the statistics read.
 // See Tools/GeoPipeline/README.md for the exact command and data source.
 
 let arguments = CommandLine.arguments
 guard arguments.count >= 3 else {
-    print("usage: GeoPipeline <input.geojson> <output.nmgeo> [--tolerance degrees]")
+    print("usage: GeoPipeline <input.geojson> <output.nmgeo> [--catalog countries.json] [--tolerance degrees]")
     exit(1)
 }
 
@@ -15,6 +16,10 @@ let output = URL(fileURLWithPath: arguments[2])
 var tolerance = 0.02
 if let flag = arguments.firstIndex(of: "--tolerance"), flag + 1 < arguments.count, let value = Double(arguments[flag + 1]) {
     tolerance = value
+}
+
+let catalogOutput = arguments.firstIndex(of: "--catalog").flatMap { flag in
+    flag + 1 < arguments.count ? URL(fileURLWithPath: arguments[flag + 1]) : nil
 }
 
 let started = Date()
@@ -45,6 +50,14 @@ for (index, (country, original)) in zip(countries, originals).enumerated() {
 let data = WorldFileWriter.encode(built)
 try data.write(to: output)
 
+var catalogSummary = ""
+if let catalogOutput {
+    // Areas come from the unsimplified outlines.
+    let entries = try CountryCatalog.entries(originals)
+    try CountryCatalog.encode(entries).write(to: catalogOutput)
+    catalogSummary = "\ncatalog: \(entries.count) places, \(entries.filter(\.sovereign).count) countries"
+}
+
 let ringPoints = built.reduce(0) { $0 + $1.rings.reduce(0) { $0 + $1.count } }
 let vertices = built.reduce(0) { $0 + $1.vertices.count }
 let triangles = built.reduce(0) { $0 + $1.indices.count / 3 }
@@ -53,5 +66,5 @@ countries: \(built.count) (selectable: \(built.filter { !$0.code.isEmpty }.count
 source vertices: \(features.reduce(0) { $0 + $1.vertexCount }), ring points after simplify+densify: \(ringPoints)
 mesh: \(vertices) vertices, \(triangles) triangles
 polygons rebuilt from the unsimplified outline: \(fallbacks)
-file: \(ByteCountFormatter.string(fromByteCount: Int64(data.count), countStyle: .file)) in \(String(format: "%.1f", Date().timeIntervalSince(started))) s
+file: \(ByteCountFormatter.string(fromByteCount: Int64(data.count), countStyle: .file)) in \(String(format: "%.1f", Date().timeIntervalSince(started))) s\(catalogSummary)
 """)

@@ -4,6 +4,16 @@
     "" : {
 
     },
+    "%@ of all land" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ всей суши"
+          }
+        }
+      }
+    },
     "%lld countries" : {
       "localizations" : {
         "en" : {
@@ -56,12 +66,144 @@
         }
       }
     },
+    "%lld of %lld" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld из %2$lld"
+          }
+        }
+      }
+    },
+    "+%lld territories" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "+%lld territory"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "+%lld territories"
+                }
+              }
+            }
+          }
+        },
+        "ru" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "+%lld территория"
+                }
+              },
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "+%lld территории"
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "+%lld территорий"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "+%lld территории"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Africa" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Африка"
+          }
+        }
+      }
+    },
+    "Antarctica" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Антарктида"
+          }
+        }
+      }
+    },
+    "Asia" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Азия"
+          }
+        }
+      }
+    },
+    "Australia and New Zealand" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Австралия и Новая Зеландия"
+          }
+        }
+      }
+    },
     "Cancel" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Отмена"
+          }
+        }
+      }
+    },
+    "Caribbean" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Карибы"
+          }
+        }
+      }
+    },
+    "Central America" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Центральная Америка"
+          }
+        }
+      }
+    },
+    "Central Asia" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Центральная Азия"
           }
         }
       }
@@ -136,6 +278,56 @@
         }
       }
     },
+    "Eastern Africa" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Восточная Африка"
+          }
+        }
+      }
+    },
+    "Eastern Asia" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Восточная Азия"
+          }
+        }
+      }
+    },
+    "Eastern Europe" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Восточная Европа"
+          }
+        }
+      }
+    },
+    "Europe" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Европа"
+          }
+        }
+      }
+    },
+    "Facts" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Интересное"
+          }
+        }
+      }
+    },
     "Globe" : {
       "localizations" : {
         "ru" : {
@@ -156,12 +348,72 @@
         }
       }
     },
+    "Land" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Суша"
+          }
+        }
+      }
+    },
+    "Largest" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Самая большая"
+          }
+        }
+      }
+    },
     "Mark as visited" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Отметить как посещённую"
+          }
+        }
+      }
+    },
+    "Mark your first country and this page comes alive" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отметь первую страну — и здесь всё оживёт"
+          }
+        }
+      }
+    },
+    "Melanesia" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Меланезия"
+          }
+        }
+      }
+    },
+    "Micronesia" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Микронезия"
+          }
+        }
+      }
+    },
+    "Middle Africa" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Центральная Африка"
           }
         }
       }
@@ -196,12 +448,62 @@
         }
       }
     },
+    "North America" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Северная Америка"
+          }
+        }
+      }
+    },
+    "Northern Africa" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Северная Африка"
+          }
+        }
+      }
+    },
+    "Northern America" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "США и Канада"
+          }
+        }
+      }
+    },
+    "Northern Europe" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Северная Европа"
+          }
+        }
+      }
+    },
     "Not visited yet" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ещё не посещена"
+          }
+        }
+      }
+    },
+    "Oceania" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Океания"
           }
         }
       }
@@ -216,12 +518,84 @@
         }
       }
     },
+    "of %lld countries" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "of %lld country"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "of %lld countries"
+                }
+              }
+            }
+          }
+        },
+        "ru" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "из %lld страны"
+                }
+              },
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "из %lld стран"
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "из %lld стран"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "из %lld страны"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "of the world" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "мира"
+          }
+        }
+      }
+    },
+    "Polynesia" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Полинезия"
+          }
+        }
+      }
+    },
+    "Regions" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Регионы"
           }
         }
       }
@@ -256,6 +630,66 @@
         }
       }
     },
+    "Smallest" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Самая маленькая"
+          }
+        }
+      }
+    },
+    "South America" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Южная Америка"
+          }
+        }
+      }
+    },
+    "South-Eastern Asia" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Юго-Восточная Азия"
+          }
+        }
+      }
+    },
+    "Southern Africa" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Южная Африка"
+          }
+        }
+      }
+    },
+    "Southern Asia" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Южная Азия"
+          }
+        }
+      }
+    },
+    "Southern Europe" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Южная Европа"
+          }
+        }
+      }
+    },
     "Statistics" : {
       "localizations" : {
         "ru" : {
@@ -282,6 +716,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Посещённые страны"
+          }
+        }
+      }
+    },
+    "Western Africa" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Западная Африка"
+          }
+        }
+      }
+    },
+    "Western Asia" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Западная Азия"
+          }
+        }
+      }
+    },
+    "Western Europe" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Западная Европа"
           }
         }
       }

@@ -6,7 +6,7 @@ struct GlobeView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            GlobeSurface(controller: controller)
+            GlobeSurface(controller: controller, isPaused: controller.isPaused)
             .task { await controller.load() }
             // An overlay, not a ZStack sibling: the glow is wider than the screen and must
             // not push the globe off-center.
@@ -55,6 +55,7 @@ struct GlobeView: View {
 /// Hosts the Metal view. Its display link drives the controller: physics, then drawing.
 private struct GlobeSurface: UIViewRepresentable {
     let controller: GlobeController
+    let isPaused: Bool
 
     func makeUIView(context: Context) -> GlobeMetalView {
         let view = GlobeMetalView(device: controller.device)
@@ -64,7 +65,9 @@ private struct GlobeSurface: UIViewRepresentable {
         return view
     }
 
-    func updateUIView(_ view: GlobeMetalView, context: Context) {}
+    func updateUIView(_ view: GlobeMetalView, context: Context) {
+        view.isPaused = isPaused
+    }
 }
 
 /// Lighting drawn over the flat, unlit globe: darker edges, a soft key light and the

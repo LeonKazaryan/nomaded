@@ -3,6 +3,8 @@ import SwiftUI
 /// Type scale. Everything is SF Pro Rounded and follows Dynamic Type.
 /// For the one big number on a screen use `HeroNumber`, which sizes itself.
 enum Typography {
+    /// A full screen's title.
+    static let largeTitle = Font.system(.largeTitle, design: .rounded, weight: .heavy)
     static let title = Font.system(.title2, design: .rounded, weight: .bold)
     static let headline = Font.system(.headline, design: .rounded, weight: .bold)
     static let body = Font.system(.body, design: .rounded)

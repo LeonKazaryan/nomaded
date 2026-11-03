@@ -15,6 +15,10 @@ struct SourceFeature {
     let adm0: String
     let name: String
     let label: GeoPoint
+    /// Natural Earth's CONTINENT, REGION_UN and SUBREGION (UN M49 names).
+    let continent: String
+    let regionUN: String
+    let subregion: String
     let polygons: [GeoPolygon]
 
     var vertexCount: Int { polygons.reduce(0) { $0 + $1.rings.reduce(0) { $0 + $1.count } } }
@@ -24,6 +28,8 @@ struct CountryInput {
     /// ISO 3166-1 alpha-2. Empty for land that belongs to no selectable country.
     let code: String
     let label: GeoPoint
+    /// The largest part's: France is in Europe, not where Clipperton Island is.
+    let main: SourceFeature
     var polygons: [GeoPolygon]
 }
 

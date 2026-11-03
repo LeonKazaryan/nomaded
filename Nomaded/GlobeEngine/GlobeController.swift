@@ -26,6 +26,11 @@ final class GlobeController {
     /// Measured render rate, for the debug HUD.
     private(set) var framesPerSecond = 0
 
+    /// The loaded outlines, for screens that draw maps of their own. `nil` until `isReady`.
+    @ObservationIgnored private(set) var world: WorldGeometry?
+    /// While paused nothing moves or redraws, e.g. under a full-screen panel.
+    var isPaused = false
+
     /// Every country that can be selected. Empty until `isReady`.
     var countryCodes: [String] { Array(nodes.keys) }
 
@@ -94,6 +99,7 @@ final class GlobeController {
             try renderer.setScene(ocean: scene.ocean, land: scene.land)
             setUpCountries(world, ranges: scene.ranges)
             hitTester = GlobeHitTester(world: world)
+            self.world = world
             isReady = true
             playIntro()
             let elapsed = Int((CACurrentMediaTime() - started) * 1000)

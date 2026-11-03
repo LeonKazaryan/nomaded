@@ -9,8 +9,11 @@ curl -L -o "$TMPDIR/ne_usa.geojson" \
   https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_10m_admin_0_countries_usa.geojson
 
 swift run -c release --package-path Tools/GeoPipeline GeoPipeline \
-  "$TMPDIR/ne_usa.geojson" Nomaded/Resources/Geo/world.nmgeo
+  "$TMPDIR/ne_usa.geojson" Nomaded/Resources/Geo/world.nmgeo \
+  --catalog Nomaded/Resources/Geo/countries.json
 ```
+
+`--catalog` пишет справочник для статистики: континент, регион ООН, «одна из 195» и площадь каждой страны (`CountryCatalog.swift`).
 
 Опция `--tolerance 0.02` задаёт степень упрощения границ в градусах (по умолчанию 0.02°, это ~2 км).
 
@@ -24,6 +27,7 @@ swift run -c release --package-path Tools/GeoPipeline GeoPipeline \
 4. **Триангуляция** (`Earcut`, порт mapbox/earcut). Если упрощение сделало контур крошечного острова самопересекающимся, полигон строится по исходному контуру.
 5. **Укладка на сферу** (`SphereMeshBuilder`). Треугольники earcut режутся пополам по длинному ребру в той же плоскости lon/lat, пока рёбра не станут ≤ 1.5° по земле. Так меш повторяет кривизну без трещин и не вылезает за контур. Резать по дуге большого круга нельзя: на севере такая дуга выгибается к полюсу, и треугольники уходят в океан (так у России пропадало арктическое побережье). Длинные прямые границы (49-я параллель) уплотняются, чтобы идти по широте.
 6. **Запись** бинарного файла (`WorldFileWriter`, формат описан в комментарии там же).
+7. **Справочник** (`CountryCatalog`, с `--catalog`): континент и подрегион из полей Natural Earth (острова «открытого океана» — по геосхеме ООН), список 195 стран, площадь по исходным контурам на сфере.
 
 ## Данные
 

@@ -1,0 +1,1675 @@
+[
+  {
+    "areaKm2" : 451.49,
+    "code" : "AD",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Southern Europe"
+  },
+  {
+    "areaKm2" : 71259,
+    "code" : "AE",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Western Asia"
+  },
+  {
+    "areaKm2" : 642392.46,
+    "code" : "AF",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Southern Asia"
+  },
+  {
+    "areaKm2" : 453.34,
+    "code" : "AG",
+    "continent" : "northAmerica",
+    "sovereign" : true,
+    "subregion" : "Caribbean"
+  },
+  {
+    "areaKm2" : 87.7,
+    "code" : "AI",
+    "continent" : "northAmerica",
+    "sovereign" : false,
+    "subregion" : "Caribbean"
+  },
+  {
+    "areaKm2" : 28298.35,
+    "code" : "AL",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Southern Europe"
+  },
+  {
+    "areaKm2" : 29554.98,
+    "code" : "AM",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Western Asia"
+  },
+  {
+    "areaKm2" : 1249439.4,
+    "code" : "AO",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Middle Africa"
+  },
+  {
+    "areaKm2" : 12258370.45,
+    "code" : "AQ",
+    "continent" : "antarctica",
+    "sovereign" : false,
+    "subregion" : "Antarctica"
+  },
+  {
+    "areaKm2" : 2783121.76,
+    "code" : "AR",
+    "continent" : "southAmerica",
+    "sovereign" : true,
+    "subregion" : "South America"
+  },
+  {
+    "areaKm2" : 180.97,
+    "code" : "AS",
+    "continent" : "oceania",
+    "sovereign" : false,
+    "subregion" : "Polynesia"
+  },
+  {
+    "areaKm2" : 83755.92,
+    "code" : "AT",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Western Europe"
+  },
+  {
+    "areaKm2" : 7706038.94,
+    "code" : "AU",
+    "continent" : "oceania",
+    "sovereign" : true,
+    "subregion" : "Australia and New Zealand"
+  },
+  {
+    "areaKm2" : 170.42,
+    "code" : "AW",
+    "continent" : "northAmerica",
+    "sovereign" : false,
+    "subregion" : "Caribbean"
+  },
+  {
+    "areaKm2" : 936.78,
+    "code" : "AX",
+    "continent" : "europe",
+    "sovereign" : false,
+    "subregion" : "Northern Europe"
+  },
+  {
+    "areaKm2" : 86152.93,
+    "code" : "AZ",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Western Asia"
+  },
+  {
+    "areaKm2" : 51721.63,
+    "code" : "BA",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Southern Europe"
+  },
+  {
+    "areaKm2" : 445.91,
+    "code" : "BB",
+    "continent" : "northAmerica",
+    "sovereign" : true,
+    "subregion" : "Caribbean"
+  },
+  {
+    "areaKm2" : 137217.43,
+    "code" : "BD",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Southern Asia"
+  },
+  {
+    "areaKm2" : 30561.23,
+    "code" : "BE",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Western Europe"
+  },
+  {
+    "areaKm2" : 273826.69,
+    "code" : "BF",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Western Africa"
+  },
+  {
+    "areaKm2" : 112568.26,
+    "code" : "BG",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Eastern Europe"
+  },
+  {
+    "areaKm2" : 689.43,
+    "code" : "BH",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Western Asia"
+  },
+  {
+    "areaKm2" : 27161.38,
+    "code" : "BI",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Eastern Africa"
+  },
+  {
+    "areaKm2" : 116589.95,
+    "code" : "BJ",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Western Africa"
+  },
+  {
+    "areaKm2" : 24.5,
+    "code" : "BL",
+    "continent" : "northAmerica",
+    "sovereign" : false,
+    "subregion" : "Caribbean"
+  },
+  {
+    "areaKm2" : 62.34,
+    "code" : "BM",
+    "continent" : "northAmerica",
+    "sovereign" : false,
+    "subregion" : "Northern America"
+  },
+  {
+    "areaKm2" : 5741.83,
+    "code" : "BN",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "South-Eastern Asia"
+  },
+  {
+    "areaKm2" : 1090454.08,
+    "code" : "BO",
+    "continent" : "southAmerica",
+    "sovereign" : true,
+    "subregion" : "South America"
+  },
+  {
+    "areaKm2" : 8504685.29,
+    "code" : "BR",
+    "continent" : "southAmerica",
+    "sovereign" : true,
+    "subregion" : "South America"
+  },
+  {
+    "areaKm2" : 12631.9,
+    "code" : "BS",
+    "continent" : "northAmerica",
+    "sovereign" : true,
+    "subregion" : "Caribbean"
+  },
+  {
+    "areaKm2" : 40487.61,
+    "code" : "BT",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Southern Asia"
+  },
+  {
+    "areaKm2" : 580514.94,
+    "code" : "BW",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Southern Africa"
+  },
+  {
+    "areaKm2" : 206632.1,
+    "code" : "BY",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Eastern Europe"
+  },
+  {
+    "areaKm2" : 22373.24,
+    "code" : "BZ",
+    "continent" : "northAmerica",
+    "sovereign" : true,
+    "subregion" : "Central America"
+  },
+  {
+    "areaKm2" : 9894498.99,
+    "code" : "CA",
+    "continent" : "northAmerica",
+    "sovereign" : true,
+    "subregion" : "Northern America"
+  },
+  {
+    "areaKm2" : 2335422.37,
+    "code" : "CD",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Middle Africa"
+  },
+  {
+    "areaKm2" : 620643.72,
+    "code" : "CF",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Middle Africa"
+  },
+  {
+    "areaKm2" : 346428.73,
+    "code" : "CG",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Middle Africa"
+  },
+  {
+    "areaKm2" : 41326,
+    "code" : "CH",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Western Europe"
+  },
+  {
+    "areaKm2" : 322038.57,
+    "code" : "CI",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Western Africa"
+  },
+  {
+    "areaKm2" : 191.69,
+    "code" : "CK",
+    "continent" : "oceania",
+    "sovereign" : false,
+    "subregion" : "Polynesia"
+  },
+  {
+    "areaKm2" : 736364.43,
+    "code" : "CL",
+    "continent" : "southAmerica",
+    "sovereign" : true,
+    "subregion" : "South America"
+  },
+  {
+    "areaKm2" : 466331.15,
+    "code" : "CM",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Middle Africa"
+  },
+  {
+    "areaKm2" : 9375675.35,
+    "code" : "CN",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Eastern Asia"
+  },
+  {
+    "areaKm2" : 1140094.7,
+    "code" : "CO",
+    "continent" : "southAmerica",
+    "sovereign" : true,
+    "subregion" : "South America"
+  },
+  {
+    "areaKm2" : 51360.03,
+    "code" : "CR",
+    "continent" : "northAmerica",
+    "sovereign" : true,
+    "subregion" : "Central America"
+  },
+  {
+    "areaKm2" : 110222.04,
+    "code" : "CU",
+    "continent" : "northAmerica",
+    "sovereign" : true,
+    "subregion" : "Caribbean"
+  },
+  {
+    "areaKm2" : 3940.36,
+    "code" : "CV",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Western Africa"
+  },
+  {
+    "areaKm2" : 465.04,
+    "code" : "CW",
+    "continent" : "northAmerica",
+    "sovereign" : false,
+    "subregion" : "Caribbean"
+  },
+  {
+    "areaKm2" : 9056,
+    "code" : "CY",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Western Asia"
+  },
+  {
+    "areaKm2" : 78497.27,
+    "code" : "CZ",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Eastern Europe"
+  },
+  {
+    "areaKm2" : 356378.77,
+    "code" : "DE",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Western Europe"
+  },
+  {
+    "areaKm2" : 21933.87,
+    "code" : "DJ",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Eastern Africa"
+  },
+  {
+    "areaKm2" : 42494.32,
+    "code" : "DK",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Northern Europe"
+  },
+  {
+    "areaKm2" : 732.89,
+    "code" : "DM",
+    "continent" : "northAmerica",
+    "sovereign" : true,
+    "subregion" : "Caribbean"
+  },
+  {
+    "areaKm2" : 48589.06,
+    "code" : "DO",
+    "continent" : "northAmerica",
+    "sovereign" : true,
+    "subregion" : "Caribbean"
+  },
+  {
+    "areaKm2" : 2312302.03,
+    "code" : "DZ",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Northern Africa"
+  },
+  {
+    "areaKm2" : 256155.23,
+    "code" : "EC",
+    "continent" : "southAmerica",
+    "sovereign" : true,
+    "subregion" : "South America"
+  },
+  {
+    "areaKm2" : 45576.27,
+    "code" : "EE",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Northern Europe"
+  },
+  {
+    "areaKm2" : 1002869.92,
+    "code" : "EG",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Northern Africa"
+  },
+  {
+    "areaKm2" : 268921.04,
+    "code" : "EH",
+    "continent" : "africa",
+    "sovereign" : false,
+    "subregion" : "Northern Africa"
+  },
+  {
+    "areaKm2" : 122972.07,
+    "code" : "ER",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Eastern Africa"
+  },
+  {
+    "areaKm2" : 506328.2,
+    "code" : "ES",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Southern Europe"
+  },
+  {
+    "areaKm2" : 1132066.37,
+    "code" : "ET",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Eastern Africa"
+  },
+  {
+    "areaKm2" : 330937.94,
+    "code" : "FI",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Northern Europe"
+  },
+  {
+    "areaKm2" : 18992.16,
+    "code" : "FJ",
+    "continent" : "oceania",
+    "sovereign" : true,
+    "subregion" : "Melanesia"
+  },
+  {
+    "areaKm2" : 11553.36,
+    "code" : "FK",
+    "continent" : "southAmerica",
+    "sovereign" : false,
+    "subregion" : "South America"
+  },
+  {
+    "areaKm2" : 636.56,
+    "code" : "FM",
+    "continent" : "oceania",
+    "sovereign" : true,
+    "subregion" : "Micronesia"
+  },
+  {
+    "areaKm2" : 1320.59,
+    "code" : "FO",
+    "continent" : "europe",
+    "sovereign" : false,
+    "subregion" : "Northern Europe"
+  },
+  {
+    "areaKm2" : 635742.17,
+    "code" : "FR",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Western Europe"
+  },
+  {
+    "areaKm2" : 261133.32,
+    "code" : "GA",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Middle Africa"
+  },
+  {
+    "areaKm2" : 242736.75,
+    "code" : "GB",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Northern Europe"
+  },
+  {
+    "areaKm2" : 348.61,
+    "code" : "GD",
+    "continent" : "northAmerica",
+    "sovereign" : true,
+    "subregion" : "Caribbean"
+  },
+  {
+    "areaKm2" : 66510.84,
+    "code" : "GE",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Western Asia"
+  },
+  {
+    "areaKm2" : 73.74,
+    "code" : "GG",
+    "continent" : "europe",
+    "sovereign" : false,
+    "subregion" : "Northern Europe"
+  },
+  {
+    "areaKm2" : 239676.42,
+    "code" : "GH",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Western Africa"
+  },
+  {
+    "areaKm2" : 3.69,
+    "code" : "GI",
+    "continent" : "europe",
+    "sovereign" : false,
+    "subregion" : "Southern Europe"
+  },
+  {
+    "areaKm2" : 2137888.72,
+    "code" : "GL",
+    "continent" : "northAmerica",
+    "sovereign" : false,
+    "subregion" : "Northern America"
+  },
+  {
+    "areaKm2" : 10540.59,
+    "code" : "GM",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Western Africa"
+  },
+  {
+    "areaKm2" : 245290.14,
+    "code" : "GN",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Western Africa"
+  },
+  {
+    "areaKm2" : 26791.06,
+    "code" : "GQ",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Middle Africa"
+  },
+  {
+    "areaKm2" : 131243.74,
+    "code" : "GR",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Southern Europe"
+  },
+  {
+    "areaKm2" : 3904.1,
+    "code" : "GS",
+    "continent" : "southAmerica",
+    "sovereign" : false,
+    "subregion" : "South America"
+  },
+  {
+    "areaKm2" : 109192.02,
+    "code" : "GT",
+    "continent" : "northAmerica",
+    "sovereign" : true,
+    "subregion" : "Central America"
+  },
+  {
+    "areaKm2" : 566.33,
+    "code" : "GU",
+    "continent" : "oceania",
+    "sovereign" : false,
+    "subregion" : "Micronesia"
+  },
+  {
+    "areaKm2" : 32957.31,
+    "code" : "GW",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Western Africa"
+  },
+  {
+    "areaKm2" : 212139.38,
+    "code" : "GY",
+    "continent" : "southAmerica",
+    "sovereign" : true,
+    "subregion" : "South America"
+  },
+  {
+    "areaKm2" : 1038.84,
+    "code" : "HK",
+    "continent" : "asia",
+    "sovereign" : false,
+    "subregion" : "Eastern Asia"
+  },
+  {
+    "areaKm2" : 393.22,
+    "code" : "HM",
+    "continent" : "oceania",
+    "sovereign" : false,
+    "subregion" : "Australia and New Zealand"
+  },
+  {
+    "areaKm2" : 112641.55,
+    "code" : "HN",
+    "continent" : "northAmerica",
+    "sovereign" : true,
+    "subregion" : "Central America"
+  },
+  {
+    "areaKm2" : 54898.84,
+    "code" : "HR",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Southern Europe"
+  },
+  {
+    "areaKm2" : 26974.23,
+    "code" : "HT",
+    "continent" : "northAmerica",
+    "sovereign" : true,
+    "subregion" : "Caribbean"
+  },
+  {
+    "areaKm2" : 92946.61,
+    "code" : "HU",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Eastern Europe"
+  },
+  {
+    "areaKm2" : 1888146.41,
+    "code" : "ID",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "South-Eastern Asia"
+  },
+  {
+    "areaKm2" : 69160.17,
+    "code" : "IE",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Northern Europe"
+  },
+  {
+    "areaKm2" : 22101.85,
+    "code" : "IL",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Western Asia"
+  },
+  {
+    "areaKm2" : 572.31,
+    "code" : "IM",
+    "continent" : "europe",
+    "sovereign" : false,
+    "subregion" : "Northern Europe"
+  },
+  {
+    "areaKm2" : 3156046.66,
+    "code" : "IN",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Southern Asia"
+  },
+  {
+    "areaKm2" : 49.27,
+    "code" : "IO",
+    "continent" : "africa",
+    "sovereign" : false,
+    "subregion" : "Eastern Africa"
+  },
+  {
+    "areaKm2" : 437585.42,
+    "code" : "IQ",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Western Asia"
+  },
+  {
+    "areaKm2" : 1623475.94,
+    "code" : "IR",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Southern Asia"
+  },
+  {
+    "areaKm2" : 101722.64,
+    "code" : "IS",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Northern Europe"
+  },
+  {
+    "areaKm2" : 300677.98,
+    "code" : "IT",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Southern Europe"
+  },
+  {
+    "areaKm2" : 118.67,
+    "code" : "JE",
+    "continent" : "europe",
+    "sovereign" : false,
+    "subregion" : "Northern Europe"
+  },
+  {
+    "areaKm2" : 11068.05,
+    "code" : "JM",
+    "continent" : "northAmerica",
+    "sovereign" : true,
+    "subregion" : "Caribbean"
+  },
+  {
+    "areaKm2" : 88940.45,
+    "code" : "JO",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Western Asia"
+  },
+  {
+    "areaKm2" : 373331.78,
+    "code" : "JP",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Eastern Asia"
+  },
+  {
+    "areaKm2" : 584904.32,
+    "code" : "KE",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Eastern Africa"
+  },
+  {
+    "areaKm2" : 198712.6,
+    "code" : "KG",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Central Asia"
+  },
+  {
+    "areaKm2" : 181754.16,
+    "code" : "KH",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "South-Eastern Asia"
+  },
+  {
+    "areaKm2" : 954.09,
+    "code" : "KI",
+    "continent" : "oceania",
+    "sovereign" : true,
+    "subregion" : "Micronesia"
+  },
+  {
+    "areaKm2" : 1678.78,
+    "code" : "KM",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Eastern Africa"
+  },
+  {
+    "areaKm2" : 264.99,
+    "code" : "KN",
+    "continent" : "northAmerica",
+    "sovereign" : true,
+    "subregion" : "Caribbean"
+  },
+  {
+    "areaKm2" : 122246.03,
+    "code" : "KP",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Eastern Asia"
+  },
+  {
+    "areaKm2" : 98521.04,
+    "code" : "KR",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Eastern Asia"
+  },
+  {
+    "areaKm2" : 17495.63,
+    "code" : "KW",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Western Asia"
+  },
+  {
+    "areaKm2" : 310.13,
+    "code" : "KY",
+    "continent" : "northAmerica",
+    "sovereign" : false,
+    "subregion" : "Caribbean"
+  },
+  {
+    "areaKm2" : 2712841.76,
+    "code" : "KZ",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Central Asia"
+  },
+  {
+    "areaKm2" : 228826.98,
+    "code" : "LA",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "South-Eastern Asia"
+  },
+  {
+    "areaKm2" : 10025.09,
+    "code" : "LB",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Western Asia"
+  },
+  {
+    "areaKm2" : 607.38,
+    "code" : "LC",
+    "continent" : "northAmerica",
+    "sovereign" : true,
+    "subregion" : "Caribbean"
+  },
+  {
+    "areaKm2" : 136.88,
+    "code" : "LI",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Western Europe"
+  },
+  {
+    "areaKm2" : 66572.96,
+    "code" : "LK",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Southern Asia"
+  },
+  {
+    "areaKm2" : 95709.64,
+    "code" : "LR",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Western Africa"
+  },
+  {
+    "areaKm2" : 30143.05,
+    "code" : "LS",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Southern Africa"
+  },
+  {
+    "areaKm2" : 64641.25,
+    "code" : "LT",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Northern Europe"
+  },
+  {
+    "areaKm2" : 2599.78,
+    "code" : "LU",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Western Europe"
+  },
+  {
+    "areaKm2" : 64259,
+    "code" : "LV",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Northern Europe"
+  },
+  {
+    "areaKm2" : 1626531.43,
+    "code" : "LY",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Northern Africa"
+  },
+  {
+    "areaKm2" : 414204.11,
+    "code" : "MA",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Northern Africa"
+  },
+  {
+    "areaKm2" : 18.8,
+    "code" : "MC",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Western Europe"
+  },
+  {
+    "areaKm2" : 33115.79,
+    "code" : "MD",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Eastern Europe"
+  },
+  {
+    "areaKm2" : 13704.08,
+    "code" : "ME",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Southern Europe"
+  },
+  {
+    "areaKm2" : 68.5,
+    "code" : "MF",
+    "continent" : "northAmerica",
+    "sovereign" : false,
+    "subregion" : "Caribbean"
+  },
+  {
+    "areaKm2" : 594752.77,
+    "code" : "MG",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Eastern Africa"
+  },
+  {
+    "areaKm2" : 165.52,
+    "code" : "MH",
+    "continent" : "oceania",
+    "sovereign" : true,
+    "subregion" : "Micronesia"
+  },
+  {
+    "areaKm2" : 25348.97,
+    "code" : "MK",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Southern Europe"
+  },
+  {
+    "areaKm2" : 1256812.71,
+    "code" : "ML",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Western Africa"
+  },
+  {
+    "areaKm2" : 664957.18,
+    "code" : "MM",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "South-Eastern Asia"
+  },
+  {
+    "areaKm2" : 1560553.33,
+    "code" : "MN",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Eastern Asia"
+  },
+  {
+    "areaKm2" : 30.15,
+    "code" : "MO",
+    "continent" : "asia",
+    "sovereign" : false,
+    "subregion" : "Eastern Asia"
+  },
+  {
+    "areaKm2" : 581.29,
+    "code" : "MP",
+    "continent" : "oceania",
+    "sovereign" : false,
+    "subregion" : "Micronesia"
+  },
+  {
+    "areaKm2" : 1039353.79,
+    "code" : "MR",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Western Africa"
+  },
+  {
+    "areaKm2" : 99.93,
+    "code" : "MS",
+    "continent" : "northAmerica",
+    "sovereign" : false,
+    "subregion" : "Caribbean"
+  },
+  {
+    "areaKm2" : 325.64,
+    "code" : "MT",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Southern Europe"
+  },
+  {
+    "areaKm2" : 2020.25,
+    "code" : "MU",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Eastern Africa"
+  },
+  {
+    "areaKm2" : 109.22,
+    "code" : "MV",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Southern Asia"
+  },
+  {
+    "areaKm2" : 119848.62,
+    "code" : "MW",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Eastern Africa"
+  },
+  {
+    "areaKm2" : 1962242.71,
+    "code" : "MX",
+    "continent" : "northAmerica",
+    "sovereign" : true,
+    "subregion" : "Central America"
+  },
+  {
+    "areaKm2" : 329334.83,
+    "code" : "MY",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "South-Eastern Asia"
+  },
+  {
+    "areaKm2" : 791021.31,
+    "code" : "MZ",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Eastern Africa"
+  },
+  {
+    "areaKm2" : 824823.91,
+    "code" : "NA",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Southern Africa"
+  },
+  {
+    "areaKm2" : 18892.23,
+    "code" : "NC",
+    "continent" : "oceania",
+    "sovereign" : false,
+    "subregion" : "Melanesia"
+  },
+  {
+    "areaKm2" : 1185161.17,
+    "code" : "NE",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Western Africa"
+  },
+  {
+    "areaKm2" : 41.2,
+    "code" : "NF",
+    "continent" : "oceania",
+    "sovereign" : false,
+    "subregion" : "Australia and New Zealand"
+  },
+  {
+    "areaKm2" : 911216.72,
+    "code" : "NG",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Western Africa"
+  },
+  {
+    "areaKm2" : 129176.64,
+    "code" : "NI",
+    "continent" : "northAmerica",
+    "sovereign" : true,
+    "subregion" : "Central America"
+  },
+  {
+    "areaKm2" : 37253.37,
+    "code" : "NL",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Western Europe"
+  },
+  {
+    "areaKm2" : 379542.38,
+    "code" : "NO",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Northern Europe"
+  },
+  {
+    "areaKm2" : 147323.51,
+    "code" : "NP",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Southern Asia"
+  },
+  {
+    "areaKm2" : 28.9,
+    "code" : "NR",
+    "continent" : "oceania",
+    "sovereign" : true,
+    "subregion" : "Micronesia"
+  },
+  {
+    "areaKm2" : 221.25,
+    "code" : "NU",
+    "continent" : "oceania",
+    "sovereign" : false,
+    "subregion" : "Polynesia"
+  },
+  {
+    "areaKm2" : 268108.69,
+    "code" : "NZ",
+    "continent" : "oceania",
+    "sovereign" : true,
+    "subregion" : "Australia and New Zealand"
+  },
+  {
+    "areaKm2" : 312089.85,
+    "code" : "OM",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Western Asia"
+  },
+  {
+    "areaKm2" : 74842.95,
+    "code" : "PA",
+    "continent" : "northAmerica",
+    "sovereign" : true,
+    "subregion" : "Central America"
+  },
+  {
+    "areaKm2" : 1295126.75,
+    "code" : "PE",
+    "continent" : "southAmerica",
+    "sovereign" : true,
+    "subregion" : "South America"
+  },
+  {
+    "areaKm2" : 3348.22,
+    "code" : "PF",
+    "continent" : "oceania",
+    "sovereign" : false,
+    "subregion" : "Polynesia"
+  },
+  {
+    "areaKm2" : 467150.48,
+    "code" : "PG",
+    "continent" : "oceania",
+    "sovereign" : true,
+    "subregion" : "Melanesia"
+  },
+  {
+    "areaKm2" : 294429.93,
+    "code" : "PH",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "South-Eastern Asia"
+  },
+  {
+    "areaKm2" : 873936.08,
+    "code" : "PK",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Southern Asia"
+  },
+  {
+    "areaKm2" : 312217.91,
+    "code" : "PL",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Eastern Europe"
+  },
+  {
+    "areaKm2" : 242.11,
+    "code" : "PM",
+    "continent" : "northAmerica",
+    "sovereign" : false,
+    "subregion" : "Northern America"
+  },
+  {
+    "areaKm2" : 42.66,
+    "code" : "PN",
+    "continent" : "oceania",
+    "sovereign" : false,
+    "subregion" : "Polynesia"
+  },
+  {
+    "areaKm2" : 9034.55,
+    "code" : "PR",
+    "continent" : "northAmerica",
+    "sovereign" : false,
+    "subregion" : "Caribbean"
+  },
+  {
+    "areaKm2" : 6078.84,
+    "code" : "PS",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Western Asia"
+  },
+  {
+    "areaKm2" : 91302.59,
+    "code" : "PT",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Southern Europe"
+  },
+  {
+    "areaKm2" : 494.03,
+    "code" : "PW",
+    "continent" : "oceania",
+    "sovereign" : true,
+    "subregion" : "Micronesia"
+  },
+  {
+    "areaKm2" : 400858.28,
+    "code" : "PY",
+    "continent" : "southAmerica",
+    "sovereign" : true,
+    "subregion" : "South America"
+  },
+  {
+    "areaKm2" : 11172.81,
+    "code" : "QA",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Western Asia"
+  },
+  {
+    "areaKm2" : 235805.74,
+    "code" : "RO",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Eastern Europe"
+  },
+  {
+    "areaKm2" : 77470.5,
+    "code" : "RS",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Southern Europe"
+  },
+  {
+    "areaKm2" : 16859270.74,
+    "code" : "RU",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Eastern Europe"
+  },
+  {
+    "areaKm2" : 25418.26,
+    "code" : "RW",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Eastern Africa"
+  },
+  {
+    "areaKm2" : 1926006.49,
+    "code" : "SA",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Western Asia"
+  },
+  {
+    "areaKm2" : 27312.05,
+    "code" : "SB",
+    "continent" : "oceania",
+    "sovereign" : true,
+    "subregion" : "Melanesia"
+  },
+  {
+    "areaKm2" : 437.53,
+    "code" : "SC",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Eastern Africa"
+  },
+  {
+    "areaKm2" : 1851075.33,
+    "code" : "SD",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Northern Africa"
+  },
+  {
+    "areaKm2" : 443492.99,
+    "code" : "SE",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Northern Europe"
+  },
+  {
+    "areaKm2" : 512.79,
+    "code" : "SG",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "South-Eastern Asia"
+  },
+  {
+    "areaKm2" : 367.35,
+    "code" : "SH",
+    "continent" : "africa",
+    "sovereign" : false,
+    "subregion" : "Western Africa"
+  },
+  {
+    "areaKm2" : 20276.53,
+    "code" : "SI",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Southern Europe"
+  },
+  {
+    "areaKm2" : 48308.37,
+    "code" : "SK",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Eastern Europe"
+  },
+  {
+    "areaKm2" : 71911.67,
+    "code" : "SL",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Western Africa"
+  },
+  {
+    "areaKm2" : 60.2,
+    "code" : "SM",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Southern Europe"
+  },
+  {
+    "areaKm2" : 196942.49,
+    "code" : "SN",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Western Africa"
+  },
+  {
+    "areaKm2" : 641965.33,
+    "code" : "SO",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Eastern Africa"
+  },
+  {
+    "areaKm2" : 145764.39,
+    "code" : "SR",
+    "continent" : "southAmerica",
+    "sovereign" : true,
+    "subregion" : "South America"
+  },
+  {
+    "areaKm2" : 629512.85,
+    "code" : "SS",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Eastern Africa"
+  },
+  {
+    "areaKm2" : 1041.81,
+    "code" : "ST",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Middle Africa"
+  },
+  {
+    "areaKm2" : 20616.1,
+    "code" : "SV",
+    "continent" : "northAmerica",
+    "sovereign" : true,
+    "subregion" : "Central America"
+  },
+  {
+    "areaKm2" : 23.43,
+    "code" : "SX",
+    "continent" : "northAmerica",
+    "sovereign" : false,
+    "subregion" : "Caribbean"
+  },
+  {
+    "areaKm2" : 185952.15,
+    "code" : "SY",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Western Asia"
+  },
+  {
+    "areaKm2" : 17142.78,
+    "code" : "SZ",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Southern Africa"
+  },
+  {
+    "areaKm2" : 446.39,
+    "code" : "TC",
+    "continent" : "northAmerica",
+    "sovereign" : false,
+    "subregion" : "Caribbean"
+  },
+  {
+    "areaKm2" : 1270723.12,
+    "code" : "TD",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Middle Africa"
+  },
+  {
+    "areaKm2" : 7256.96,
+    "code" : "TF",
+    "continent" : "africa",
+    "sovereign" : false,
+    "subregion" : "Eastern Africa"
+  },
+  {
+    "areaKm2" : 57101.54,
+    "code" : "TG",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Western Africa"
+  },
+  {
+    "areaKm2" : 516275.45,
+    "code" : "TH",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "South-Eastern Asia"
+  },
+  {
+    "areaKm2" : 142136.37,
+    "code" : "TJ",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Central Asia"
+  },
+  {
+    "areaKm2" : 15145.12,
+    "code" : "TL",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "South-Eastern Asia"
+  },
+  {
+    "areaKm2" : 470449.22,
+    "code" : "TM",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Central Asia"
+  },
+  {
+    "areaKm2" : 156654.75,
+    "code" : "TN",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Northern Africa"
+  },
+  {
+    "areaKm2" : 604.86,
+    "code" : "TO",
+    "continent" : "oceania",
+    "sovereign" : true,
+    "subregion" : "Polynesia"
+  },
+  {
+    "areaKm2" : 779426.41,
+    "code" : "TR",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Western Asia"
+  },
+  {
+    "areaKm2" : 5143.65,
+    "code" : "TT",
+    "continent" : "northAmerica",
+    "sovereign" : true,
+    "subregion" : "Caribbean"
+  },
+  {
+    "areaKm2" : 23.12,
+    "code" : "TV",
+    "continent" : "oceania",
+    "sovereign" : true,
+    "subregion" : "Polynesia"
+  },
+  {
+    "areaKm2" : 36281.43,
+    "code" : "TW",
+    "continent" : "asia",
+    "sovereign" : false,
+    "subregion" : "Eastern Asia"
+  },
+  {
+    "areaKm2" : 945555.94,
+    "code" : "TZ",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Eastern Africa"
+  },
+  {
+    "areaKm2" : 597212.44,
+    "code" : "UA",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Eastern Europe"
+  },
+  {
+    "areaKm2" : 242936,
+    "code" : "UG",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Eastern Africa"
+  },
+  {
+    "areaKm2" : 28.1,
+    "code" : "UM",
+    "continent" : "oceania",
+    "sovereign" : false,
+    "subregion" : "Micronesia"
+  },
+  {
+    "areaKm2" : 9447839.54,
+    "code" : "US",
+    "continent" : "northAmerica",
+    "sovereign" : true,
+    "subregion" : "Northern America"
+  },
+  {
+    "areaKm2" : 177439.53,
+    "code" : "UY",
+    "continent" : "southAmerica",
+    "sovereign" : true,
+    "subregion" : "South America"
+  },
+  {
+    "areaKm2" : 447179.91,
+    "code" : "UZ",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Central Asia"
+  },
+  {
+    "areaKm2" : 0.01,
+    "code" : "VA",
+    "continent" : "europe",
+    "sovereign" : true,
+    "subregion" : "Southern Europe"
+  },
+  {
+    "areaKm2" : 369.12,
+    "code" : "VC",
+    "continent" : "northAmerica",
+    "sovereign" : true,
+    "subregion" : "Caribbean"
+  },
+  {
+    "areaKm2" : 916571.32,
+    "code" : "VE",
+    "continent" : "southAmerica",
+    "sovereign" : true,
+    "subregion" : "South America"
+  },
+  {
+    "areaKm2" : 145.39,
+    "code" : "VG",
+    "continent" : "northAmerica",
+    "sovereign" : false,
+    "subregion" : "Caribbean"
+  },
+  {
+    "areaKm2" : 355.93,
+    "code" : "VI",
+    "continent" : "northAmerica",
+    "sovereign" : false,
+    "subregion" : "Caribbean"
+  },
+  {
+    "areaKm2" : 329986.85,
+    "code" : "VN",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "South-Eastern Asia"
+  },
+  {
+    "areaKm2" : 12338.91,
+    "code" : "VU",
+    "continent" : "oceania",
+    "sovereign" : true,
+    "subregion" : "Melanesia"
+  },
+  {
+    "areaKm2" : 139.85,
+    "code" : "WF",
+    "continent" : "oceania",
+    "sovereign" : false,
+    "subregion" : "Polynesia"
+  },
+  {
+    "areaKm2" : 2790.8,
+    "code" : "WS",
+    "continent" : "oceania",
+    "sovereign" : true,
+    "subregion" : "Polynesia"
+  },
+  {
+    "areaKm2" : 10895.06,
+    "code" : "XK",
+    "continent" : "europe",
+    "sovereign" : false,
+    "subregion" : "Southern Europe"
+  },
+  {
+    "areaKm2" : 454649.17,
+    "code" : "YE",
+    "continent" : "asia",
+    "sovereign" : true,
+    "subregion" : "Western Asia"
+  },
+  {
+    "areaKm2" : 1221445.84,
+    "code" : "ZA",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Southern Africa"
+  },
+  {
+    "areaKm2" : 754730.04,
+    "code" : "ZM",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Eastern Africa"
+  },
+  {
+    "areaKm2" : 390529.24,
+    "code" : "ZW",
+    "continent" : "africa",
+    "sovereign" : true,
+    "subregion" : "Eastern Africa"
+  }
+]

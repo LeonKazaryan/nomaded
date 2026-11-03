@@ -12,4 +12,10 @@ enum Motion {
     static let smooth = Animation.spring(duration: 0.6, bounce: 0)
     /// Celebrations.
     static let celebrate = Animation.spring(duration: 0.7, bounce: 0.5)
+
+    /// Things that pop in one by one and are drawn frame by frame (countries on the
+    /// statistics maps). Same feel as `bouncy`, as a `Spring` you can sample at any time.
+    static let pop = Spring(duration: 0.55, bounce: 0.45)
+    /// Delay between items of a cascade (docs/02-design.md: 30–50 ms).
+    static let stagger = 0.05
 }

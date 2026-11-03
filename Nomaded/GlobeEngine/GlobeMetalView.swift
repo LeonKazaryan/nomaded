@@ -9,6 +9,15 @@ final class GlobeMetalView: UIView {
 
     var metalLayer: CAMetalLayer { layer as! CAMetalLayer }
     var onFrame: ((TimeInterval, CAMetalLayer) -> Void)?
+    /// Stops drawing and the physics; the last frame stays on screen.
+    var isPaused = false {
+        didSet {
+            guard isPaused != oldValue else { return }
+            displayLink?.isPaused = isPaused
+            // Don't count the paused time as one huge step.
+            lastTargetTimestamp = nil
+        }
+    }
 
     private var displayLink: CADisplayLink?
     private var lastTargetTimestamp: CFTimeInterval?
@@ -46,6 +55,7 @@ final class GlobeMetalView: UIView {
         let link = CADisplayLink(target: self, selector: #selector(step))
         link.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 120, preferred: 120)
         link.add(to: .main, forMode: .common)
+        link.isPaused = isPaused
         displayLink = link
     }
 

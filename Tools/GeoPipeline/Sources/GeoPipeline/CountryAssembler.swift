@@ -19,7 +19,7 @@ enum CountryAssembler {
             // Several features can share a code (e.g. Georgia and its breakaway regions);
             // the label comes from the largest one.
             let main = parts.max { $0.vertexCount < $1.vertexCount }!
-            return CountryInput(code: code, label: main.label, polygons: parts.flatMap(\.polygons))
+            return CountryInput(code: code, label: main.label, main: main, polygons: parts.flatMap(\.polygons))
         }
     }
 }

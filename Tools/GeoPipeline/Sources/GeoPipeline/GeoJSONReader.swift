@@ -46,6 +46,9 @@ enum GeoJSONReader {
                 (properties["LABEL_X"] as? NSNumber)?.doubleValue ?? 0,
                 (properties["LABEL_Y"] as? NSNumber)?.doubleValue ?? 0
             ),
+            continent: properties["CONTINENT"] as? String ?? "",
+            regionUN: properties["REGION_UN"] as? String ?? "",
+            subregion: properties["SUBREGION"] as? String ?? "",
             polygons: polygons.filter { !$0.rings.isEmpty }
         )
     }
