@@ -51,6 +51,7 @@ xcodebuild -project Nomaded.xcodeproj -scheme Nomaded \
     -NomadedDebugVisited IT,FR -NomadedDebugSelect FR -NomadedDebugTap 186,459 -NomadedDebugMarkAfterTap YES
   xcrun simctl io "iPhone 16 Pro" screenshot shot.png
   ```
+  Ещё: `-NomadedDebugFly LU` (перелёт к стране после интро), `-NomadedDebugSearch Ита` (открыть поиск с запросом).
 
 ## Окружение
 

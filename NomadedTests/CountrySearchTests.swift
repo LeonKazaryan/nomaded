@@ -41,6 +41,20 @@ struct CountrySearchTests {
         #expect(index.results(for: "curacao") == ["CW"])
     }
 
+    @Test func everydayNamesFindTheCountry() {
+        let index = CountrySearchIndex(
+            codes: ["US", "AS", "GB", "UA", "AE", "KR", "KP"],
+            displayLocale: Locale(identifier: "ru_RU"),
+            searchLocales: [Locale(identifier: "en")]
+        )
+        #expect(index.results(for: "США") == ["US"])
+        #expect(index.results(for: "usa").first == "US")
+        #expect(index.results(for: "uk").first == "GB")
+        #expect(index.results(for: "Англия") == ["GB"])
+        #expect(index.results(for: "оаэ") == ["AE"])
+        #expect(index.results(for: "южная корея") == ["KR"])
+    }
+
     @Test func noMatchIsEmpty() {
         #expect(index.results(for: "zzzz").isEmpty)
     }

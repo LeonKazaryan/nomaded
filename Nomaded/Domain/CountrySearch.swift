@@ -14,9 +14,31 @@ struct CountrySearchIndex: Sendable {
     /// Alphabetical by name in the display language.
     private let entries: [Entry]
 
+    /// What people actually type when the system name is long or official: "США" rather than
+    /// "Соединенные Штаты", "UK" rather than "United Kingdom". English and Russian.
+    static let aliases: [String: [String]] = [
+        "US": ["USA", "America", "United States of America", "США", "Америка", "Штаты"],
+        "GB": ["UK", "Britain", "Great Britain", "England", "Scotland", "Wales", "Англия", "Британия", "Шотландия", "Уэльс"],
+        "AE": ["UAE", "Emirates", "ОАЭ", "Эмираты", "Объединённые Арабские Эмираты"],
+        "KR": ["Korea", "Корея", "Южная Корея"],
+        "KP": ["DPRK", "Северная Корея"],
+        "CZ": ["Czech Republic", "Чешская Республика"],
+        "NL": ["Holland", "Голландия"],
+        "TR": ["Turkey"],
+        "CI": ["Ivory Coast", "Берег Слоновой Кости"],
+        "SZ": ["Swaziland", "Свазиленд"],
+        "CD": ["DRC", "DR Congo", "ДР Конго", "ДРК"],
+        "BY": ["Belorussia", "Белоруссия"],
+        "MD": ["Moldavia", "Молдавия"],
+        "KG": ["Kirghizia", "Кыргызстан"],
+        "TL": ["East Timor", "Восточный Тимор"],
+        "RU": ["Russian Federation", "РФ"],
+    ]
+
     init(codes: some Sequence<String>, displayLocale: Locale = .current, searchLocales: [Locale] = Self.userLocales) {
         let named = codes.map { code in
-            let names = ([displayLocale] + searchLocales).map { Self.fold(RegionDisplay.name(for: code, locale: $0)) }
+            let systemNames = ([displayLocale] + searchLocales).map { RegionDisplay.name(for: code, locale: $0) }
+            let names = (systemNames + (Self.aliases[code] ?? [])).map(Self.fold)
             return (
                 display: RegionDisplay.name(for: code, locale: displayLocale),
                 entry: Entry(code: code, foldedCode: Self.fold(code), names: Array(Set(names)))

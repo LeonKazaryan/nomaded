@@ -57,7 +57,14 @@
       }
     },
     "Cancel" : {
-
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отмена"
+          }
+        }
+      }
     },
     "Cities" : {
       "localizations" : {
@@ -70,7 +77,14 @@
       }
     },
     "Clear" : {
-
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Очистить"
+          }
+        }
+      }
     },
     "Close" : {
       "localizations" : {
@@ -142,8 +156,25 @@
         }
       }
     },
+    "Next country" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Следующая страна"
+          }
+        }
+      }
+    },
     "No countries found" : {
-
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ничего не нашлось"
+          }
+        }
+      }
     },
     "Not visited yet" : {
       "localizations" : {
@@ -186,7 +217,14 @@
       }
     },
     "Search countries" : {
-
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поиск страны"
+          }
+        }
+      }
     },
     "Statistics" : {
       "localizations" : {

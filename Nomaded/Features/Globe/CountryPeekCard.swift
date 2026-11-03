@@ -1,11 +1,18 @@
 import SwiftUI
 
 /// Compact card for the selected country with the main action.
+///
+/// Once the country is marked, the button splits: a small ✓ stays (tap to unmark) and
+/// "Next country" grows out of it, so adding countries one after another is a single tap.
 struct CountryPeekCard: View {
     let code: String
     let isVisited: Bool
     let onToggleVisited: () -> Void
+    let onFindNext: () -> Void
     let onClose: () -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ScaledMetric(relativeTo: .headline) private var buttonHeight = 54
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -40,20 +47,52 @@ struct CountryPeekCard: View {
                 .accessibilityLabel("Close")
             }
 
-            Button(action: onToggleVisited) {
-                HStack(spacing: 8) {
-                    Image(systemName: isVisited ? "checkmark.seal.fill" : "plus.circle.fill")
-                        .contentTransition(.symbolEffect(.replace))
-                    Text(isVisited ? "Visited" : "Mark as visited")
+            HStack(spacing: 10) {
+                Button(action: onToggleVisited) {
+                    HStack(spacing: 8) {
+                        Image(systemName: isVisited ? "checkmark.seal.fill" : "plus.circle.fill")
+                            .contentTransition(.symbolEffect(.replace))
+                        if !isVisited {
+                            Text("Mark as visited")
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                                .transition(.opacity)
+                        }
+                    }
+                }
+                .buttonStyle(.capsule(isVisited ? .inverted : .accent))
+                .frame(width: isVisited ? buttonHeight : nil)
+                .accessibilityLabel(isVisited ? "Visited" : "Mark as visited")
+                .accessibilityAddTraits(isVisited ? .isSelected : [])
+                .accessibilityHint(isVisited ? "Removes the country from your visited list" : "")
+
+                if isVisited {
+                    Button(action: onFindNext) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "magnifyingglass")
+                            Text("Next country")
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                        }
+                    }
+                    .buttonStyle(.capsule(.accent))
+                    .transition(nextTransition)
                 }
             }
-            .buttonStyle(.capsule(isVisited ? .inverted : .accent))
-            .accessibilityAddTraits(isVisited ? .isSelected : [])
-            .accessibilityHint(isVisited ? "Removes the country from your visited list" : "")
         }
         .padding(20)
         .glassCard(cornerRadius: 30)
-        .animation(Motion.snappy, value: isVisited)
+        .animation(reduceMotion ? Motion.snappy : Motion.bouncy, value: isVisited)
+    }
+
+    /// Grows out of the ✓ next to it; Reduce Motion just fades it in.
+    private var nextTransition: AnyTransition {
+        reduceMotion
+            ? .opacity
+            : .asymmetric(
+                insertion: .scale(scale: 0.4, anchor: .leading).combined(with: .opacity),
+                removal: .opacity
+            )
     }
 }
 
@@ -61,8 +100,8 @@ struct CountryPeekCard: View {
     ZStack {
         SpaceBackground()
         VStack(spacing: 16) {
-            CountryPeekCard(code: "IT", isVisited: false, onToggleVisited: {}, onClose: {})
-            CountryPeekCard(code: "KZ", isVisited: true, onToggleVisited: {}, onClose: {})
+            CountryPeekCard(code: "IT", isVisited: false, onToggleVisited: {}, onFindNext: {}, onClose: {})
+            CountryPeekCard(code: "KZ", isVisited: true, onToggleVisited: {}, onFindNext: {}, onClose: {})
         }
         .padding(16)
     }

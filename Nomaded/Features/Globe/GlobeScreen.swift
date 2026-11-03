@@ -56,6 +56,7 @@ struct GlobeScreen: View {
                             code: selected,
                             isVisited: visited.contains(selected),
                             onToggleVisited: { toggleVisited(selected) },
+                            onFindNext: { setSearching(true) },
                             onClose: { select(nil) }
                         )
                         .id(selected)

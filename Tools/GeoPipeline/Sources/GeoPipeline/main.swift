@@ -11,7 +11,7 @@ guard arguments.count >= 3 else {
 
 let input = URL(fileURLWithPath: arguments[1])
 let output = URL(fileURLWithPath: arguments[2])
-// ~2 km. At maximum zoom that is a quarter of a point on screen, so the simplification is invisible.
+// ~2 km. At the app's maximum zoom that is about 3 points on screen, too little to notice on a coastline.
 var tolerance = 0.02
 if let flag = arguments.firstIndex(of: "--tolerance"), flag + 1 < arguments.count, let value = Double(arguments[flag + 1]) {
     tolerance = value

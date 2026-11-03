@@ -3,15 +3,23 @@ import simd
 /// Triangulates a country's polygons and wraps the result onto the unit sphere.
 ///
 /// Earcut works in flat lon/lat space and happily produces triangles thousands of
-/// kilometres wide. Flat triangles that big would cut through the globe, so every edge
-/// longer than `maxEdge` is split at its great-circle midpoint. Shared edges are always
-/// split at the same midpoints, so neighbouring triangles stay crack-free.
+/// kilometres wide. Flat triangles that big would cut through the globe, so they are cut
+/// down in that same flat space (longest edge first, at its lon/lat midpoint) until no
+/// edge is longer than `maxEdge`. Pieces of a flat triangulation stay inside the outline
+/// once wrapped onto the sphere. Great-circle midpoints don't: far up north a long edge's
+/// great circle bulges toward the pole and the triangles fold out over the sea (Russia's
+/// Arctic coast became one straight line). Whether an edge gets split depends only on the
+/// edge, and it's always split at the same midpoint, so neighbouring triangles stay
+/// crack-free.
 struct SphereMeshBuilder {
+    /// In degrees along the ground (see `length`).
     let maxEdge: Double
     let densifyStep: Double
 
     private(set) var vertices: [SIMD3<Double>] = []
     private(set) var indices: [UInt32] = []
+    /// Lon/lat of each vertex, where midpoints are taken.
+    private var coordinates: [GeoPoint] = []
     /// Rings after densification, which are exactly the mesh's boundary edges.
     private(set) var rings: [[GeoPoint]] = []
     /// Polygons whose simplified outline self-intersected and were rebuilt from the original.
@@ -20,7 +28,7 @@ struct SphereMeshBuilder {
     private var midpoints: [UInt64: UInt32] = [:]
 
     init(maxEdgeDegrees: Double, densifyStepDegrees: Double) {
-        maxEdge = 2 * sin(maxEdgeDegrees * .pi / 360)
+        maxEdge = maxEdgeDegrees
         densifyStep = densifyStepDegrees
     }
 
@@ -41,19 +49,22 @@ struct SphereMeshBuilder {
         rings.append(contentsOf: dense)
         let base = vertices.count
         for ring in dense {
-            for point in ring { vertices.append(Sphere.unitVector(point)) }
+            for point in ring {
+                coordinates.append(point)
+                vertices.append(Sphere.unitVector(point))
+            }
         }
 
         for t in stride(from: 0, to: triangles.count, by: 3) {
             let a = UInt32(base + triangles[t])
             var b = UInt32(base + triangles[t + 1])
             var c = UInt32(base + triangles[t + 2])
-            let va = vertices[Int(a)], vb = vertices[Int(b)], vc = vertices[Int(c)]
-            let normal = simd_cross(vb - va, vc - va)
-            // Collapsed triangles (e.g. several points on a pole) cover nothing.
-            guard simd_length(normal) > 1e-12 else { continue }
-            // Counter-clockwise when seen from outside the globe.
-            if simd_dot(normal, va + vb + vc) < 0 { swap(&b, &c) }
+            // Counter-clockwise in lon/lat (east right, north up) is counter-clockwise
+            // seen from outside the globe, however big the triangle is.
+            let pa = coordinates[Int(a)], pb = coordinates[Int(b)], pc = coordinates[Int(c)]
+            let signedArea = (pb.x - pa.x) * (pc.y - pa.y) - (pc.x - pa.x) * (pb.y - pa.y)
+            guard signedArea != 0 else { continue }
+            if signedArea < 0 { swap(&b, &c) }
             subdivide(a, b, c)
         }
     }
@@ -82,7 +93,11 @@ struct SphereMeshBuilder {
             let ab = length(a, b), bc = length(b, c), ca = length(c, a)
             let longest = max(ab, bc, ca)
             if longest <= maxEdge {
-                indices.append(contentsOf: [a, b, c])
+                // Pieces that collapse on the sphere (two corners on a pole) cover nothing.
+                let va = vertices[Int(a)], vb = vertices[Int(b)], vc = vertices[Int(c)]
+                if simd_length(simd_cross(vb - va, vc - va)) > 1e-12 {
+                    indices.append(contentsOf: [a, b, c])
+                }
             } else if longest == ab {
                 let m = midpoint(a, b)
                 stack.append((a, m, c))
@@ -99,15 +114,21 @@ struct SphereMeshBuilder {
         }
     }
 
+    /// Edge length in degrees along the ground: a degree of longitude shrinks toward the
+    /// poles, so high latitudes aren't cut finer than they need to be.
     private func length(_ a: UInt32, _ b: UInt32) -> Double {
-        simd_distance(vertices[Int(a)], vertices[Int(b)])
+        let pa = coordinates[Int(a)], pb = coordinates[Int(b)]
+        let east = (pb.x - pa.x) * cos((pa.y + pb.y) / 2 * .pi / 180)
+        return (east * east + (pb.y - pa.y) * (pb.y - pa.y)).squareRoot()
     }
 
     private mutating func midpoint(_ a: UInt32, _ b: UInt32) -> UInt32 {
         let key = UInt64(min(a, b)) << 32 | UInt64(max(a, b))
         if let existing = midpoints[key] { return existing }
         let index = UInt32(vertices.count)
-        vertices.append(simd_normalize(vertices[Int(a)] + vertices[Int(b)]))
+        let middle = (coordinates[Int(a)] + coordinates[Int(b)]) / 2
+        coordinates.append(middle)
+        vertices.append(Sphere.unitVector(middle))
         midpoints[key] = index
         return index
     }

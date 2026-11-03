@@ -1,4 +1,5 @@
 import Testing
+import simd
 @testable import Nomaded
 
 struct WorldGeometryTests {
@@ -40,6 +41,27 @@ struct WorldGeometryTests {
         let tester = GlobeHitTester(world: try await WorldGeometry.loadBundled())
         let coordinate = GeoCoordinate(latitude: place.latitude, longitude: place.longitude)
         #expect(tester.country(at: coordinate, tolerance: 0.01) == place.expected)
+    }
+
+    /// Long edges far up north once got split along great circles, which bulge toward the
+    /// pole: Russia's mesh folded out over the Arctic Ocean. Checks a sample of triangles.
+    @Test(arguments: ["RU", "US", "CA", "AQ", "GL", "NO"])
+    func meshStaysInsideTheOutline(_ code: String) async throws {
+        let world = try await WorldGeometry.loadBundled()
+        let shape = try #require(world.countries.first { $0.code == code })
+        var area = 0.0, outside = 0.0
+        for t in stride(from: 0, to: shape.indices.count, by: 3 * 7) {
+            let a = SIMD3<Double>(shape.vertices[Int(shape.indices[t])])
+            let b = SIMD3<Double>(shape.vertices[Int(shape.indices[t + 1])])
+            let c = SIMD3<Double>(shape.vertices[Int(shape.indices[t + 2])])
+            let triangleArea = simd_length(simd_cross(b - a, c - a)) / 2
+            let center = GeoMath.coordinate(of: a + b + c)
+            area += triangleArea
+            if !GeoMath.ringsContain(shape.rings, longitude: Float(center.longitude), latitude: Float(center.latitude)) {
+                outside += triangleArea
+            }
+        }
+        #expect(outside / area < 0.005, "\(code): \(outside / area * 100)% of the mesh lies outside its outline")
     }
 
     @Test func neighboursNeverShareAColor() async throws {
