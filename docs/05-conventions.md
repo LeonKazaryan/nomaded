@@ -19,7 +19,7 @@
 - Проверяй Reduce Motion: `@Environment(\.accessibilityReduceMotion)`.
 
 ### Swift 6 и безопасность
-- UI, сторы, RealityKit-сцена — `@MainActor`.
+- UI, сторы, рендер глобуса — `@MainActor`.
 - Никаких `try!` и force unwrap (`!`), кроме загрузки ресурсов из бандла при старте. Там `fatalError` с понятным сообщением допустим: битый бандл — это баг сборки.
 - API новее iOS 18 — только через `if #available(iOS 26, *)` с фолбэком.
 

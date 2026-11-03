@@ -10,7 +10,7 @@
 |---|---|
 | Язык | Swift 6 (strict concurrency) |
 | UI | SwiftUI |
-| 3D-глобус | RealityKit (проверяем спайком в M1, см. ADR-001) |
+| 3D-глобус | Metal, свой рендер до 120 fps (ADR-010) |
 | Данные | SwiftData, только на устройстве |
 | Тесты | Swift Testing |
 | Минимальная iOS | 18.0, только iPhone, портретная ориентация |

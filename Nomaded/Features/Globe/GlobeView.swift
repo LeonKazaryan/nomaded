@@ -1,22 +1,13 @@
-import RealityKit
 import SwiftUI
 
-/// The interactive globe: RealityKit scene, gestures and screen-space shading.
+/// The interactive globe: Metal surface, gestures and screen-space shading.
 struct GlobeView: View {
     let controller: GlobeController
 
     var body: some View {
         GeometryReader { proxy in
-            RealityView { content in
-                content.camera = .virtual
-                content.add(await controller.makeScene())
-                let subscription = content.subscribe(to: SceneEvents.Update.self) { [weak controller] event in
-                    let deltaTime = event.deltaTime
-                    // RealityKit delivers scene updates on the main thread.
-                    MainActor.assumeIsolated { controller?.tick(deltaTime: deltaTime) }
-                }
-                controller.retain(subscription)
-            }
+            GlobeSurface(controller: controller)
+            .task { await controller.load() }
             // An overlay, not a ZStack sibling: the glow is wider than the screen and must
             // not push the globe off-center.
             .overlay {
@@ -59,6 +50,21 @@ struct GlobeView: View {
             }
             .onEnded { _ in controller.pinchEnded() }
     }
+}
+
+/// Hosts the Metal view. Its display link drives the controller: physics, then drawing.
+private struct GlobeSurface: UIViewRepresentable {
+    let controller: GlobeController
+
+    func makeUIView(context: Context) -> GlobeMetalView {
+        let view = GlobeMetalView(device: controller.device)
+        view.onFrame = { [weak controller] deltaTime, layer in
+            controller?.renderFrame(deltaTime: deltaTime, in: layer)
+        }
+        return view
+    }
+
+    func updateUIView(_ view: GlobeMetalView, context: Context) {}
 }
 
 /// Lighting drawn over the flat, unlit globe: darker edges, a soft key light and the

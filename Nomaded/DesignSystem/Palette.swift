@@ -14,7 +14,7 @@ enum Palette {
     static let candy: [Color] = RGB.candy.map(Color.init(rgb:))
     static let candyNames = ["Bubblegum", "Tangerine", "Lemon", "Mint", "Sky", "Grape"]
 
-    /// Raw values for places that can't take a `Color`, like RealityKit materials.
+    /// Raw values for places that can't take a `Color`, like the Metal globe.
     enum RGB {
         static let ocean: UInt32 = 0x1F45B5
         static let landIdle: UInt32 = 0x4B4778

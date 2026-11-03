@@ -1,13 +1,15 @@
 import Foundation
+import Metal
 import Observation
 import QuartzCore
-import RealityKit
 import os
+import simd
 
 /// Owns the 3D globe: the scene, rotation physics, per-country animations and hit testing.
 ///
-/// RealityKit calls `tick` every frame. Gestures and app state only set targets; all
-/// motion happens in `tick`, driven by springs, so anything can be interrupted mid-flight.
+/// The view's display link calls `renderFrame` every frame. Gestures and app state only set
+/// targets; all motion happens in `tick`, driven by springs, so anything can be interrupted
+/// mid-flight. `GlobeRenderer` then draws the result.
 @Observable @MainActor
 final class GlobeController {
     /// How the camera frames a newly selected country.
@@ -32,17 +34,15 @@ final class GlobeController {
     @ObservationIgnored var reduceMotion = false
 
     private let style: GlobeStyle
-    private let root = Entity()
-    private let globe = Entity()
-    private let cameraEntity = PerspectiveCamera()
+    /// `nil` only without Metal, which every iPhone on iOS 18 has.
+    private let renderer: GlobeRenderer?
 
     @ObservationIgnored private var nodes: [String: CountryNode] = [:]
     @ObservationIgnored private var animating: Set<String> = []
     @ObservationIgnored private var visited: Set<String> = []
     @ObservationIgnored private var selected: String?
     @ObservationIgnored private var hitTester: GlobeHitTester?
-    @ObservationIgnored private var updateSubscription: EventSubscription?
-    @ObservationIgnored private var sceneStarted = false
+    @ObservationIgnored private var loadStarted = false
 
     @ObservationIgnored private var isDragging = false
     @ObservationIgnored private var isFocusing = false
@@ -69,38 +69,48 @@ final class GlobeController {
 
     init(style: GlobeStyle) {
         self.style = style
+        do {
+            renderer = try GlobeRenderer()
+        } catch {
+            renderer = nil
+            Self.log.error("Globe renderer unavailable: \(error)")
+        }
+        renderer?.oceanColor = style.ocean
     }
+
+    /// The GPU the view's Metal layer must draw with.
+    var device: MTLDevice? { renderer?.device }
 
     // MARK: - Scene
 
-    /// Builds the scene once and returns its root. Call from `RealityView`'s make closure.
-    func makeScene() async -> Entity {
-        guard !sceneStarted else { return root }
-        sceneStarted = true
-
-        cameraEntity.camera.fieldOfViewInDegrees = GlobeCamera.verticalFieldOfView
-        cameraEntity.camera.near = 0.05
-        cameraEntity.camera.far = 100
-        root.addChild(cameraEntity)
-        root.addChild(globe)
-        applyCamera()
-
+    /// Loads the countries and builds the scene once. Call from the view's `.task`.
+    func load() async {
+        guard !loadStarted, let renderer else { return }
+        loadStarted = true
         do {
             let started = CACurrentMediaTime()
             let world = try await WorldGeometry.loadBundled()
-            try buildGlobe(world)
+            let scene = await Self.buildScene(world)
+            try renderer.setScene(ocean: scene.ocean, land: scene.land)
+            setUpCountries(world, ranges: scene.ranges)
+            hitTester = GlobeHitTester(world: world)
+            isReady = true
+            playIntro()
             let elapsed = Int((CACurrentMediaTime() - started) * 1000)
             Self.log.info("Globe ready in \(elapsed) ms")
+
+            // Walls follow a moment later, while the intro is still flying in.
+            let walls = await Self.buildWalls(world)
+            try renderer.setWalls(walls.mesh, ranges: walls.ranges)
         } catch {
             Self.log.error("Globe failed to load: \(error)")
         }
-        return root
     }
 
-    /// Keeps the per-frame update subscription alive for as long as the controller lives.
-    func retain(_ subscription: EventSubscription) {
-        updateSubscription?.cancel()
-        updateSubscription = subscription
+    /// One frame: advance the physics, then draw. The view's display link calls this.
+    func renderFrame(deltaTime: TimeInterval, in layer: CAMetalLayer) {
+        tick(deltaTime: deltaTime)
+        renderer?.draw(in: layer, rotation: GlobeOrientation(yaw: yaw.value, pitch: pitch.value).renderQuaternion, camera: camera)
     }
 
     func setViewportSize(_ size: CGSize) {
@@ -109,60 +119,37 @@ final class GlobeController {
         applyCamera()
     }
 
-    private func buildGlobe(_ world: WorldGeometry) throws {
-        let ocean = ModelEntity(
-            mesh: try GlobeMeshFactory.sphere(radius: 1),
-            materials: [GlobeMeshFactory.material(style.ocean)]
-        )
-        globe.addChild(ocean)
+    /// Off the main thread: packing ~165k vertices takes a moment.
+    nonisolated private static func buildScene(_ world: WorldGeometry) async -> (ocean: MeshData, land: MeshData, ranges: [MeshRange]) {
+        let land = GlobeMeshes.pack(world.countries.map { GlobeMeshes.country($0, radius: GlobeTuning.landRadius) })
+        return (GlobeMeshes.sphere(radius: 1), land.mesh, land.ranges)
+    }
 
-        for shape in world.countries {
-            let isSelectable = !shape.code.isEmpty
-            let color = isSelectable ? style.idleColor(slot: shape.colorSlot) : style.unclaimedLand
-            let entity = ModelEntity(
-                mesh: try GlobeMeshFactory.country(shape, radius: GlobeTuning.landRadius),
-                materials: [GlobeMeshFactory.material(color)]
+    /// Off the main thread too, and after the globe is already on screen.
+    nonisolated private static func buildWalls(_ world: WorldGeometry) async -> (mesh: MeshData, ranges: [MeshRange]) {
+        GlobeMeshes.pack(world.countries.map { GlobeMeshes.walls($0, top: GlobeTuning.landRadius, bottom: GlobeTuning.wallBottom) })
+    }
+
+    /// Land without a selectable country (`code` is empty) keeps one neutral color.
+    private func setUpCountries(_ world: WorldGeometry, ranges: [MeshRange]) {
+        guard let renderer else { return }
+        renderer.pieces = zip(world.countries, ranges).map { shape, range in
+            GlobeRenderer.Piece(
+                surface: range,
+                color: shape.code.isEmpty ? style.unclaimedLand : style.idleColor(slot: shape.colorSlot)
             )
-            globe.addChild(entity)
-            guard isSelectable else { continue }
+        }
+        for (index, shape) in world.countries.enumerated() where !shape.code.isEmpty {
             var node = CountryNode(
                 shape: shape,
-                entity: entity,
-                idleColor: color,
+                index: index,
+                idleColor: style.idleColor(slot: shape.colorSlot),
                 visitedColor: style.visitedColor(slot: shape.colorSlot)
             )
             retarget(&node, code: shape.code)
             node.snap()
             nodes[shape.code] = node
             animating.insert(shape.code)
-        }
-
-        hitTester = GlobeHitTester(world: world)
-        isReady = true
-        playIntro()
-        Task { await buildWalls() }
-    }
-
-    /// Side walls for every country, built in the background once the globe is up, so that
-    /// lifting a country never waits for them. Visited countries go first: they lift right away.
-    private func buildWalls() async {
-        let codes = nodes.keys.sorted { visited.contains($0) && !visited.contains($1) }
-        for code in codes {
-            guard let shape = nodes[code]?.shape else { continue }
-            do {
-                let mesh = try await GlobeMeshFactory.walls(shape, top: GlobeTuning.landRadius, bottom: GlobeTuning.wallBottom)
-                guard var node = nodes[code] else { continue }
-                let walls = ModelEntity(mesh: mesh, materials: [])
-                // Shown, and colored, by the next `apply`.
-                walls.isEnabled = false
-                node.entity.addChild(walls)
-                node.walls = walls
-                node.appliedColor = nil
-                nodes[code] = node
-                animating.insert(code)
-            } catch {
-                Self.log.error("Walls for \(code) failed: \(error)")
-            }
         }
     }
 
@@ -341,7 +328,6 @@ final class GlobeController {
         stepFlight()
         stepZoom(dt)
         stepCountries(dt)
-        globe.orientation = GlobeOrientation(yaw: yaw.value, pitch: pitch.value).renderQuaternion
     }
 
     private func stepRotation(_ dt: Double) {
@@ -481,7 +467,6 @@ final class GlobeController {
         guard camera.viewportSize.width > 0 else { return }
         let radius = Double(camera.viewportSize.width) * GlobeTuning.baseDiameterRatio / 2 * zoom.value
         let distance = GlobeCamera.distance(silhouetteRadius: radius, focalLength: camera.focalLength)
-        cameraEntity.position = [0, 0, Float(distance)]
         if abs(distance - camera.distance) > 1e-6 { camera.distance = distance }
     }
 
@@ -498,22 +483,15 @@ final class GlobeController {
                 node.tint.step(dt, GlobeTuning.colorSpring)
                 node.highlight.step(dt, GlobeTuning.colorSpring)
             }
-            apply(&node)
+            apply(node)
             nodes[code] = node
             if node.isSettled { animating.remove(code) }
         }
     }
 
-    private func apply(_ node: inout CountryNode) {
-        let lift = Float(max(0, node.lift.value) * liftScale)
-        node.entity.scale = SIMD3(repeating: 1 + lift)
-        node.walls?.isEnabled = lift > 0.0005
-
-        let color = node.currentColor
-        guard color != node.appliedColor else { return }
-        node.entity.model?.materials = [GlobeMeshFactory.material(color)]
-        node.walls?.model?.materials = [GlobeMeshFactory.material(color * GlobeTuning.wallShade)]
-        node.appliedColor = color
+    private func apply(_ node: CountryNode) {
+        renderer?.pieces[node.index].scale = 1 + Float(max(0, node.lift.value) * liftScale)
+        renderer?.pieces[node.index].color = node.currentColor
     }
 
     // MARK: - Intro
@@ -551,8 +529,8 @@ final class GlobeController {
 
 private struct CountryNode {
     let shape: CountryShape
-    let entity: ModelEntity
-    var walls: ModelEntity?
+    /// Slot in `GlobeRenderer.pieces`.
+    let index: Int
     let idleColor: SIMD3<Float>
     let visitedColor: SIMD3<Float>
     /// Height above the globe, as a fraction of its radius.
@@ -561,7 +539,6 @@ private struct CountryNode {
     var tint = SpringValue(0)
     /// Selection glow, 0…1.
     var highlight = SpringValue(0)
-    var appliedColor: SIMD3<Float>?
 
     var isSettled: Bool { lift.isSettled && tint.isSettled && highlight.isSettled }
 

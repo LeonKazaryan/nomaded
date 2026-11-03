@@ -4,9 +4,8 @@ import simd
 /// A fixed camera on the +Z axis looking at the globe (radius 1) at the origin.
 ///
 /// All screen ↔ globe math lives here, so SwiftUI overlays, gestures and hit testing
-/// agree with what RealityKit draws.
+/// agree with what the renderer draws.
 struct GlobeCamera: Equatable, Sendable {
-    /// RealityKit's `fieldOfViewInDegrees` is the vertical field of view.
     static let verticalFieldOfView: Float = 30
 
     var viewportSize: CGSize
@@ -50,6 +49,30 @@ struct GlobeCamera: Equatable, Sendable {
         let x = Double(point.x - viewportSize.width / 2)
         let y = Double(viewportSize.height / 2 - point.y)
         return (SIMD3(0, 0, distance), simd_normalize(SIMD3(x, y, -focalLength)))
+    }
+
+    /// Clip planes hugging the visible half of the globe. Lifted land stays well under 0.2
+    /// radii above it, and tight planes keep land and ocean apart in the depth buffer even
+    /// when the camera is far away.
+    var clipPlanes: (near: Double, far: Double) {
+        (max(0.02, distance - 1.2), distance + 0.5)
+    }
+
+    /// World → clip space for the renderer: the same pinhole as `ray(through:)`, so what's
+    /// drawn lines up with hit testing and the SwiftUI shading. Metal depth runs 0…1.
+    var viewProjection: simd_float4x4 {
+        let (near, far) = clipPlanes
+        let f = 1 / tan(Double(Self.verticalFieldOfView) * .pi / 360)
+        let aspect = Double(viewportSize.width / viewportSize.height)
+        let a = far / (near - far)
+        let b = near * far / (near - far)
+        // A perspective projection times a view matrix that moves the world by -distance in z.
+        return simd_float4x4(columns: (
+            SIMD4(Float(f / aspect), 0, 0, 0),
+            SIMD4(0, Float(f), 0, 0),
+            SIMD4(0, 0, Float(a), -1),
+            SIMD4(0, 0, Float(b - distance * a), Float(distance))
+        ))
     }
 }
 
