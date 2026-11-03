@@ -9,14 +9,24 @@ struct ContinentTile: View {
     let visited: Set<String>
     /// When this tile's animation starts, counted from the screen opening.
     let delay: Double
+    /// Shared with `ContinentDetail`, so the map flies between them.
+    let hero: Namespace.ID
+    /// The continent is open: its map is up in the detail, and the tile keeps the space.
+    let isOpen: Bool
 
     @ScaledMetric(relativeTo: .body) private var mapHeight = 104
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            ContinentMap(outlines: outlines ?? [], visited: visited, delay: delay)
-                .frame(height: mapHeight)
-                .frame(maxWidth: .infinity)
+            if isOpen {
+                Color.clear
+                    .frame(height: mapHeight)
+            } else {
+                ContinentMap(outlines: outlines ?? [], visited: visited, delay: delay)
+                    .frame(height: mapHeight)
+                    .frame(maxWidth: .infinity)
+                    .matchedGeometryEffect(id: progress.continent, in: hero)
+            }
 
             HStack(alignment: .firstTextBaseline) {
                 Text(progress.continent.name)
@@ -47,7 +57,7 @@ struct ContinentTile: View {
 
 /// The map itself. Unvisited countries sit in the globe's land shades, visited ones pop
 /// up in their candy color on a spring, staggered from west to east.
-private struct ContinentMap: View {
+struct ContinentMap: View {
     let outlines: [ContinentMaps.Outline]
     let visited: Set<String>
     let delay: Double
@@ -85,7 +95,25 @@ private struct ContinentMap: View {
             try? await Task.sleep(for: .seconds(end))
             isDone = true
         }
+        // Land runs on past the frame; fading it out hides the cut.
+        .mask {
+            Self.edgeFade(.leading, .trailing)
+                .mask(Self.edgeFade(.top, .bottom))
+        }
         .accessibilityHidden(true)
+    }
+
+    private static func edgeFade(_ start: UnitPoint, _ end: UnitPoint) -> LinearGradient {
+        LinearGradient(
+            stops: [
+                .init(color: .clear, location: 0),
+                .init(color: .black, location: 0.12),
+                .init(color: .black, location: 0.88),
+                .init(color: .clear, location: 1),
+            ],
+            startPoint: start,
+            endPoint: end
+        )
     }
 
     private func draw(in context: inout GraphicsContext, size: CGSize, pops: [String: Double], elapsed: Double) {

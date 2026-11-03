@@ -1,22 +1,66 @@
 import SwiftUI
 
 /// "My world" in numbers, over the receding globe. Cards cascade in, numbers count up,
-/// continents fill country by country. Pull down past the top, or tap ✕, to close.
+/// continents fill country by country. Tap a continent to see its countries, pull down past
+/// the top or tap ✕ to close.
 struct StatisticsScreen: View {
     let stats: WorldStats
     let visited: Set<String>
     /// `nil` while the continent maps are still being built.
     let maps: ContinentMaps?
+    /// A country picked in a continent's list: the screen closes and the globe flies there.
+    let onPick: (String) -> Void
     let onClose: () -> Void
 
     @State private var appeared = false
     @State private var pull: CGFloat = 0
+    @State private var openContinent: Continent?
+    @Namespace private var hero
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// How far to pull past the top before letting go closes the screen.
     private static let closeDistance: CGFloat = 90
 
     var body: some View {
+        ZStack {
+            overview
+                // Steps back while a continent is open, the way the globe steps back for this screen.
+                .opacity(openContinent == nil ? 1 : 0)
+                .scaleEffect(openContinent == nil || reduceMotion ? 1 : 0.94)
+                .allowsHitTesting(openContinent == nil)
+                .accessibilityHidden(openContinent != nil)
+
+            if let openContinent, let progress = stats.continents.first(where: { $0.continent == openContinent }) {
+                ContinentDetail(
+                    progress: progress,
+                    places: StatsCalculator.places(on: openContinent, visited: visited, catalog: .bundled),
+                    outlines: maps?.outlines[openContinent],
+                    visited: visited,
+                    hero: hero,
+                    onPick: onPick,
+                    onBack: { open(nil) }
+                )
+                .transition(.opacity)
+            }
+        }
+        .sensoryFeedback(Haptics.select, trigger: openContinent) { _, new in new != nil }
+        #if DEBUG
+        .task {
+            // `-NomadedDebugContinent europe` opens a continent once the cards are in.
+            guard let raw = UserDefaults.standard.string(forKey: "NomadedDebugContinent"),
+                  let continent = Continent(rawValue: raw)
+            else { return }
+            try? await Task.sleep(for: .seconds(1.5))
+            open(continent)
+        }
+        #endif
+    }
+
+    private func open(_ continent: Continent?) {
+        withAnimation(reduceMotion ? Motion.snappy : Motion.smooth) { openContinent = continent }
+    }
+
+    private var overview: some View {
         ScrollView {
             VStack(spacing: 16) {
                 header
@@ -41,25 +85,8 @@ struct StatisticsScreen: View {
             .scaleEffect(1 - min(pull, 200) / 2400, anchor: .top)
         }
         .scrollIndicators(.hidden)
-        // Cards fade out under the status bar instead of running into the clock.
-        .mask {
-            VStack(spacing: 0) {
-                LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
-                    .frame(height: 64)
-                Rectangle()
-            }
-            .ignoresSafeArea()
-        }
-        .onScrollGeometryChange(for: CGFloat.self) { geometry in
-            -(geometry.contentOffset.y + geometry.contentInsets.top)
-        } action: { _, overscroll in
-            pull = max(0, overscroll)
-        }
-        .onScrollPhaseChange { old, new in
-            // Close when the finger lets go far enough past the top.
-            if old == .interacting, new != .interacting, pull > Self.closeDistance { onClose() }
-        }
-        .sensoryFeedback(Haptics.tap, trigger: pull > Self.closeDistance) { _, isPastIt in isPastIt }
+        .fadingUnderStatusBar()
+        .pullToClose($pull, distance: Self.closeDistance, onClose: onClose)
         .onAppear { appeared = true }
     }
 
@@ -101,12 +128,20 @@ struct StatisticsScreen: View {
     }
 
     private func tile(_ progress: WorldStats.ContinentProgress, index: Int) -> some View {
-        ContinentTile(
-            progress: progress,
-            outlines: maps?.outlines[progress.continent],
-            visited: visited,
-            delay: delay(of: 2) + Double(index) * Motion.stagger * 2
-        )
+        Button {
+            open(progress.continent)
+        } label: {
+            ContinentTile(
+                progress: progress,
+                outlines: maps?.outlines[progress.continent],
+                visited: visited,
+                delay: delay(of: 2) + Double(index) * Motion.stagger * 2,
+                hero: hero,
+                isOpen: openContinent == progress.continent
+            )
+        }
+        .buttonStyle(.pressable)
+        .accessibilityHint("Shows the continent's countries")
     }
 
     private var emptyHint: some View {
@@ -285,6 +320,7 @@ private struct Cascade: ViewModifier {
             stats: StatsCalculator.stats(visited: visited, catalog: catalog),
             visited: visited,
             maps: nil,
+            onPick: { _ in },
             onClose: {}
         )
     }

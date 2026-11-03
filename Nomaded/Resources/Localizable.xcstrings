@@ -168,6 +168,16 @@
         }
       }
     },
+    "Back" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Назад"
+          }
+        }
+      }
+    },
     "Cancel" : {
       "localizations" : {
         "ru" : {
@@ -448,6 +458,26 @@
         }
       }
     },
+    "Nomaded" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Открытые"
+          }
+        }
+      }
+    },
+    "None yet. Time to go!" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пока ни одной. Самое время в путь!"
+          }
+        }
+      }
+    },
     "North America" : {
       "localizations" : {
         "ru" : {
@@ -620,6 +650,16 @@
         }
       }
     },
+    "Shows the continent's countries" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показывает страны континента"
+          }
+        }
+      }
+    },
     "Shows the countries you've visited" : {
       "localizations" : {
         "ru" : {
@@ -696,6 +736,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Статистика"
+          }
+        }
+      }
+    },
+    "Territories" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Территории"
+          }
+        }
+      }
+    },
+    "The whole continent is discovered!" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Весь континент открыт!"
+          }
+        }
+      }
+    },
+    "Undiscovered" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Неоткрытые"
           }
         }
       }

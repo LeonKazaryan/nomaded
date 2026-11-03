@@ -58,6 +58,17 @@ struct WorldStatsTests {
         #expect(abs(stats.landShare - visited / total) < 1e-12)
     }
 
+    @Test func continentPlacesSplitAndSort() {
+        let places = StatsCalculator.places(on: .europe, visited: ["IT", "FR"], catalog: catalog, locale: Locale(identifier: "en_US"))
+        #expect(places.discovered == ["FR", "IT"])
+        #expect(places.undiscovered == ["DE", "VA"])
+        #expect(places.discoveredTerritories.isEmpty && places.undiscoveredTerritories.isEmpty)
+
+        let north = StatsCalculator.places(on: .northAmerica, visited: ["GL"], catalog: catalog)
+        #expect(north.discoveredTerritories == ["GL"])
+        #expect(north.discovered.isEmpty && north.undiscovered.isEmpty)
+    }
+
     @Test func unknownCodesAreIgnored() {
         let stats = StatsCalculator.stats(visited: ["FR", "ZZ"], catalog: catalog)
         #expect(stats.countries.visited == 1)

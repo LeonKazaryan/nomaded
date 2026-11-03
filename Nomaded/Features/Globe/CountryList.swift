@@ -31,7 +31,8 @@ struct CountryList: View {
     }
 }
 
-private struct CountryRow: View {
+/// Flag and name, with a ✓ when `isMarked`.
+struct CountryRow: View {
     let code: String
     let isMarked: Bool
 

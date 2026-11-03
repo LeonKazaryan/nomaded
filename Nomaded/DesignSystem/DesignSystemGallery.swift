@@ -7,6 +7,7 @@ struct DesignSystemGallery: View {
     @State private var visited = 27
     @State private var tab = 1
     @State private var isVisited = false
+    @State private var segment = 0
 
     private let worldTotal = 195
 
@@ -53,6 +54,16 @@ struct DesignSystemGallery: View {
                                 .frame(maxWidth: .infinity)
                             }
                         }
+                    }
+
+                    GallerySection(title: "Pill picker") {
+                        PillPicker(
+                            options: [
+                                .init(id: 0, title: "Nomaded", count: visited),
+                                .init(id: 1, title: "Undiscovered", count: worldTotal - visited),
+                            ],
+                            selection: $segment
+                        )
                     }
 
                     GallerySection(title: "Buttons") {

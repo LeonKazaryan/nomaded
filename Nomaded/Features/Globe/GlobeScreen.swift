@@ -101,6 +101,7 @@ struct GlobeScreen: View {
                     stats: StatsCalculator.stats(visited: world.visitedCodes, catalog: .bundled),
                     visited: world.visitedCodes,
                     maps: continentMaps,
+                    onPick: flyTo,
                     onClose: { setShowingStats(false) }
                 )
                 .transition(.opacity)
@@ -163,10 +164,12 @@ struct GlobeScreen: View {
         controller.isPaused = showing
     }
 
-    /// A pick from search or the visited list: the list closes and the globe flies there.
+    /// A pick from search, the visited list or the statistics: whatever was open closes and
+    /// the globe flies there.
     private func flyTo(_ code: String) {
         setSearching(false)
         setShowingVisited(false)
+        if isShowingStats { setShowingStats(false) }
         withAnimation(Motion.bouncy) { selected = code }
         guard reduceMotion else {
             controller.select(code, framing: .flight)
