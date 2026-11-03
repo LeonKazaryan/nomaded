@@ -36,7 +36,7 @@
 
 ## Технические требования
 
-- [ ] **Privacy Manifest** (`PrivacyInfo.xcprivacy`) — добавить, как только начнём использовать `UserDefaults` / `@AppStorage` (M3).
+- [ ] **Privacy Manifest** (`PrivacyInfo.xcprivacy`) — добавить, как только в релизной сборке появится `UserDefaults` / `@AppStorage`. SwiftData его не требует, а `UserDefaults` пока только в `#if DEBUG`.
 - [x] **Без сторонних SDK** — у каждого свой privacy manifest и подпись. У нас их нет.
 - [x] **Экспортное шифрование** — `ITSAppUsesNonExemptEncryption = NO`.
 - [x] **Быстрый запуск** — интерфейс появляется сразу, геоданные грузятся асинхронно (~0.3 с в симуляторе). Зависший запуск система убивает.

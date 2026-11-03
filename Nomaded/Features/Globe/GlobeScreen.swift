@@ -1,11 +1,9 @@
 import SwiftUI
 
 /// Main screen: the globe as the base layer with floating UI on top.
-///
-/// M1 spike: visited countries live in memory only. Persistence arrives in M3.
 struct GlobeScreen: View {
+    @Environment(WorldStore.self) private var world
     @State private var controller = GlobeController(style: .nomaded)
-    @State private var visited: Set<String> = []
     @State private var selected: String?
     @State private var celebrations = 0
     @State private var isSearching = false
@@ -22,7 +20,7 @@ struct GlobeScreen: View {
             GlobeView(controller: controller)
                 .ignoresSafeArea()
                 .opacity(isGlobeHidden ? 0 : 1)
-                .accessibilityValue(Text("\(visited.count) countries"))
+                .accessibilityValue(Text("\(world.visitedCodes.count) countries"))
 
             if isSearching {
                 // Dims the globe so results stay readable; tapping it cancels the search.
@@ -37,14 +35,14 @@ struct GlobeScreen: View {
                 if isSearching, let searchIndex {
                     CountrySearchPanel(
                         index: searchIndex,
-                        visited: visited,
+                        visited: world.visitedCodes,
                         initialQuery: initialSearchQuery,
                         onPick: flyTo,
                         onCancel: { setSearching(false) }
                     )
                     .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
                 } else {
-                    TopBar(visitedCount: visited.count, canSearch: controller.isReady) {
+                    TopBar(visitedCount: world.visitedCodes.count, canSearch: controller.isReady) {
                         setSearching(true)
                     }
                     .transition(.opacity)
@@ -54,7 +52,7 @@ struct GlobeScreen: View {
                     if let selected {
                         CountryPeekCard(
                             code: selected,
-                            isVisited: visited.contains(selected),
+                            isVisited: world.isVisited(selected),
                             onToggleVisited: { toggleVisited(selected) },
                             onFindNext: { setSearching(true) },
                             onClose: { select(nil) }
@@ -81,6 +79,9 @@ struct GlobeScreen: View {
         }
         .onChange(of: reduceMotion, initial: true) { _, value in
             controller.reduceMotion = value
+        }
+        .onChange(of: world.visitedCodes, initial: true) { _, codes in
+            controller.setVisited(codes)
         }
     }
 
@@ -114,12 +115,10 @@ struct GlobeScreen: View {
     }
 
     private func toggleVisited(_ code: String) {
-        if visited.contains(code) {
-            visited.remove(code)
-            controller.setVisited(visited)
+        if world.isVisited(code) {
+            world.unmarkVisited(code)
         } else {
-            visited.insert(code)
-            controller.setVisited(visited)
+            world.markVisited(code)
             controller.celebrate(code)
             celebrations += 1
         }
@@ -129,12 +128,12 @@ struct GlobeScreen: View {
     /// Lets screenshots be scripted from the command line (and later, App Store shots):
     /// `-NomadedDebugVisited IT,FR -NomadedDebugSelect IT -NomadedDebugTap 186,459 -NomadedDebugMarkAfterTap YES`
     /// `-NomadedDebugFly LU` flies to a country after the intro, `-NomadedDebugSearch Ita`
-    /// opens the search with a query typed in.
+    /// opens the search with a query typed in. These runs use an empty in-memory store
+    /// (see `NomadedApp`), so they never touch countries marked by hand.
     private func applyDebugLaunchArguments() {
         let defaults = UserDefaults.standard
         if let list = defaults.string(forKey: "NomadedDebugVisited") {
-            visited = Set(list.split(separator: ",").map(String.init))
-            controller.setVisited(visited)
+            list.split(separator: ",").forEach { world.markVisited(String($0)) }
         }
         if let code = defaults.string(forKey: "NomadedDebugSelect") {
             select(code)
@@ -224,5 +223,6 @@ private struct FrameRateBadge: View {
 
 #Preview {
     GlobeScreen()
+        .environment(WorldStore.scratch())
         .preferredColorScheme(.dark)
 }

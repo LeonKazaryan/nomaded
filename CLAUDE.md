@@ -52,6 +52,7 @@ xcodebuild -project Nomaded.xcodeproj -scheme Nomaded \
   xcrun simctl io "iPhone 16 Pro" screenshot shot.png
   ```
   Ещё: `-NomadedDebugFly LU` (перелёт к стране после интро), `-NomadedDebugSearch Ита` (открыть поиск с запросом).
+  С любым `-NomadedDebug…` приложение берёт пустое хранилище в памяти, настоящие отметки не трогаются.
 
 ## Окружение
 

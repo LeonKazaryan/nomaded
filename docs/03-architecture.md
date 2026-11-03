@@ -60,14 +60,17 @@ Features ──▶ DesignSystem
 
 ```swift
 @Observable @MainActor
-final class WorldStore {
+final class WorldStore {                         // Data/WorldStore.swift
     private(set) var visitedCodes: Set<String> = []
-    var selectedCountry: Country?
 
-    func markVisited(_ country: Country) { … }   // пишет Visit в SwiftData
-    func unmarkVisited(_ country: Country) { … }
+    func markVisited(_ code: String) { … }     // пишет Visit в SwiftData и сразу сохраняет
+    func unmarkVisited(_ code: String) { … }   // удаляет все поездки в страну
 }
 ```
+
+- Создаётся один раз в `NomadedApp` и раздаётся экранам через `.environment(world)`. Глобус подписан на `visitedCodes` (`onChange`), поэтому отметка с любого экрана сразу видна на глобусе.
+- Сохраняем сразу после каждого действия, а не ждём автосохранения: иначе отметка теряется, если приложение убить через секунду (так делает кнопка Stop в Xcode).
+- Отладочные запуски с аргументами `-NomadedDebug…` работают на пустом хранилище в памяти и не трогают отметки, сделанные руками.
 
 Статистика **никогда не хранится**, она всегда вычисляется из поездок (`StatsCalculator`). Значит, она не может разойтись с данными.
 
@@ -101,7 +104,8 @@ final class WorldStore {
 | `note` | `String` | |
 | `createdAt` | `Date` | для сортировки и «самая свежая» |
 
-- Страна посещена ⇔ у неё есть ≥ 1 `Visit`.
+- Страна посещена ⇔ у неё есть ≥ 1 `Visit`. «Отметить» создаёт `Visit` без дат.
+- «Снять отметку» удаляет все поездки в страну. Пока у поездок нет дат и заметок, это безопасно. Когда они появятся (M5), перед удалением поездок с данными нужно спрашивать подтверждение.
 - **Сразу делаем модель совместимой с CloudKit**, чтобы в v1.1 включить iCloud-синхронизацию без миграционной боли: у всех свойств есть значения по умолчанию или они опциональные, никаких `@Attribute(.unique)`, связи опциональные.
 
 ## Геоданные
