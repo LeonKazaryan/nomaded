@@ -21,6 +21,7 @@ struct GlobeScreen: View {
     @State private var continentMaps: ContinentMaps?
     @State private var searchIndex: CountrySearchIndex?
     @State private var initialSearchQuery = ""
+    @State private var initialSearchMode = SearchPanel.Mode.countries
     @FocusState private var isSearchFieldFocused: Bool
     /// Reduce Motion: the globe dissolves to a search result instead of flying.
     @State private var isGlobeHidden = false
@@ -110,12 +111,15 @@ struct GlobeScreen: View {
             .ignoresSafeArea(.keyboard)
 
             if isSearching, let searchIndex {
-                CountrySearchPanel(
+                SearchPanel(
                     index: searchIndex,
                     visited: world.visitedCodes,
+                    knownCountries: Set(controller.countryCodes),
                     initialQuery: initialSearchQuery,
+                    initialMode: initialSearchMode,
                     isFieldFocused: $isSearchFieldFocused,
-                    onPick: flyTo,
+                    onPickCountry: flyTo,
+                    onPickCity: addCity,
                     onCancel: { setSearching(false) }
                 )
                 .padding(.horizontal, 16)
@@ -217,10 +221,11 @@ struct GlobeScreen: View {
         withAnimation(Motion.bouncy) { addingCityTo = code }
     }
 
-    /// A city picked in search: it's saved (marking its country, if needed), the globe flies
-    /// there, and the dot drops in once the camera arrives.
+    /// A city picked in either search: it's saved (marking its country if it wasn't, since
+    /// you were there), the globe flies there, and the dot drops in once the camera arrives.
     private func addCity(_ draft: CityDraft) {
         let wasVisited = world.isVisited(draft.countryCode)
+        setSearching(false)
         setAddingCity(nil)
         let city = world.addCity(draft)
         controller.landCity(city.id)
@@ -265,7 +270,10 @@ struct GlobeScreen: View {
             isSearching = searching
             if searching { isShowingVisited = false }
         }
-        if !searching { initialSearchQuery = "" }
+        if !searching {
+            initialSearchQuery = ""
+            initialSearchMode = .countries
+        }
     }
 
     private func setShowingVisited(_ showing: Bool) {
@@ -320,7 +328,8 @@ struct GlobeScreen: View {
     /// Lets screenshots be scripted from the command line (and later, App Store shots):
     /// `-NomadedDebugVisited IT,FR -NomadedDebugSelect IT -NomadedDebugTap 186,459 -NomadedDebugMarkAfterTap YES`
     /// `-NomadedDebugFly LU` flies to a country after the intro, `-NomadedDebugSearch Ita`
-    /// opens the search with a query typed in, `-NomadedDebugSearchPick YES` then picks the
+    /// opens the search with a query typed in (`-NomadedDebugSearchCities YES`: on the Cities
+    /// tab), `-NomadedDebugSearchPick YES` then picks the
     /// first result, `-NomadedDebugVisitedList YES` opens the visited list,
     /// `-NomadedDebugStats YES` the statistics. `-NomadedDebugCities "Rome:IT:41.9:12.5,…"`
     /// adds cities, `-NomadedDebugCityFocus YES` flies to the first,
@@ -369,6 +378,7 @@ struct GlobeScreen: View {
             if let landsCity { addCity(landsCity) }
             if let search {
                 initialSearchQuery = search
+                if defaults.bool(forKey: "NomadedDebugSearchCities") { initialSearchMode = .cities }
                 setSearching(true)
                 if defaults.bool(forKey: "NomadedDebugSearchPick") {
                     try? await Task.sleep(for: .seconds(2))

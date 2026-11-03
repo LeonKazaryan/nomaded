@@ -520,12 +520,12 @@
         }
       }
     },
-    "Next country" : {
+    "Next destination" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Следующая страна"
+            "value" : "Куда дальше"
           }
         }
       }
@@ -772,6 +772,16 @@
         }
       }
     },
+    "Search cities" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поиск города"
+          }
+        }
+      }
+    },
     "Search countries" : {
       "localizations" : {
         "ru" : {
@@ -908,6 +918,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Территории"
+          }
+        }
+      }
+    },
+    "That city is in another country" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Этот город в другой стране"
+          }
+        }
+      }
+    },
+    "That place isn't on the globe" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Этого места нет на глобусе"
           }
         }
       }

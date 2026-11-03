@@ -2,8 +2,8 @@ import MapKit
 import Observation
 
 /// Finds cities as the user types, with MapKit: names in the user's language, no API key,
-/// no location permission. Only cities (iOS 18's address filter), and only inside the
-/// country's region.
+/// no location permission, only cities (iOS 18's address filter). Either the whole world,
+/// or strictly one country: the "+ City" button in a country's card.
 @Observable @MainActor
 final class CitySearch: NSObject {
     struct Result: Identifiable {
@@ -13,29 +13,39 @@ final class CitySearch: NSObject {
         fileprivate let completion: MKLocalSearchCompletion
     }
 
-    enum Failure: Error {
-        case notFound
+    /// Why there are no results to show.
+    enum Problem: Error {
+        /// Maps didn't answer, most likely offline.
+        case offline
+        /// The picked city turned out to be across the border of the country searched.
+        case otherCountry
+        /// The picked city is somewhere the globe has no country for.
+        case notOnGlobe
     }
 
     private(set) var results: [Result] = []
-    /// The last lookup failed, most likely offline.
-    private(set) var isOffline = false
+    private(set) var problem: Problem?
+    /// The row being looked up.
+    private(set) var resolving: String?
 
     var query = "" {
-        didSet { completer.queryFragment = query.trimmingCharacters(in: .whitespaces) }
+        didSet {
+            problem = nil
+            completer.queryFragment = query.trimmingCharacters(in: .whitespaces)
+            if query.trimmingCharacters(in: .whitespaces).isEmpty { results = [] }
+        }
     }
 
-    /// The country being searched, the one a city goes to if Maps names another one the
-    /// globe doesn't have.
-    private let countryCode: String
-    private let countryName: String
+    /// The country searched in, if any: its code and its name folded for matching.
+    private let country: (code: String, name: String)?
     @ObservationIgnored private let completer = MKLocalSearchCompleter()
     /// Held while it runs: MapKit cancels a lookup whose object goes away.
     @ObservationIgnored private var lookup: MKLocalSearch?
 
-    init(countryCode: String, region: MKCoordinateRegion?) {
-        self.countryCode = countryCode
-        countryName = CountrySearchIndex.fold(RegionDisplay.name(for: countryCode))
+    /// `countryCode: nil` searches the whole world. With a country, only its cities come
+    /// up, and `region` (its box) narrows what Maps looks through.
+    init(countryCode: String? = nil, region: MKCoordinateRegion? = nil) {
+        country = countryCode.map { ($0, CountrySearchIndex.fold(RegionDisplay.name(for: $0))) }
         super.init()
         completer.delegate = self
         completer.resultTypes = .address
@@ -46,8 +56,22 @@ final class CitySearch: NSObject {
         }
     }
 
-    /// Where the picked city actually is.
-    func resolve(_ result: Result, knownCountries: Set<String>) async throws -> CityDraft {
+    /// Looks up where the picked city is. `nil` when it can't be added; `problem` says why.
+    func pick(_ result: Result, knownCountries: Set<String>) async -> CityDraft? {
+        guard resolving == nil else { return nil }
+        resolving = result.id
+        defer { resolving = nil }
+        do {
+            return try await resolve(result, knownCountries: knownCountries)
+        } catch let problem as Problem {
+            self.problem = problem
+        } catch {
+            problem = .offline
+        }
+        return nil
+    }
+
+    private func resolve(_ result: Result, knownCountries: Set<String>) async throws -> CityDraft {
         let lookup = MKLocalSearch(request: MKLocalSearch.Request(completion: result.completion))
         self.lookup = lookup
         defer { self.lookup = nil }
@@ -61,35 +85,31 @@ final class CitySearch: NSObject {
                             placemark.coordinate.latitude, placemark.coordinate.longitude
                         ))
                     } else {
-                        continuation.resume(throwing: error ?? Failure.notFound)
+                        continuation.resume(throwing: error ?? Problem.offline)
                     }
                 }
             }
-        // A region's box overlaps its neighbours: Zurich can come up in Italy, and goes to
-        // Switzerland. Codes the globe doesn't know stay with the country searched.
-        let code = place.code?.uppercased() ?? countryCode
-        return CityDraft(
-            name: result.title,
-            region: place.region ?? "",
-            countryCode: knownCountries.contains(code) ? code : countryCode,
-            latitude: place.latitude,
-            longitude: place.longitude
-        )
+        guard let code = place.code?.uppercased() else { throw Problem.notOnGlobe }
+        if let country, code != country.code { throw Problem.otherCountry }
+        guard knownCountries.contains(code) else { throw Problem.notOnGlobe }
+        return CityDraft(name: result.title, region: place.region ?? "", countryCode: code, latitude: place.latitude, longitude: place.longitude)
     }
 
     fileprivate func update(_ completions: [MKLocalSearchCompletion]) {
-        isOffline = false
         let all = completions.map { completion in
             Result(id: completion.title + "\u{1F}" + completion.subtitle, title: completion.title, subtitle: completion.subtitle, completion: completion)
         }
-        // The region is a box, so neighbours slip in; prefer the ones Maps places in this
-        // country, but don't come up empty.
-        let here = all.filter { $0.subtitle.isEmpty || CountrySearchIndex.fold($0.subtitle).contains(countryName) }
-        results = here.isEmpty ? all : here
+        // A country's region is a box, so its neighbours' towns slip in. Maps names the
+        // country in the subtitle ("Lazio, Italy"); keep only those.
+        guard let country else {
+            results = all
+            return
+        }
+        results = all.filter { CountrySearchIndex.fold($0.subtitle).contains(country.name) }
     }
 
     fileprivate func fail() {
-        isOffline = true
+        problem = .offline
         results = []
     }
 }

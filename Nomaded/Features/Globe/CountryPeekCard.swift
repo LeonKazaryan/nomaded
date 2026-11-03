@@ -3,7 +3,8 @@ import SwiftUI
 /// Compact card for the selected country with the main action and its cities.
 ///
 /// Once the country is marked, the button splits: a small ✓ stays (tap to unmark) and
-/// "Next country" grows out of it, so adding countries one after another is a single tap.
+/// "Next destination" grows out of it and opens the search, so adding places one after
+/// another is a single tap.
 /// Below, the cities you've been to there, and "+ City".
 struct CountryPeekCard: View {
     let code: String
@@ -76,7 +77,7 @@ struct CountryPeekCard: View {
                     Button(action: onFindNext) {
                         HStack(spacing: 8) {
                             Image(systemName: "magnifyingglass")
-                            Text("Next country")
+                            Text("Next destination")
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.7)
                         }
