@@ -12,23 +12,30 @@ final class WorldStore {
     private(set) var firstVisits: [String: Date] = [:]
     /// Oldest first.
     private(set) var cities: [CityPin] = []
+    /// Milestones reached, and when. Never taken back.
+    private(set) var milestones: [Milestone: Date] = [:]
 
     /// Held so it outlives `context`: SwiftData crashes if a container goes away while its
     /// context is still in use.
     @ObservationIgnored private let container: ModelContainer
     @ObservationIgnored private var context: ModelContext { container.mainContext }
+    @ObservationIgnored private let catalog: CountryCatalog
 
     private static let log = Logger(subsystem: "com.leonkazaryan.nomaded", category: "WorldStore")
 
-    init(container: ModelContainer) {
+    init(container: ModelContainer, catalog: CountryCatalog = .bundled) {
         self.container = container
+        self.catalog = catalog
         reload()
+        // Whatever was reached before milestones existed counts quietly: no flood of
+        // celebrations for 90 countries marked last month.
+        earnMilestones()
     }
 
     /// A container for every model the store saves. The default configuration is the app's
     /// store on disk.
     static func makeContainer(_ configuration: ModelConfiguration = ModelConfiguration()) throws -> ModelContainer {
-        try ModelContainer(for: Visit.self, VisitedCity.self, configurations: configuration)
+        try ModelContainer(for: Visit.self, VisitedCity.self, EarnedMilestone.self, configurations: configuration)
     }
 
     func isVisited(_ code: String) -> Bool {
@@ -86,6 +93,17 @@ final class WorldStore {
         save()
     }
 
+    /// Records every milestone the visited places now reach that wasn't reached before, and
+    /// returns them in celebration order. Call it as a mark is celebrated.
+    @discardableResult
+    func earnMilestones() -> [Milestone] {
+        let new = MilestoneRules.reached(visited: visitedCodes, catalog: catalog).subtracting(milestones.keys)
+        guard !new.isEmpty else { return [] }
+        new.forEach { context.insert(EarnedMilestone($0)) }
+        save()
+        return MilestoneRules.celebrationOrder(new)
+    }
+
     /// Saves right away rather than waiting for autosave, so a mark survives the app being
     /// killed a second later (stopping it from Xcode does exactly that).
     private func save() {
@@ -104,6 +122,11 @@ final class WorldStore {
             firstVisits = Dictionary(visits.map { ($0.countryCode, $0.createdAt) }, uniquingKeysWith: min)
             let cities = try context.fetch(FetchDescriptor<VisitedCity>(sortBy: [SortDescriptor(\.createdAt)]))
             self.cities = cities.map(\.pin)
+            let earned = try context.fetch(FetchDescriptor<EarnedMilestone>())
+            milestones = Dictionary(
+                earned.compactMap { record in Milestone(id: record.id).map { ($0, record.earnedAt) } },
+                uniquingKeysWith: min
+            )
         } catch {
             Self.log.error("Fetch failed: \(error)")
         }

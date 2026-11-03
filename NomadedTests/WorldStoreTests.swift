@@ -113,6 +113,48 @@ struct WorldStoreTests {
         #expect(store.cities.count == 1)
     }
 
+    private static let catalog = CountryCatalog([
+        Country(code: "FR", continent: .europe, subregion: .westernEurope, isSovereign: true, areaKm2: 1),
+        Country(code: "JP", continent: .asia, subregion: .easternAsia, isSovereign: true, areaKm2: 1),
+        Country(code: "GL", continent: .northAmerica, subregion: .northernAmerica, isSovereign: false, areaKm2: 1),
+    ] + (0..<12).map { Country(code: "X\($0)", continent: .africa, subregion: .easternAfrica, isSovereign: true, areaKm2: 1) })
+
+    @Test func milestonesAreEarnedOnce() {
+        let store = WorldStore(container: container, catalog: Self.catalog)
+        store.markVisited("FR")
+        #expect(store.earnMilestones() == [.continent(.europe)])
+
+        store.unmarkVisited("FR")
+        store.markVisited("FR")
+        #expect(store.earnMilestones().isEmpty)
+    }
+
+    @Test func tenCountriesAndATerritoryContinent() {
+        let store = WorldStore(container: container, catalog: Self.catalog)
+        (0..<10).forEach { store.markVisited("X\($0)") }
+        store.markVisited("GL")
+        // Greenland is a territory: it opens North America but doesn't count to ten.
+        #expect(store.earnMilestones() == [.continent(.africa), .continent(.northAmerica), .countries(10)])
+    }
+
+    /// Marks from before milestones existed count without a celebration.
+    @Test func existingMarksCountQuietly() throws {
+        let context = container.mainContext
+        (0..<11).forEach { context.insert(Visit(countryCode: "X\($0)")) }
+        try context.save()
+
+        let store = WorldStore(container: container, catalog: Self.catalog)
+        #expect(store.milestones.keys.contains(.countries(10)))
+        #expect(store.earnMilestones().isEmpty)
+    }
+
+    @Test func milestoneIDsRoundTrip() {
+        for milestone in Milestone.all {
+            #expect(Milestone(id: milestone.id) == milestone)
+        }
+        #expect(Milestone(id: "countries.11") == nil)
+    }
+
     @Test func visitsSurviveARelaunch() throws {
         let folder = URL.temporaryDirectory.appending(path: UUID().uuidString)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)

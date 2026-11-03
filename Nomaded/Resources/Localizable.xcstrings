@@ -118,6 +118,110 @@
         }
       }
     },
+    "%lld countries!" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld country!"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld countries!"
+                }
+              }
+            }
+          }
+        },
+        "ru" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld страна!"
+                }
+              },
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld страны!"
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld стран!"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld страны!"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld more countries here" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld more country here"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld more countries here"
+                }
+              }
+            }
+          }
+        },
+        "ru" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Здесь ещё %lld страна"
+                }
+              },
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Здесь ещё %lld страны"
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Здесь ещё %lld стран"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Здесь ещё %lld страны"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld of %lld" : {
       "localizations" : {
         "ru" : {
@@ -176,6 +280,16 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "Achievements" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Достижения"
           }
         }
       }
@@ -380,12 +494,32 @@
         }
       }
     },
+    "Double-tap to continue" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Дважды коснись, чтобы продолжить"
+          }
+        }
+      }
+    },
     "Drag to spin, pinch to zoom, tap a country to select it" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Проведите пальцем, чтобы вращать, сведите пальцы для масштаба, коснитесь страны, чтобы выбрать её"
+          }
+        }
+      }
+    },
+    "Earned" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Получено"
           }
         }
       }
@@ -430,6 +564,16 @@
         }
       }
     },
+    "Every country in the world!" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Все страны мира!"
+          }
+        }
+      }
+    },
     "Facts" : {
       "localizations" : {
         "ru" : {
@@ -440,12 +584,32 @@
         }
       }
     },
+    "First stop: %@" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Первая остановка — %@"
+          }
+        }
+      }
+    },
     "Globe" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Глобус"
+          }
+        }
+      }
+    },
+    "Hello, %@!" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Привет, %@!"
           }
         }
       }
@@ -536,6 +700,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Куда дальше"
+          }
+        }
+      }
+    },
+    "Next goal: %lld" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Следующая цель — %lld"
           }
         }
       }
@@ -636,6 +810,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ещё не посещена"
+          }
+        }
+      }
+    },
+    "Not yet" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пока нет"
           }
         }
       }
@@ -922,6 +1106,16 @@
         }
       }
     },
+    "Tap to continue" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нажми, чтобы продолжить"
+          }
+        }
+      }
+    },
     "Territories" : {
       "localizations" : {
         "ru" : {
@@ -948,6 +1142,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Этого места нет на глобусе"
+          }
+        }
+      }
+    },
+    "That's %@ of the world." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Это %@ мира."
           }
         }
       }

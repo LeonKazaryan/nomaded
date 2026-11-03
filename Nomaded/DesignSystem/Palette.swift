@@ -29,6 +29,16 @@ enum Palette {
         SIMD3(Float((rgb >> 16) & 0xFF), Float((rgb >> 8) & 0xFF), Float(rgb & 0xFF)) / 255
     }
 
+    /// Milestone medals: a light and a dark tone each, lit like metal. Decoration, not data.
+    enum Medal {
+        static let bronze: (light: UInt32, dark: UInt32) = (0xF2B48A, 0xA35A2C)
+        static let silver: (light: UInt32, dark: UInt32) = (0xF1F4FA, 0x8792AA)
+        static let gold: (light: UInt32, dark: UInt32) = (0xFFE88A, 0xD18E12)
+        static let violet: (light: UInt32, dark: UInt32) = (0xD8CCFF, 0x5B3FD9)
+        static let sky: (light: UInt32, dark: UInt32) = (0xD4F0FF, 0x2F86D1)
+        static let ice: (light: UInt32, dark: UInt32) = (0xFFFFFF, 0x9FC3DD)
+    }
+
     /// Unvisited land in six close shades, one per color slot. Neighbours never share a
     /// slot, so borders read without drawing lines.
     static let idleLandShades: [SIMD3<Float>] = [0.86, 1.12, 0.95, 1.2, 0.9, 1.04].map {

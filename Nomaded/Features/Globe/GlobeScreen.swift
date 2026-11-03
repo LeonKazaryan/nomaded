@@ -21,6 +21,8 @@ struct GlobeScreen: View {
     @State private var justMarked: String?
     /// A country its first city is about to mark: no stamp until the city lands.
     @State private var awaitingLanding: String?
+    @State private var milestoneQueue: [MilestoneEvent] = []
+    @State private var shownMilestone: MilestoneEvent?
     /// The bundled city list, loaded off the main thread at launch: capitals get stars.
     @State private var cityCatalog: CityCatalog?
     @State private var initialCityQuery = ""
@@ -46,9 +48,10 @@ struct GlobeScreen: View {
 
             GlobeView(controller: controller)
                 .ignoresSafeArea()
-                // Under the statistics the globe steps back and dims, still in view.
+                // Under the statistics the globe steps back and dims, still in view; under a
+                // milestone it only dims (the milestone's own dark veil frames it).
                 .scaleEffect(isShowingStats && !reduceMotion ? 0.8 : 1)
-                .opacity(isGlobeHidden ? 0 : isShowingStats ? 0.45 : 1)
+                .opacity(isGlobeHidden ? 0 : isGlobeBehind ? 0.45 : 1)
                 .accessibilityHidden(isShowingStats)
                 .accessibilityValue(Text("\(visitedPlaces.countries.count) countries"))
 
@@ -159,8 +162,18 @@ struct GlobeScreen: View {
                     stats: StatsCalculator.stats(visited: world.visitedCodes, catalog: .bundled, cities: world.cities.count),
                     visited: world.visitedCodes,
                     maps: continentMaps,
+                    earned: world.milestones,
                     onPick: flyTo,
                     onClose: { setShowingStats(false) }
+                )
+                .transition(.opacity)
+            }
+
+            if let shownMilestone {
+                MilestoneCelebration(
+                    event: shownMilestone,
+                    outlines: shownMilestone.continent.flatMap { continentMaps?.outlines[$0] },
+                    onDismiss: dismissMilestone
                 )
                 .transition(.opacity)
             }
@@ -218,6 +231,10 @@ struct GlobeScreen: View {
             guard isReady, let geometry = controller.world else { return }
             Task { continentMaps = await ContinentMaps.build(world: geometry, catalog: .bundled) }
         }
+    }
+
+    private var isGlobeBehind: Bool {
+        isShowingStats || shownMilestone != nil
     }
 
     private func updateCityMarkers() {
@@ -363,6 +380,7 @@ struct GlobeScreen: View {
     private func celebrateMark(_ code: String, at point: CGPoint?) {
         celebrations += 1
         justMarked = code
+        queueMilestones(world.earnMilestones(), from: code)
         guard !reduceMotion, let point, let color = controller.visitedColor(of: code) else { return }
         let candy = Color(components: color)
         let pale = Color(components: color + (SIMD3(repeating: 1) - color) * 0.5)
@@ -371,6 +389,40 @@ struct GlobeScreen: View {
         Task {
             try? await Task.sleep(for: .seconds(ConfettiBurst.lifetime + 0.1))
             confetti.removeAll { $0.id == burst.id }
+        }
+    }
+
+    /// Milestones the mark just reached take the stage once the country's own celebration
+    /// has had its moment, one at a time.
+    private func queueMilestones(_ milestones: [Milestone], from code: String) {
+        guard !milestones.isEmpty else { return }
+        let stats = StatsCalculator.stats(visited: world.visitedCodes, catalog: .bundled)
+        let events = milestones.map { milestone in
+            var remaining: Int?
+            if case .continent(let continent) = milestone,
+               let progress = stats.continents.first(where: { $0.continent == continent }),
+               progress.countries.total > 0 {
+                remaining = progress.countries.total - progress.countries.visited
+            }
+            return MilestoneEvent(milestone: milestone, place: code, worldShare: stats.countries.share, remainingOnContinent: remaining)
+        }
+        Task {
+            try? await Task.sleep(for: .seconds(1.1))
+            milestoneQueue += events
+            showNextMilestone()
+        }
+    }
+
+    private func showNextMilestone() {
+        guard shownMilestone == nil, !milestoneQueue.isEmpty else { return }
+        withAnimation(Motion.smooth) { shownMilestone = milestoneQueue.removeFirst() }
+    }
+
+    private func dismissMilestone() {
+        withAnimation(Motion.smooth) { shownMilestone = nil }
+        Task {
+            try? await Task.sleep(for: .seconds(0.4))
+            showNextMilestone()
         }
     }
 
@@ -386,7 +438,8 @@ struct GlobeScreen: View {
     /// `-NomadedDebugAddCity IT` opens the city search (`-NomadedDebugCityQuery Фл` types in it),
     /// `-NomadedDebugLandCity "Genoa:IT:44.41:8.93"` adds one as if picked in search,
     /// `-NomadedDebugMark IT` flies to a country and marks it, celebration and all
-    /// (`-NomadedDebugUnmarkAfter YES` unmarks it 3 s later). These runs
+    /// (`-NomadedDebugUnmarkAfter YES` unmarks it 3 s later), `-NomadedDebugMilestone countries.25`
+    /// shows a milestone's celebration. These runs
     /// use an empty in-memory store (see `NomadedApp`), so they never touch countries marked by hand.
     private func applyDebugLaunchArguments() {
         let defaults = UserDefaults.standard
@@ -398,6 +451,9 @@ struct GlobeScreen: View {
         }
         let cities = defaults.string(forKey: "NomadedDebugCities")?.split(separator: ",").compactMap(Self.debugCity) ?? []
         cities.forEach { world.addCity($0) }
+        // Seeded marks reach milestones quietly; only the next real mark celebrates.
+        world.earnMilestones()
+        let debugMilestone = defaults.string(forKey: "NomadedDebugMilestone").flatMap(Milestone.init(id:))
         let focusesCity = defaults.bool(forKey: "NomadedDebugCityFocus")
         let marks = defaults.string(forKey: "NomadedDebugMark")
         let addsCityTo = defaults.string(forKey: "NomadedDebugAddCity")
@@ -408,7 +464,7 @@ struct GlobeScreen: View {
         let showsList = defaults.bool(forKey: "NomadedDebugVisitedList")
         let showsStats = defaults.bool(forKey: "NomadedDebugStats")
         guard (tap?.count == 2) || fly != nil || search != nil || showsList || showsStats || focusesCity
-                || addsCityTo != nil || landsCity != nil || marks != nil
+                || addsCityTo != nil || landsCity != nil || marks != nil || debugMilestone != nil
         else { return }
         Task {
             // Wait for the intro to settle.
@@ -429,6 +485,10 @@ struct GlobeScreen: View {
                 setAddingCity(addsCityTo)
             }
             if let landsCity { addCity(landsCity) }
+            if let debugMilestone {
+                milestoneQueue = [MilestoneEvent(milestone: debugMilestone, place: "JP", worldShare: 25.0 / 195, remainingOnContinent: 47)]
+                showNextMilestone()
+            }
             if let marks {
                 flyTo(marks)
                 try? await Task.sleep(for: .seconds(2.5))

@@ -14,4 +14,10 @@ enum Haptics {
     static let stamp = SensoryFeedback.impact(weight: .heavy)
     /// A new city's dot touches down on the globe.
     static let cityLanded = SensoryFeedback.impact(weight: .medium)
+    /// One half-turn of a spinning milestone medal; `intensity` fades as it slows.
+    static func coinTick(_ intensity: Double) -> SensoryFeedback { .impact(weight: .light, intensity: intensity) }
+    /// A milestone medal lands.
+    static let medalLanded = SensoryFeedback.impact(weight: .heavy)
+    /// A milestone's title appears.
+    static let milestone = SensoryFeedback.success
 }

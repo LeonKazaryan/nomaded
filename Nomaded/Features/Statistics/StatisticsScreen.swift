@@ -17,6 +17,8 @@ struct StatisticsScreen: View {
     let visited: Set<String>
     /// `nil` while the continent maps are still being built.
     let maps: ContinentMaps?
+    /// Milestones reached so far.
+    let earned: [Milestone: Date]
     /// A place picked in one of the lists: the screen closes and the globe flies there.
     let onPick: (String) -> Void
     let onClose: () -> Void
@@ -107,14 +109,16 @@ struct StatisticsScreen: View {
                     .cascade(1, appeared: appeared)
                 continents
                     .cascade(2, appeared: appeared)
+                AchievementsCard(earned: earned, maps: maps, baseDelay: delay(of: 3), appeared: appeared)
+                    .cascade(3, appeared: appeared)
                 if stats.regions.isEmpty {
                     emptyHint
-                        .cascade(3, appeared: appeared)
-                } else {
-                    RegionsCard(regions: stats.regions, baseDelay: delay(of: 4))
-                        .cascade(3, appeared: appeared)
-                    FactsCard(stats: stats)
                         .cascade(4, appeared: appeared)
+                } else {
+                    RegionsCard(regions: stats.regions, baseDelay: delay(of: 5))
+                        .cascade(4, appeared: appeared)
+                    FactsCard(stats: stats)
+                        .cascade(5, appeared: appeared)
                 }
             }
             .padding(.horizontal, 16)
@@ -238,6 +242,74 @@ private struct HeroCard: View {
         }
         .padding(20)
         .glassCard(cornerRadius: 28)
+    }
+}
+
+/// Every milestone as a medal: earned ones in their colors, the rest grey, something to aim
+/// for. Earned medals pop in one after another as the card arrives.
+private struct AchievementsCard: View {
+    let earned: [Milestone: Date]
+    let maps: ContinentMaps?
+    let baseDelay: Double
+    let appeared: Bool
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            SectionHeader(title: "Achievements") {
+                Text("\(earned.count) of \(Milestone.all.count)")
+            }
+            ScrollView(.horizontal) {
+                HStack(alignment: .top, spacing: 12) {
+                    ForEach(Array(Milestone.all.enumerated()), id: \.element.id) { index, milestone in
+                        medal(milestone, index: index)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            .scrollIndicators(.hidden)
+            // Runs to the card's edges, so medals scroll out under its rim.
+            .contentMargins(.horizontal, 20, for: .scrollContent)
+            .padding(.horizontal, -20)
+        }
+        .padding(20)
+        .glassCard(cornerRadius: 24)
+    }
+
+    private func medal(_ milestone: Milestone, index: Int) -> some View {
+        let isEarned = earned[milestone] != nil
+        let pops = isEarned && !reduceMotion
+        return VStack(spacing: 6) {
+            MilestoneMedal(
+                milestone: milestone,
+                outlines: Self.continent(milestone).flatMap { maps?.outlines[$0] },
+                size: 58,
+                isEarned: isEarned
+            )
+            .scaleEffect(appeared || !pops ? 1 : 0.4)
+            .animation(Motion.bouncy.delay(baseDelay + Double(index) * Motion.stagger), value: appeared)
+            Text(Self.label(milestone))
+                .font(Typography.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(width: 76)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(Self.label(milestone)))
+        .accessibilityValue(isEarned ? Text("Earned") : Text("Not yet"))
+    }
+
+    private static func continent(_ milestone: Milestone) -> Continent? {
+        if case .continent(let continent) = milestone { continent } else { nil }
+    }
+
+    private static func label(_ milestone: Milestone) -> String {
+        switch milestone {
+        case .countries(let count): String(localized: "\(count) countries")
+        case .continent(let continent): String(localized: continent.name)
+        }
     }
 }
 
@@ -380,6 +452,7 @@ private struct Cascade: ViewModifier {
             stats: StatsCalculator.stats(visited: visited, catalog: catalog),
             visited: visited,
             maps: nil,
+            earned: [.countries(10): .now, .continent(.europe): .now],
             onPick: { _ in },
             onClose: {}
         )
