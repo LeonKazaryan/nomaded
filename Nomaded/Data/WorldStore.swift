@@ -8,6 +8,8 @@ import os
 @Observable @MainActor
 final class WorldStore {
     private(set) var visitedCodes: Set<String> = []
+    /// When each visited country was first marked: the date on its passport stamp.
+    private(set) var firstVisits: [String: Date] = [:]
     /// Oldest first.
     private(set) var cities: [CityPin] = []
 
@@ -99,6 +101,7 @@ final class WorldStore {
         do {
             let visits = try context.fetch(FetchDescriptor<Visit>())
             visitedCodes = Set(visits.map(\.countryCode))
+            firstVisits = Dictionary(visits.map { ($0.countryCode, $0.createdAt) }, uniquingKeysWith: min)
             let cities = try context.fetch(FetchDescriptor<VisitedCity>(sortBy: [SortDescriptor(\.createdAt)]))
             self.cities = cities.map(\.pin)
         } catch {

@@ -53,8 +53,9 @@ final class GlobeController {
     @ObservationIgnored var onCountryTap: (@MainActor (String?) -> Void)?
     /// Called with a tapped city dot's id. Takes priority over the country under it.
     @ObservationIgnored var onCityTap: (@MainActor (UUID) -> Void)?
-    /// A new city just touched down: the moment for a haptic.
-    @ObservationIgnored var onCityLanded: (@MainActor () -> Void)?
+    /// A new city just touched down, at this point on screen: the moment for a haptic, and
+    /// for confetti if it marked its country (`true`).
+    @ObservationIgnored var onCityLanded: (@MainActor (UUID, CGPoint?, Bool) -> Void)?
     @ObservationIgnored var reduceMotion = false
 
     @ObservationIgnored private var cities: [CityMarker] = []
@@ -62,6 +63,14 @@ final class GlobeController {
     /// New cities wait, hidden, until the flight to them is over, then land.
     @ObservationIgnored private var pendingLandings: Set<UUID> = []
     @ObservationIgnored private var highlightedCity: UUID?
+    /// Cities that mark their country once they land: the fill then starts from the city.
+    @ObservationIgnored private var landingsThatMark: [UUID: String] = [:]
+    /// Countries a landing city will mark. Already visited in the store, but they stay
+    /// plain on the globe until the city touches down, so the fill has something to do.
+    @ObservationIgnored private var awaitingMark: Set<String> = []
+    /// Where the user last touched a country, so marking it fills from under their finger.
+    @ObservationIgnored private var lastTouch: (code: String, coordinate: GeoCoordinate)?
+    @ObservationIgnored private var ring: Ring?
     /// How far each name has popped up, including names on their way out.
     @ObservationIgnored private var labelAppearance: [UUID: SpringValue] = [:]
 
@@ -194,11 +203,56 @@ final class GlobeController {
         changed.forEach(retarget)
     }
 
-    /// The "Mark as visited" pop: the country jumps out of the globe and settles back.
-    func celebrate(_ code: String) {
-        guard !reduceMotion, nodes[code] != nil else { return }
-        nodes[code]?.lift.velocity += GlobeTuning.celebrationKick
+    /// "Mark as visited": the color spreads across the country from `origin` (by default
+    /// where it was last touched, else its middle) with a bright front, the country jumps
+    /// out of the globe and settles back, and a ring runs off across the planet. Returns
+    /// where it starts on screen, for confetti; `nil` if that's out of sight.
+    @discardableResult
+    func celebrate(_ code: String, from origin: GeoCoordinate? = nil) -> CGPoint? {
+        guard var node = nodes[code] else { return nil }
+        let start = origin ?? (lastTouch?.code == code ? lastTouch?.coordinate : nil) ?? node.shape.label
+        let reach = GeoMath.spreadRadius(from: start, rings: node.shape.rings)
+        let axis = SIMD3<Float>(GeoMath.unitVector(start))
+        // The wave paints the new color; the crossfade would fight it.
+        node.tint = SpringValue(1)
+        var progress = SpringValue(0)
+        progress.target = 1
+        node.wave = FillWave(origin: axis, reach: reach, progress: progress, isDrain: false)
+        if !reduceMotion {
+            node.lift.velocity += GlobeTuning.celebrationKick
+            var travel = SpringValue(0)
+            travel.target = 1
+            ring = Ring(origin: axis, from: reach, delay: GlobeTuning.ringDelay, travel: travel,
+                        color: node.visitedColor + (SIMD3(repeating: 1) - node.visitedColor) * 0.35)
+        }
+        nodes[code] = node
         animating.insert(code)
+        return screenPoint(onGlobe: start, lift: 1 + GlobeTuning.visitedLift)
+    }
+
+    /// Unmarking, the calm way back: the color drains to the country's middle.
+    func drain(_ code: String) {
+        guard var node = nodes[code] else { return }
+        node.tint = SpringValue(0)
+        var progress = SpringValue(1)
+        progress.target = 0
+        let reach = GeoMath.spreadRadius(from: node.shape.label, rings: node.shape.rings)
+        node.wave = FillWave(origin: SIMD3<Float>(GeoMath.unitVector(node.shape.label)), reach: reach, progress: progress, isDrain: true)
+        nodes[code] = node
+        animating.insert(code)
+    }
+
+    /// The country's visited color, for things drawn around it (confetti, its stamp).
+    func visitedColor(of code: String) -> SIMD3<Float>? {
+        nodes[code]?.visitedColor
+    }
+
+    /// Where a point on the globe shows on screen, or `nil` past the horizon.
+    private func screenPoint(onGlobe coordinate: GeoCoordinate, lift: Double) -> CGPoint? {
+        let orientation = GlobeOrientation(yaw: yaw.value, pitch: pitch.value)
+        let world = orientation.quaternion.act(GeoMath.unitVector(coordinate) * Double(GlobeTuning.landRadius) * lift)
+        guard camera.faces(worldPoint: world) else { return nil }
+        return camera.screenPoint(ofWorld: world)
     }
 
     /// Highlights a country and brings it to the center. `nil` clears the selection.
@@ -236,9 +290,16 @@ final class GlobeController {
     }
 
     /// Lands a just-added city once the camera arrives: it drops onto the globe and sends
-    /// out a ring. Works before `setCities` has it, too.
-    func landCity(_ id: UUID) {
+    /// out a ring. `marksCountry`: the city is the country's first mark, so the country is
+    /// celebrated too, filling from the city, right as it lands. Works before `setCities`
+    /// has it, too.
+    func landCity(_ id: UUID, marking countryCode: String? = nil) {
         pendingLandings.insert(id)
+        if let countryCode {
+            landingsThatMark[id] = countryCode
+            awaitingMark.insert(countryCode)
+            retarget(countryCode)
+        }
     }
 
     /// The city whose name always shows and whose dot glows a little brighter.
@@ -266,7 +327,13 @@ final class GlobeController {
                     motion.scale.target = 1
                     motion.landedAt = now
                 }
-                onCityLanded?()
+                let marks = landingsThatMark.removeValue(forKey: city.id) != nil
+                if marks {
+                    awaitingMark.remove(city.countryCode)
+                    celebrate(city.countryCode, from: city.coordinate)
+                    retarget(city.countryCode)
+                }
+                onCityLanded?(city.id, screenPoint(of: city), marks)
             }
             motion.scale.step(dt, GlobeTuning.cityDropSpring)
             var ripple: Float = -1
@@ -365,7 +432,7 @@ final class GlobeController {
     }
 
     private func retarget(_ node: inout CountryNode, code: String) {
-        let isVisited = visited.contains(code)
+        let isVisited = visited.contains(code) && !awaitingMark.contains(code)
         let isSelected = selected == code
         node.lift.target = (isVisited ? GlobeTuning.visitedLift : 0) + (isSelected ? GlobeTuning.selectedLift : 0)
         node.tint.target = isVisited ? 1 : 0
@@ -436,7 +503,9 @@ final class GlobeController {
         if let city = city(at: point), let onCityTap {
             onCityTap(city)
         } else {
-            onCountryTap?(country(at: point))
+            let code = country(at: point)
+            lastTouch = code.flatMap { code in coordinate(at: point).map { (code, $0) } }
+            onCountryTap?(code)
         }
     }
 
@@ -518,6 +587,45 @@ final class GlobeController {
         stepZoom(dt)
         stepCountries(dt)
         stepCities(dt)
+        stepRing(dt)
+    }
+
+    // MARK: - Celebration ring
+
+    private struct Ring {
+        let origin: SIMD3<Float>
+        /// Where it sets off: the edge of the country's fill, in radians.
+        let from: Double
+        /// Seconds left before it sets off.
+        var delay: Double
+        /// 0 → 1 along `ringReach`, slowing as it goes; it fades the further it gets.
+        var travel: SpringValue
+        let color: SIMD3<Float>
+    }
+
+    private func stepRing(_ dt: Double) {
+        guard let renderer else { return }
+        guard var ring else {
+            renderer.ring.w = -1
+            return
+        }
+        ring.delay -= dt
+        guard ring.delay <= 0 else {
+            self.ring = ring
+            renderer.ring.w = -1
+            return
+        }
+        ring.travel.step(dt, GlobeTuning.ringSpring)
+        let progress = ring.travel.value
+        let strength = Float(pow(max(0, 1 - progress), 1.4))
+        if ring.travel.isSettled || strength < 0.01 {
+            self.ring = nil
+            renderer.ring.w = -1
+            return
+        }
+        self.ring = ring
+        renderer.ring = SIMD4(ring.origin, Float(ring.from + GlobeTuning.ringReach * progress))
+        renderer.ringColor = SIMD4(ring.color, strength)
     }
 
     private func stepRotation(_ dt: Double) {
@@ -687,6 +795,12 @@ final class GlobeController {
                 node.tint.step(dt, GlobeTuning.colorSpring)
                 node.highlight.step(dt, GlobeTuning.colorSpring)
             }
+            if var wave = node.wave {
+                let spring = reduceMotion ? GlobeTuning.quickWaveSpring
+                    : wave.isDrain ? GlobeTuning.drainWaveSpring : GlobeTuning.fillWaveSpring
+                wave.progress.step(dt, spring)
+                node.wave = wave.progress.isSettled ? nil : wave
+            }
             apply(node)
             nodes[code] = node
             if node.isSettled { animating.remove(code) }
@@ -694,8 +808,25 @@ final class GlobeController {
     }
 
     private func apply(_ node: CountryNode) {
-        renderer?.pieces[node.index].scale = 1 + Float(max(0, node.lift.value) * liftScale)
-        renderer?.pieces[node.index].color = node.currentColor
+        guard let renderer else { return }
+        var piece = renderer.pieces[node.index]
+        piece.scale = 1 + Float(max(0, node.lift.value) * liftScale)
+        if let wave = node.wave {
+            // Inside the wave the visited color, outside the idle one, whichever way it runs.
+            piece.color = node.color(tint: 1)
+            piece.previous = node.color(tint: 0)
+            let progress = wave.progress.value
+            piece.wave = SIMD4(wave.origin, Float(max(0, wave.reach * progress)))
+            // The bright front dims out as the wave finishes, so ending it doesn't pop.
+            let front = wave.isDrain
+                ? GlobeTuning.drainWaveFront * Float(min(1, progress / 0.15))
+                : GlobeTuning.fillWaveFront * Float(min(1, (1 - progress) / 0.15))
+            piece.waveStyle = SIMD4(Float(max(0.002, wave.reach * 0.035)), Float(max(0.003, wave.reach * 0.06)), reduceMotion ? 0 : front, 0)
+        } else {
+            piece.color = node.currentColor
+            piece.wave.w = -1
+        }
+        renderer.pieces[node.index] = piece
     }
 
     // MARK: - Intro
@@ -743,11 +874,16 @@ private struct CountryNode {
     var tint = SpringValue(0)
     /// Selection glow, 0…1.
     var highlight = SpringValue(0)
+    /// The color spreading across the country (marking) or draining back (unmarking).
+    var wave: FillWave?
 
-    var isSettled: Bool { lift.isSettled && tint.isSettled && highlight.isSettled }
+    var isSettled: Bool { lift.isSettled && tint.isSettled && highlight.isSettled && wave == nil }
 
-    var currentColor: SIMD3<Float> {
-        let base = idleColor + (visitedColor - idleColor) * Float(tint.value)
+    var currentColor: SIMD3<Float> { color(tint: tint.value) }
+
+    /// 0 = idle, 1 = visited, with the selection glow on top.
+    func color(tint: Double) -> SIMD3<Float> {
+        let base = idleColor + (visitedColor - idleColor) * Float(tint)
         let lit = base + (SIMD3(repeating: 1) - base) * Float(highlight.value) * GlobeTuning.selectedBrightening
         return simd_clamp(lit, SIMD3(repeating: 0), SIMD3(repeating: 1))
     }
@@ -757,4 +893,15 @@ private struct CountryNode {
         tint.snap()
         highlight.snap()
     }
+}
+
+/// The visited color spreading across a country, or draining back out of it.
+private struct FillWave {
+    /// Where it starts, on the unit globe.
+    let origin: SIMD3<Float>
+    /// The radius (radians) at which it covers its part of the country.
+    let reach: Double
+    /// 0 → 1 filling, 1 → 0 draining.
+    var progress: SpringValue
+    let isDrain: Bool
 }

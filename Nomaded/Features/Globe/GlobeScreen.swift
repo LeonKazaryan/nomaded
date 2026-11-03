@@ -16,6 +16,11 @@ struct GlobeScreen: View {
     /// The country to unmark once the user confirms losing its cities.
     @State private var confirmingUnmark: String?
     @State private var landings = 0
+    @State private var confetti: [ConfettiBurst] = []
+    /// The country just marked: its stamp slams into the card instead of just being there.
+    @State private var justMarked: String?
+    /// A country its first city is about to mark: no stamp until the city lands.
+    @State private var awaitingLanding: String?
     /// The bundled city list, loaded off the main thread at launch: capitals get stars.
     @State private var cityCatalog: CityCatalog?
     @State private var initialCityQuery = ""
@@ -97,6 +102,9 @@ struct GlobeScreen: View {
                         // Newest first: a city just added is the first chip.
                         cities: world.cities(in: selected).reversed(),
                         highlightedCity: highlightedCity,
+                        visitedSince: awaitingLanding == selected ? nil : world.firstVisits[selected],
+                        stampInk: controller.visitedColor(of: selected).map(Color.init(components:)) ?? Palette.accentLight,
+                        stampSlams: justMarked == selected,
                         onToggleVisited: { toggleVisited(selected) },
                         onFindNext: { setSearching(true) },
                         onAddCity: { setAddingCity(selected) },
@@ -111,6 +119,8 @@ struct GlobeScreen: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 8)
             .ignoresSafeArea(.keyboard)
+
+            ConfettiView(bursts: confetti)
 
             if isSearching, let searchIndex {
                 SearchPanel(
@@ -168,7 +178,7 @@ struct GlobeScreen: View {
             titleVisibility: .visible,
             presenting: confirmingUnmark
         ) { code in
-            Button("Remove", role: .destructive) { world.unmarkVisited(code) }
+            Button("Remove", role: .destructive) { unmark(code) }
             Button("Cancel", role: .cancel) {}
         } message: { code in
             Text("\(world.cities(in: code).count) cities will be removed with it.")
@@ -176,7 +186,13 @@ struct GlobeScreen: View {
         .onAppear {
             controller.onCountryTap = { select($0) }
             controller.onCityTap = { selectCity($0) }
-            controller.onCityLanded = { landings += 1 }
+            controller.onCityLanded = { id, point, marksCountry in
+                landings += 1
+                if marksCountry, let city = world.cities.first(where: { $0.id == id }) {
+                    awaitingLanding = nil
+                    celebrateMark(city.countryCode, at: point)
+                }
+            }
             #if DEBUG
             applyDebugLaunchArguments()
             #endif
@@ -217,6 +233,7 @@ struct GlobeScreen: View {
     }
 
     private func select(_ code: String?) {
+        if code != selected { justMarked = nil }
         withAnimation(Motion.bouncy) {
             selected = code
             highlightedCity = nil
@@ -240,12 +257,11 @@ struct GlobeScreen: View {
         setSearching(false)
         setAddingCity(nil)
         let city = world.addCity(draft)
-        controller.landCity(city.id)
+        // A city in a new country: the country is celebrated when the city lands, filling
+        // from it, in view rather than mid-flight.
+        controller.landCity(city.id, marking: wasVisited ? nil : city.countryCode)
+        if !wasVisited { awaitingLanding = city.countryCode }
         focus(on: city)
-        if !wasVisited {
-            controller.celebrate(city.countryCode)
-            celebrations += 1
-        }
     }
 
     /// A city chip or dot: its country is selected and the globe flies close to it.
@@ -325,14 +341,36 @@ struct GlobeScreen: View {
         if world.isVisited(code) {
             // Losing cities is worth a question; a bare mark isn't.
             if world.cities(in: code).isEmpty {
-                world.unmarkVisited(code)
+                unmark(code)
             } else {
                 confirmingUnmark = code
             }
         } else {
             world.markVisited(code)
-            controller.celebrate(code)
-            celebrations += 1
+            celebrateMark(code, at: controller.celebrate(code))
+        }
+    }
+
+    /// The color drains away calmly; no confetti for this.
+    private func unmark(_ code: String) {
+        world.unmarkVisited(code)
+        controller.drain(code)
+        if justMarked == code { justMarked = nil }
+    }
+
+    /// The SwiftUI half of marking a country, after the globe's fill and ring: the haptic,
+    /// confetti thrown from where the fill starts, the stamp slamming into the card.
+    private func celebrateMark(_ code: String, at point: CGPoint?) {
+        celebrations += 1
+        justMarked = code
+        guard !reduceMotion, let point, let color = controller.visitedColor(of: code) else { return }
+        let candy = Color(components: color)
+        let pale = Color(components: color + (SIMD3(repeating: 1) - color) * 0.5)
+        let burst = ConfettiBurst(origin: point, colors: [candy, candy, pale, .white, Palette.capital])
+        confetti.append(burst)
+        Task {
+            try? await Task.sleep(for: .seconds(ConfettiBurst.lifetime + 0.1))
+            confetti.removeAll { $0.id == burst.id }
         }
     }
 
@@ -346,7 +384,9 @@ struct GlobeScreen: View {
     /// `-NomadedDebugStats YES` the statistics. `-NomadedDebugCities "Rome:IT:41.9:12.5,…"`
     /// adds cities, `-NomadedDebugCityFocus YES` flies to the first,
     /// `-NomadedDebugAddCity IT` opens the city search (`-NomadedDebugCityQuery Фл` types in it),
-    /// `-NomadedDebugLandCity "Genoa:IT:44.41:8.93"` adds one as if picked in search. These runs
+    /// `-NomadedDebugLandCity "Genoa:IT:44.41:8.93"` adds one as if picked in search,
+    /// `-NomadedDebugMark IT` flies to a country and marks it, celebration and all
+    /// (`-NomadedDebugUnmarkAfter YES` unmarks it 3 s later). These runs
     /// use an empty in-memory store (see `NomadedApp`), so they never touch countries marked by hand.
     private func applyDebugLaunchArguments() {
         let defaults = UserDefaults.standard
@@ -359,6 +399,7 @@ struct GlobeScreen: View {
         let cities = defaults.string(forKey: "NomadedDebugCities")?.split(separator: ",").compactMap(Self.debugCity) ?? []
         cities.forEach { world.addCity($0) }
         let focusesCity = defaults.bool(forKey: "NomadedDebugCityFocus")
+        let marks = defaults.string(forKey: "NomadedDebugMark")
         let addsCityTo = defaults.string(forKey: "NomadedDebugAddCity")
         let landsCity = defaults.string(forKey: "NomadedDebugLandCity").flatMap { Self.debugCity($0[...]) }
         let tap = defaults.string(forKey: "NomadedDebugTap")?.split(separator: ",").compactMap { Double($0) }
@@ -367,7 +408,7 @@ struct GlobeScreen: View {
         let showsList = defaults.bool(forKey: "NomadedDebugVisitedList")
         let showsStats = defaults.bool(forKey: "NomadedDebugStats")
         guard (tap?.count == 2) || fly != nil || search != nil || showsList || showsStats || focusesCity
-                || addsCityTo != nil || landsCity != nil
+                || addsCityTo != nil || landsCity != nil || marks != nil
         else { return }
         Task {
             // Wait for the intro to settle.
@@ -388,6 +429,15 @@ struct GlobeScreen: View {
                 setAddingCity(addsCityTo)
             }
             if let landsCity { addCity(landsCity) }
+            if let marks {
+                flyTo(marks)
+                try? await Task.sleep(for: .seconds(2.5))
+                toggleVisited(marks)
+                if defaults.bool(forKey: "NomadedDebugUnmarkAfter") {
+                    try? await Task.sleep(for: .seconds(3))
+                    toggleVisited(marks)
+                }
+            }
             if let search {
                 initialSearchQuery = search
                 if defaults.bool(forKey: "NomadedDebugSearchCities") { initialSearchMode = .cities }
@@ -460,11 +510,13 @@ private struct RoundButton: View {
 }
 
 /// "90 countries +10": the 195-country count the statistics use, with territories beside
-/// it, so marking Greenland still visibly counts.
+/// it, so marking Greenland still visibly counts. Each new mark sends a "+1" up out of it.
 private struct WorldSummaryChip: View {
     let countries: Int
     let territories: Int
     let isExpanded: Bool
+
+    @State private var bumps: [UUID] = []
 
     var body: some View {
         HStack(spacing: 8) {
@@ -493,7 +545,44 @@ private struct WorldSummaryChip: View {
         .animation(Motion.bouncy, value: countries)
         .animation(Motion.bouncy, value: territories)
         .animation(Motion.snappy, value: isExpanded)
+        .overlay(alignment: .trailing) {
+            ZStack {
+                ForEach(bumps, id: \.self) { _ in PlusOne() }
+            }
+            .offset(x: 6)
+        }
+        .onChange(of: countries + territories) { old, new in
+            guard new > old else { return }
+            let bump = UUID()
+            bumps.append(bump)
+            Task {
+                try? await Task.sleep(for: .seconds(1.2))
+                bumps.removeAll { $0 == bump }
+            }
+        }
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// Floats up out of the counter and fades.
+private struct PlusOne: View {
+    @State private var risen = false
+    @State private var faded = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Text(verbatim: "+1")
+            .font(Typography.headline)
+            .foregroundStyle(Palette.accentLight)
+            .scaleEffect(risen || reduceMotion ? 1 : 0.4)
+            .offset(y: risen && !reduceMotion ? -30 : 0)
+            .opacity(faded ? 0 : 1)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+            .onAppear {
+                withAnimation(Motion.bouncy) { risen = true }
+                withAnimation(Motion.smooth.delay(0.45)) { faded = true }
+            }
     }
 }
 

@@ -55,8 +55,9 @@ private struct Starfield: View {
     }
 }
 
-/// Seeded generator, so the stars stay in place between launches.
-private struct SplitMix64: RandomNumberGenerator {
+/// Seeded generator: the same seed gives the same numbers, so the stars stay in place between
+/// launches and a confetti burst can be recomputed every frame instead of stored.
+struct SplitMix64: RandomNumberGenerator {
     var state: UInt64
 
     init(seed: UInt64) { state = seed }

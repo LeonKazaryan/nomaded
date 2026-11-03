@@ -40,6 +40,23 @@ enum GlobeTuning {
     static let selectedLift = 0.02
     /// Upward velocity given to a country when it's marked as visited.
     static let celebrationKick = 0.35
+
+    // MARK: Marking a country
+
+    /// The visited color spreading across a country from where it was touched.
+    static let fillWaveSpring = SpringParameters(response: 0.95, dampingRatio: 1)
+    /// Unmarking: the color draining back to the middle. Calmer than the fill.
+    static let drainWaveSpring = SpringParameters(response: 1.1, dampingRatio: 1)
+    /// Reduce Motion keeps the fill, short.
+    static let quickWaveSpring = SpringParameters(response: 0.35, dampingRatio: 1)
+    /// How bright the band riding the wave's edge is, 0…1.
+    static let fillWaveFront: Float = 0.6
+    static let drainWaveFront: Float = 0.18
+    /// The ring a marked country sends across the planet: when it sets off (seconds after
+    /// the fill starts), how it decelerates, and how far it travels past the country (radians).
+    static let ringDelay = 0.3
+    static let ringSpring = SpringParameters(response: 1.6, dampingRatio: 1)
+    static let ringReach = 1.25
     static let selectedBrightening: Float = 0.22
     static let wallShade: Float = 0.5
 

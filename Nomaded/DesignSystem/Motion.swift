@@ -12,6 +12,8 @@ enum Motion {
     static let smooth = Animation.spring(duration: 0.6, bounce: 0)
     /// Celebrations.
     static let celebrate = Animation.spring(duration: 0.7, bounce: 0.5)
+    /// Something pressed down hard, like the passport stamp: fast, one small rebound.
+    static let slam = Animation.spring(duration: 0.34, bounce: 0.3)
 
     /// Things that pop in one by one and are drawn frame by frame (countries on the
     /// statistics maps). Same feel as `bouncy`, as a `Spring` you can sample at any time.

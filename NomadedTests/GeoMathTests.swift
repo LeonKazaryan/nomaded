@@ -117,3 +117,23 @@ struct GeoMathTests {
         #expect(spring.isSettled)
     }
 }
+
+struct SpreadRadiusTests {
+    @Test func stopsAtTheFirstBigGap() {
+        // A 2°-wide square around the origin, and a far-off island 40° away.
+        let home: [SIMD2<Float>] = [[-1, -1], [1, -1], [1, 1], [-1, 1]]
+        let island: [SIMD2<Float>] = [[40, 0], [41, 0], [41, 1]]
+        let radius = GeoMath.spreadRadius(from: GeoCoordinate(latitude: 0, longitude: 0), rings: [home, island])
+
+        // The square's corners are ~1.41° out; the island is left to fill at the end.
+        #expect(abs(radius - GeoMath.radians(1.414)) < 0.001)
+    }
+
+    @Test func spansAWideCountryFromItsEdge() async throws {
+        let world = try await WorldGeometry.loadBundled()
+        let russia = try #require(world.countries.first { $0.code == "RU" })
+        // From Moscow the fill has to cross all of Russia to Chukotka.
+        let radius = GeoMath.spreadRadius(from: GeoCoordinate(latitude: 55.75, longitude: 37.6), rings: russia.rings)
+        #expect(radius > 1.0 && radius < 1.6)
+    }
+}

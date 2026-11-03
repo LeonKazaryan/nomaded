@@ -9,30 +9,72 @@ struct FrameUniforms {
     /// In points.
     float2 viewport;
     float cameraDistance;
+    /// The ring a newly marked country sends around the planet. xyz: where it starts, on
+    /// the unit globe before rotation. w: how far it has travelled, in radians; below 0, none.
+    float4 ring;
+    /// rgb: its color. a: its strength, fading to 0.
+    float4 ringColor;
 };
 
 struct DrawUniforms {
+    /// The color, or, while a fill wave runs, the color inside the wave.
     float4 color;
+    /// Outside the wave: the color the country is leaving (or, draining, going back to).
+    float4 previous;
+    /// xyz: where the wave started, on the unit globe before rotation. w: its radius in
+    /// radians; below 0, no wave.
+    float4 wave;
+    /// x: how soft its edge is, y: how wide its bright front, both in radians.
+    /// z: how bright that front is.
+    float4 waveStyle;
     /// 1 + lift: land rises straight up from the globe's center.
     float scale;
 };
 
 struct Fragment {
     float4 position [[position]];
+    /// Where on the globe, before rotation: for the wave and the ring.
+    float3 local;
 };
 
 vertex Fragment globeVertex(uint id [[vertex_id]],
                             const device float3 *positions [[buffer(0)]],
                             constant FrameUniforms &frame [[buffer(1)]],
                             constant DrawUniforms &draw [[buffer(2)]]) {
-    float4 world = frame.rotation * float4(positions[id] * draw.scale, 1);
-    return { frame.viewProjection * world };
+    float3 local = positions[id] * draw.scale;
+    float4 world = frame.rotation * float4(local, 1);
+    return { frame.viewProjection * world, local };
 }
 
 // Flat, unlit color. The globe's volume comes from the SwiftUI shading on top, so palette
-// colors reach the screen exactly as designed.
-fragment float4 globeFragment(constant DrawUniforms &draw [[buffer(0)]]) {
-    return draw.color;
+// colors reach the screen exactly as designed. Two effects ride on top: a country's fill
+// wave and the ring a marked country sends around the planet.
+fragment float4 globeFragment(Fragment in [[stage_in]],
+                              constant DrawUniforms &draw [[buffer(0)]],
+                              constant FrameUniforms &frame [[buffer(1)]]) {
+    float3 p = normalize(in.local);
+    float3 color = draw.color.rgb;
+
+    if (draw.wave.w >= 0) {
+        float d = acos(clamp(dot(p, draw.wave.xyz), -1.0, 1.0));
+        float radius = draw.wave.w;
+        float inside = 1 - smoothstep(radius - draw.waveStyle.x, radius + draw.waveStyle.x, d);
+        color = mix(draw.previous.rgb, color, inside);
+        // A bright band rides the edge of the spreading color.
+        float front = exp(-pow((d - radius) / draw.waveStyle.y, 2)) * draw.waveStyle.z;
+        color = mix(color, float3(1), clamp(front, 0.0, 1.0));
+    }
+
+    if (frame.ring.w >= 0) {
+        float d = acos(clamp(dot(p, frame.ring.xyz), -1.0, 1.0));
+        float offset = d - frame.ring.w;
+        // A sharp line with a soft glow trailing behind it.
+        float line = exp(-pow(offset / 0.012, 2));
+        float glow = exp(-pow(min(offset, 0.0) / 0.07, 2)) * 0.35;
+        color = mix(color, frame.ringColor.rgb, clamp((line + glow) * frame.ringColor.a, 0.0, 1.0));
+    }
+
+    return float4(color, 1);
 }
 
 // MARK: - City markers

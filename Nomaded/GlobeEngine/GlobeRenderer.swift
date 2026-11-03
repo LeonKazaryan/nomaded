@@ -20,7 +20,15 @@ final class GlobeRenderer {
         var walls: MeshRange?
         /// 1 + lift.
         var scale: Float = 1
+        /// The color, or, while `wave` runs, the color inside it.
         var color: SIMD3<Float>
+        /// Outside a running wave.
+        var previous = SIMD3<Float>(0, 0, 0)
+        /// xyz: where a fill wave started, on the unit globe. w: its radius in radians;
+        /// below 0, no wave.
+        var wave = SIMD4<Float>(0, 0, 0, -1)
+        /// x: edge softness, y: front width (radians), z: front brightness.
+        var waveStyle = SIMD4<Float>(0, 0, 0, 0)
 
         /// Walls only show once the country rises off the globe.
         var showsWalls: Bool { scale > 1.0005 }
@@ -42,10 +50,15 @@ final class GlobeRenderer {
         var rotation: simd_float4x4
         var viewport: SIMD2<Float>
         var cameraDistance: Float
+        var ring: SIMD4<Float>
+        var ringColor: SIMD4<Float>
     }
 
     private struct DrawUniforms {
         var color: SIMD4<Float>
+        var previous: SIMD4<Float>
+        var wave: SIMD4<Float>
+        var waveStyle: SIMD4<Float>
         var scale: Float
     }
 
@@ -64,6 +77,11 @@ final class GlobeRenderer {
     var pieces: [Piece] = []
     var markers: [Marker] = []
     var oceanColor = SIMD3<Float>(0, 0, 0)
+    /// The ring a newly marked country sends around the planet. xyz: start on the unit
+    /// globe, w: distance travelled in radians (below 0: none).
+    var ring = SIMD4<Float>(0, 0, 0, -1)
+    /// rgb and strength.
+    var ringColor = SIMD4<Float>(0, 0, 0, 0)
 
     private let queue: MTLCommandQueue
     private let pipeline: MTLRenderPipelineState
@@ -169,23 +187,26 @@ final class GlobeRenderer {
             viewProjection: camera.viewProjection,
             rotation: simd_float4x4(rotation),
             viewport: SIMD2(Float(camera.viewportSize.width), Float(camera.viewportSize.height)),
-            cameraDistance: Float(camera.distance)
+            cameraDistance: Float(camera.distance),
+            ring: ring,
+            ringColor: ringColor
         )
         encoder.setVertexBytes(&frame, length: MemoryLayout<FrameUniforms>.stride, index: 1)
+        encoder.setFragmentBytes(&frame, length: MemoryLayout<FrameUniforms>.stride, index: 1)
 
         encoder.setVertexBuffer(ocean.vertices, offset: 0, index: 0)
-        draw(MeshRange(indexStart: 0, indexCount: ocean.indexCount), of: ocean, color: oceanColor, scale: 1, with: encoder)
+        draw(MeshRange(indexStart: 0, indexCount: ocean.indexCount), of: ocean, piece: Piece(surface: MeshRange(indexStart: 0, indexCount: 0), color: oceanColor), with: encoder)
 
         encoder.setVertexBuffer(land.vertices, offset: 0, index: 0)
         for piece in pieces {
-            draw(piece.surface, of: land, color: piece.color, scale: piece.scale, with: encoder)
+            draw(piece.surface, of: land, piece: piece, with: encoder)
         }
 
         if let walls {
             encoder.setVertexBuffer(walls.vertices, offset: 0, index: 0)
             for piece in pieces where piece.showsWalls {
                 guard let range = piece.walls else { continue }
-                draw(range, of: walls, color: piece.color * GlobeTuning.wallShade, scale: piece.scale, with: encoder)
+                draw(range, of: walls, piece: piece, shade: GlobeTuning.wallShade, with: encoder)
             }
         }
 
@@ -227,9 +248,16 @@ final class GlobeRenderer {
         return markerBuffers[markerBufferIndex]
     }
 
-    private func draw(_ range: MeshRange, of mesh: GPUMesh, color: SIMD3<Float>, scale: Float, with encoder: MTLRenderCommandEncoder) {
+    /// `shade` darkens both colors, for walls.
+    private func draw(_ range: MeshRange, of mesh: GPUMesh, piece: Piece, shade: Float = 1, with encoder: MTLRenderCommandEncoder) {
         guard range.indexCount > 0 else { return }
-        var uniforms = DrawUniforms(color: SIMD4(color, 1), scale: scale)
+        var uniforms = DrawUniforms(
+            color: SIMD4(piece.color * shade, 1),
+            previous: SIMD4(piece.previous * shade, 1),
+            wave: piece.wave,
+            waveStyle: piece.waveStyle,
+            scale: piece.scale
+        )
         encoder.setVertexBytes(&uniforms, length: MemoryLayout<DrawUniforms>.stride, index: 2)
         encoder.setFragmentBytes(&uniforms, length: MemoryLayout<DrawUniforms>.stride, index: 0)
         encoder.drawIndexedPrimitives(

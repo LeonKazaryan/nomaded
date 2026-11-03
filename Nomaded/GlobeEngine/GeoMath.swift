@@ -89,4 +89,21 @@ enum GeoMath {
         }
         return acos(smallestCosine)
     }
+
+    /// How far (radians) a fill starting at `origin` must spread to cover the part of the
+    /// country it starts in: out to the farthest outline point before a gap wider than
+    /// `gap`. France's fill stops at its own coasts instead of crossing the Atlantic to
+    /// French Guiana, which simply fills in at the end.
+    static func spreadRadius(from origin: GeoCoordinate, rings: [[SIMD2<Float>]], gap: Double = 0.15) -> Double {
+        let axis = unitVector(origin)
+        let distances = rings.joined().map { point in
+            acos(max(-1, min(1, simd_dot(axis, unitVector(GeoCoordinate(latitude: Double(point.y), longitude: Double(point.x)))))))
+        }.sorted()
+        var reach = distances.first ?? 0
+        for distance in distances.dropFirst() {
+            if distance - reach > gap { break }
+            reach = distance
+        }
+        return max(reach, 0.002)
+    }
 }

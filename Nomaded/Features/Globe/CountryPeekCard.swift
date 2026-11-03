@@ -5,12 +5,17 @@ import SwiftUI
 /// Once the country is marked, the button splits: a small ✓ stays (tap to unmark) and
 /// "Next destination" grows out of it and opens the search, so adding places one after
 /// another is a single tap.
-/// Below, the cities you've been to there, and "+ City".
+/// Below, the cities you've been to there, and "+ City". A visited country's passport stamp
+/// sits on the card's top edge; marking the country slams it down.
 struct CountryPeekCard: View {
     let code: String
     let isVisited: Bool
     let cities: [CityPin]
     let highlightedCity: UUID?
+    /// When it was first marked; `nil` while not visited.
+    let visitedSince: Date?
+    let stampInk: Color
+    let stampSlams: Bool
     let onToggleVisited: () -> Void
     let onFindNext: () -> Void
     let onAddCity: () -> Void
@@ -97,6 +102,14 @@ struct CountryPeekCard: View {
         }
         .padding(20)
         .glassCard(cornerRadius: 30)
+        .overlay(alignment: .topTrailing) {
+            if isVisited, let visitedSince {
+                PassportStamp(code: code, date: visitedSince, ink: stampInk, slamsIn: stampSlams)
+                    // Pressed across the card's top edge, left of the close button.
+                    .offset(x: -58, y: -26)
+                    .transition(.scale(scale: 0.7).combined(with: .opacity))
+            }
+        }
         .animation(reduceMotion ? Motion.snappy : Motion.bouncy, value: isVisited)
     }
 
@@ -200,10 +213,12 @@ private struct CityChips: View {
         VStack(spacing: 16) {
             CountryPeekCard(
                 code: "IT", isVisited: true, cities: [rome, florence], highlightedCity: rome.id,
+                visitedSince: .now, stampInk: Palette.candy[0], stampSlams: false,
                 onToggleVisited: {}, onFindNext: {}, onAddCity: {}, onSelectCity: { _ in }, onRemoveCity: { _ in }, onClose: {}
             )
             CountryPeekCard(
                 code: "KZ", isVisited: false, cities: [], highlightedCity: nil,
+                visitedSince: nil, stampInk: Palette.candy[3], stampSlams: false,
                 onToggleVisited: {}, onFindNext: {}, onAddCity: {}, onSelectCity: { _ in }, onRemoveCity: { _ in }, onClose: {}
             )
         }
