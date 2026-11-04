@@ -9,6 +9,9 @@ enum Worldview: String, CaseIterable, Sendable {
     case russia = "rus"
     /// China's App Store: Taiwan and Arunachal Pradesh in China.
     case china = "chn"
+    /// India's App Store: all of Jammu and Kashmir and Ladakh in India, Gilgit-Baltistan,
+    /// Azad Kashmir, Aksai Chin, the Shaksgam Valley and the Siachen Glacier included.
+    case india = "ind"
 
     /// The overlay laid over world.nmgeo.
     var overlayName: String? { self == .standard ? nil : "world-\(rawValue)" }
@@ -18,6 +21,7 @@ enum Worldview: String, CaseIterable, Sendable {
         switch countryCode.uppercased() {
         case "RUS": self = .russia
         case "CHN": self = .china
+        case "IND": self = .india
         default: self = .standard
         }
     }
@@ -28,6 +32,7 @@ enum Worldview: String, CaseIterable, Sendable {
         case .standard: nil
         case .russia: GeoCoordinate(latitude: 46.8, longitude: 35.8)
         case .china: GeoCoordinate(latitude: 25.5, longitude: 108)
+        case .india: GeoCoordinate(latitude: 34.5, longitude: 76.5)
         }
     }
 }

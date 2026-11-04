@@ -8,7 +8,7 @@ import StoreKit
 enum WorldviewSource {
     private static let storefrontKey = "storefrontCountry"
     #if DEBUG
-    /// "standard", "rus" or "chn"; unset follows the storefront. Also a launch argument:
+    /// "standard", "rus", "chn" or "ind"; unset follows the storefront. Also a launch argument:
     /// `-NomadedDebugWorldview rus`.
     static let overrideKey = "NomadedDebugWorldview"
     #endif

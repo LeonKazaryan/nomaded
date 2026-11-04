@@ -124,12 +124,9 @@ private struct DeveloperPanel: View {
                 Text(verbatim: "Границы по региону App Store")
                     .font(Typography.label)
                 PillPicker(
-                    options: [
-                        .init(id: Choice.automatic, title: LocalizedStringKey(Self.title(nil))),
-                        .init(id: Choice.forced(.standard), title: LocalizedStringKey(Self.title(.standard))),
-                        .init(id: Choice.forced(.russia), title: LocalizedStringKey(Self.title(.russia))),
-                        .init(id: Choice.forced(.china), title: LocalizedStringKey(Self.title(.china))),
-                    ],
+                    options: [Choice.automatic, .forced(.standard), .forced(.russia), .forced(.china), .forced(.india)].map {
+                        .init(id: $0, title: LocalizedStringKey(Self.shortTitle($0.worldview)))
+                    },
                     selection: $choice
                 )
                 Text(verbatim: storefrontLine)
@@ -189,6 +186,17 @@ private struct DeveloperPanel: View {
         case .standard: "Мир"
         case .russia: "Россия"
         case .china: "Китай"
+        case .india: "Индия"
+        }
+    }
+
+    /// Five pills fit a row only this short; the line under them spells the regions out.
+    private static func shortTitle(_ worldview: Worldview?) -> String {
+        switch worldview {
+        case nil, .standard: title(worldview)
+        case .russia: "RU"
+        case .china: "CN"
+        case .india: "IN"
         }
     }
 }

@@ -1,14 +1,15 @@
 import Foundation
 
 // Natural Earth GeoJSON → Nomaded globe geometry (.nmgeo); with --admin1, an overlay per
-// App Store worldview next to it (world-rus.nmgeo, see Worldview.swift); with --catalog, the country
+// App Store worldview next to it (world-rus.nmgeo, see Worldview.swift; India's needs --pov-ind,
+// Natural Earth's own file for it); with --catalog, the country
 // catalog (countries.json) the statistics read; with --places and --cities, the city list
 // (cities.json) the city search reads.
 // See Tools/GeoPipeline/README.md for the exact command and data source.
 
 let arguments = CommandLine.arguments
 guard arguments.count >= 3 else {
-    print("usage: GeoPipeline <input.geojson> <output.nmgeo> [--lakes lakes.geojson] [--rivers rivers.geojson] [--admin1 admin1.geojson] [--catalog countries.json] [--places places.geojson --cities cities.json] [--tolerance degrees]")
+    print("usage: GeoPipeline <input.geojson> <output.nmgeo> [--lakes lakes.geojson] [--rivers rivers.geojson] [--admin1 admin1.geojson --pov-ind ind.geojson] [--catalog countries.json] [--places places.geojson --cities cities.json] [--tolerance degrees]")
     exit(1)
 }
 
@@ -30,14 +31,35 @@ let admin1Input = fileArgument("--admin1")
 
 let started = Date()
 let features = try GeoJSONReader.read(input)
-let originals = CountryAssembler.assemble(features)
+let assembled = CountryAssembler.assemble(features)
 // Six slots, matching the six candy colors in the app's palette. Worldviews keep each
 // country's slot, so Russia is the same color whatever the App Store region.
-let colorSlots = ColorAssigner.assign(originals, slotCount: 6)
-let slotByCode = Dictionary(zip(originals.map(\.code), colorSlots), uniquingKeysWith: { first, _ in first })
+let colorSlots = ColorAssigner.assign(assembled, slotCount: 6)
+let slotByCode = Dictionary(zip(assembled.map(\.code), colorSlots), uniquingKeysWith: { first, _ in first })
 let lakes = try lakesInput.map { LakeCutter.select(try GeoJSONReader.readLakes($0)) }
 let riverSources = try riversInput.map { try GeoJSONReader.readRivers($0) }
-let regions = try admin1Input.map { try GeoJSONReader.readRegions($0, codes: Worldview.regionCodes) } ?? [:]
+let admin1Regions = try admin1Input.map { try GeoJSONReader.readRegions($0, codes: Worldview.regionCodes) } ?? [:]
+
+/// The worldviews' land from Natural Earth's own files for them (`--pov-<id>`) joins the
+/// admin-1 regions. Land the default file leaves to no one (the Siachen Glacier) would be a
+/// hole down to the ocean: it becomes unclaimed land, drawn but not selectable.
+func withOwnLand(_ countries: [CountryInput], _ regions: [String: [GeoPolygon]]) throws -> ([CountryInput], [String: [GeoPolygon]]) {
+    var countries = countries, regions = regions
+    for view in admin1Input == nil ? [] : Worldview.all where view.needsOwnFile {
+        guard let url = fileArgument("--pov-\(view.id)") else { throw PipelineError.malformed("worldview \(view.id) needs --pov-\(view.id)") }
+        let land = try view.ownLand(base: countries, own: CountryAssembler.assemble(try GeoJSONReader.read(url)))
+        regions.merge(land) { first, _ in first }
+        for move in view.moves where move.regions.isEmpty && move.from.isEmpty {
+            guard let unclaimed = countries.firstIndex(where: { $0.code.isEmpty }) else { throw PipelineError.malformed("no unclaimed land") }
+            countries[unclaimed].polygons = PolygonDissolver.joined(
+                countries[unclaimed].polygons.map { PolygonDissolver.oriented($0) } + view.landCodes(move).flatMap { land[$0]! }.map { PolygonDissolver.oriented($0) },
+                minimumArea: 1e-9
+            )
+        }
+    }
+    return (countries, regions)
+}
+let (originals, regions) = try withOwnLand(assembled, admin1Regions)
 
 struct World {
     var built: [BuiltCountry] = []
