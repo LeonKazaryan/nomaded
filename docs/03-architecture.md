@@ -109,7 +109,7 @@ final class WorldStore {                         // Data/WorldStore.swift
 
 ### `EarnedMilestone` — полученная веха (SwiftData `@Model`)
 
-`id` (`Milestone.id`: `"countries.25"`, `"continent.asia"`) и `earnedAt`. Вехи не отбираются при снятии отметки, поэтому каждая празднуется один раз. `WorldStore.earnMilestones()` вызывается в момент праздника отметки и возвращает новые вехи в порядке показа. При запуске он тихо засчитывает всё, что уже достигнуто. Правила в `Domain/Milestone` (`MilestoneRules`), покрыты тестами.
+`id` (`Milestone.id`: `"countries.25"`, `"continent.asia"`) и `earnedAt`. `unmarkVisited` в том же сохранении удаляет вехи, которых оставшиеся отметки больше не достигают, а при запуске убираются оставшиеся с прошлых версий. Повторное достижение празднуется снова. `WorldStore.earnMilestones()` вызывается в момент праздника отметки и возвращает новые вехи в порядке показа. При запуске он тихо засчитывает всё, что уже достигнуто. Правила в `Domain/Milestone` (`MilestoneRules`), покрыты тестами.
 
 ### `VisitedCity` — город (SwiftData `@Model`)
 

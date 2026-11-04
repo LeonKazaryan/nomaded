@@ -12,7 +12,7 @@ final class WorldStore {
     private(set) var firstVisits: [String: Date] = [:]
     /// Oldest first.
     private(set) var cities: [CityPin] = []
-    /// Milestones reached, and when. Never taken back.
+    /// Milestones reached, and when. Unmarking takes back the ones no longer reached.
     private(set) var milestones: [Milestone: Date] = [:]
 
     /// Held so it outlives `context`: SwiftData crashes if a container goes away while its
@@ -27,7 +27,10 @@ final class WorldStore {
         self.container = container
         self.catalog = catalog
         reload()
-        // Whatever was reached before milestones existed counts quietly: no flood of
+        // Medals left over from before unmarking took them back go…
+        revokeMilestones(visited: visitedCodes)
+        if context.hasChanges { save() }
+        // …and whatever was reached before milestones existed counts quietly: no flood of
         // celebrations for 90 countries marked last month.
         earnMilestones()
     }
@@ -49,7 +52,9 @@ final class WorldStore {
         save()
     }
 
-    /// Removes every visit to the country, and its cities with them.
+    /// Removes every visit to the country, and its cities with them, and quietly takes back
+    /// the milestones that no longer hold: 100 countries down to 90 loses the 100 medal,
+    /// the last place on a continent loses the continent.
     func unmarkVisited(_ code: String) {
         let visits = FetchDescriptor<Visit>(predicate: #Predicate { $0.countryCode == code })
         let cities = FetchDescriptor<VisitedCity>(predicate: #Predicate { $0.countryCode == code })
@@ -59,6 +64,7 @@ final class WorldStore {
         } catch {
             Self.log.error("Unmark \(code) failed: \(error)")
         }
+        revokeMilestones(visited: visitedCodes.subtracting([code]))
         save()
     }
 
@@ -102,6 +108,19 @@ final class WorldStore {
         new.forEach { context.insert(EarnedMilestone($0)) }
         save()
         return MilestoneRules.celebrationOrder(new)
+    }
+
+    /// Deletes the earned milestones `visited` no longer reaches. Doesn't save.
+    private func revokeMilestones(visited: Set<String>) {
+        let reached = MilestoneRules.reached(visited: visited, catalog: catalog)
+        do {
+            for record in try context.fetch(FetchDescriptor<EarnedMilestone>()) {
+                guard let milestone = Milestone(id: record.id), !reached.contains(milestone) else { continue }
+                context.delete(record)
+            }
+        } catch {
+            Self.log.error("Revoke milestones failed: \(error)")
+        }
     }
 
     /// Saves right away rather than waiting for autosave, so a mark survives the app being

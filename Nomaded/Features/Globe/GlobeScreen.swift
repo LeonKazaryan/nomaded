@@ -490,7 +490,8 @@ struct GlobeScreen: View {
         }
         Task {
             try? await Task.sleep(for: .seconds(1.1))
-            milestoneQueue += events
+            // A mark undone right away has already taken its milestones back.
+            milestoneQueue += events.filter { world.milestones[$0.milestone] != nil }
             showNextMilestone()
         }
     }

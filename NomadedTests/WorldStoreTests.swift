@@ -123,10 +123,48 @@ struct WorldStoreTests {
         let store = WorldStore(container: container, catalog: Self.catalog)
         store.markVisited("FR")
         #expect(store.earnMilestones() == [.continent(.europe)])
-
-        store.unmarkVisited("FR")
-        store.markVisited("FR")
+        store.markVisited("JP")
+        #expect(store.earnMilestones() == [.continent(.asia)])
         #expect(store.earnMilestones().isEmpty)
+    }
+
+    /// Marked by mistake, unmarked: the medal goes. Reached again for real, it's celebrated again.
+    @Test func unmarkingTakesBackAContinent() {
+        let store = WorldStore(container: container, catalog: Self.catalog)
+        store.markVisited("FR")
+        store.markVisited("JP")
+        store.earnMilestones()
+
+        store.unmarkVisited("JP")
+        #expect(store.milestones.keys.sorted { $0.id < $1.id } == [.continent(.europe)])
+
+        store.markVisited("JP")
+        #expect(store.earnMilestones() == [.continent(.asia)])
+    }
+
+    @Test func droppingBelowACountThresholdTakesItBack() {
+        let store = WorldStore(container: container, catalog: Self.catalog)
+        (0..<10).forEach { store.markVisited("X\($0)") }
+        store.earnMilestones()
+        #expect(store.milestones[.countries(10)] != nil)
+
+        store.unmarkVisited("X3")
+        #expect(store.milestones[.countries(10)] == nil)
+        // Africa still has nine marks.
+        #expect(store.milestones[.continent(.africa)] != nil)
+    }
+
+    /// Medals earned before unmarking took them back are cleaned up at launch.
+    @Test func leftoverMilestonesGoAtLaunch() throws {
+        let context = container.mainContext
+        context.insert(Visit(countryCode: "FR"))
+        context.insert(EarnedMilestone(.continent(.europe)))
+        context.insert(EarnedMilestone(.continent(.antarctica)))
+        context.insert(EarnedMilestone(.countries(10)))
+        try context.save()
+
+        let store = WorldStore(container: container, catalog: Self.catalog)
+        #expect(Array(store.milestones.keys) == [.continent(.europe)])
     }
 
     @Test func tenCountriesAndATerritoryContinent() {

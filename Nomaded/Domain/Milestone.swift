@@ -1,6 +1,7 @@
 import Foundation
 
-/// Something worth a big celebration, earned once and kept even if a mark is taken back.
+/// Something worth a big celebration. Held only while the visited places still reach it:
+/// unmarking below it takes it back, and reaching it again celebrates it again.
 enum Milestone: Hashable, Sendable {
     /// Reached this many of the 195 countries.
     case countries(Int)

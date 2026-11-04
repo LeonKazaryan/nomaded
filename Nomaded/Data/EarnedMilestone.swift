@@ -1,8 +1,8 @@
 import Foundation
 import SwiftData
 
-/// A milestone the user has reached, kept for good: unmarking a country doesn't take it
-/// back, so it's never celebrated twice.
+/// A milestone the user has reached. Unmarking countries below it deletes it, so a country
+/// marked by mistake doesn't leave its medal behind.
 ///
 /// CloudKit-compatible like `Visit`: every property has a default, nothing is unique.
 @Model
