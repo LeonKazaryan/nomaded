@@ -14,6 +14,9 @@ import Foundation
 ///     lakes    count UInt32; per lake: bounds Float32 ×4, then its shore as point count
 ///              UInt32 + lon/lat Float32 pairs. The countries already have them cut out;
 ///              these are only for telling a tap on a lake from one on the ocean.
+///     rivers   count UInt32; per river: country index UInt16 (the river rises with it),
+///              point count UInt32, lon/lat Float32 pairs, then Natural Earth's rank
+///              UInt8 per point, then its drawing weight in hundredths UInt8 per point.
 struct BuiltCountry {
     let code: String
     let colorSlot: Int
@@ -25,9 +28,9 @@ struct BuiltCountry {
 
 enum WorldFileWriter {
     static let magic: UInt32 = 0x4E4D_4757 // "NMGW"
-    static let version: UInt16 = 3
+    static let version: UInt16 = 4
 
-    static func encode(_ countries: [BuiltCountry], lakes: [[GeoPoint]]) -> Data {
+    static func encode(_ countries: [BuiltCountry], lakes: [[GeoPoint]], rivers: [RiverBuilder.Built]) -> Data {
         var data = Data()
         append(magic, to: &data)
         append(version, to: &data)
@@ -80,6 +83,18 @@ enum WorldFileWriter {
                 append(Float(point.x), to: &data)
                 append(Float(point.y), to: &data)
             }
+        }
+
+        append(UInt32(rivers.count), to: &data)
+        for river in rivers {
+            append(UInt16(river.country), to: &data)
+            append(UInt32(river.points.count), to: &data)
+            for point in river.points {
+                append(Float(point.x), to: &data)
+                append(Float(point.y), to: &data)
+            }
+            data.append(contentsOf: river.ranks)
+            data.append(contentsOf: river.weights)
         }
         return data
     }

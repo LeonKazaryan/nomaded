@@ -45,20 +45,33 @@ struct LakeShape: Sendable {
     let shore: [SIMD2<Float>]
 }
 
+/// A river, or the stretch of one inside a single country: it rises with that country.
+struct RiverShape: Sendable {
+    /// Index into `WorldGeometry.countries`.
+    let country: Int
+    /// (longitude, latitude), upstream or down.
+    let points: [SIMD2<Float>]
+    /// Natural Earth's rank at each point: 1 for the Amazon, up to 8 for small rivers.
+    let ranks: [UInt8]
+    /// How thick to draw it at each point, in hundredths (15…200): rivers widen downstream.
+    let weights: [UInt8]
+}
+
 enum WorldGeometryError: Error {
     case missingResource
     case badHeader
     case truncated
 }
 
-/// All countries and the larger lakes, decoded from the bundled `world.nmgeo`.
+/// All countries, the larger lakes and the rivers, decoded from the bundled `world.nmgeo`.
 /// The format is documented in Tools/GeoPipeline/Sources/GeoPipeline/WorldFileWriter.swift.
 struct WorldGeometry: Sendable {
     static let magic: UInt32 = 0x4E4D_4757 // "NMGW"
-    static let version: UInt16 = 3
+    static let version: UInt16 = 4
 
     let countries: [CountryShape]
     let lakes: [LakeShape]
+    let rivers: [RiverShape]
 
     /// Decodes off the main thread; the file is a few megabytes.
     static func loadBundled() async throws -> WorldGeometry {
@@ -93,6 +106,20 @@ struct WorldGeometry: Sendable {
             lakes.append(LakeShape(bounds: bounds, shore: try reader.readArray(SIMD2<Float>.self, count: try reader.readCount())))
         }
         self.lakes = lakes
+
+        let riverCount = try reader.readCount()
+        var rivers: [RiverShape] = []
+        rivers.reserveCapacity(riverCount)
+        for _ in 0..<riverCount {
+            let country = Int(try reader.read(UInt16.self))
+            let pointCount = try reader.readCount()
+            let points = try reader.readArray(SIMD2<Float>.self, count: pointCount)
+            let ranks = try reader.readArray(UInt8.self, count: pointCount)
+            let weights = try reader.readArray(UInt8.self, count: pointCount)
+            guard country < countries.count else { throw WorldGeometryError.badHeader }
+            rivers.append(RiverShape(country: country, points: points, ranks: ranks, weights: weights))
+        }
+        self.rivers = rivers
     }
 
     private static func readBounds(_ reader: inout BinaryReader) throws -> GeoBounds {

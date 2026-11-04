@@ -7,7 +7,7 @@ import Foundation
 
 let arguments = CommandLine.arguments
 guard arguments.count >= 3 else {
-    print("usage: GeoPipeline <input.geojson> <output.nmgeo> [--lakes lakes.geojson] [--catalog countries.json] [--places places.geojson --cities cities.json] [--tolerance degrees]")
+    print("usage: GeoPipeline <input.geojson> <output.nmgeo> [--lakes lakes.geojson] [--rivers rivers.geojson] [--catalog countries.json] [--places places.geojson --cities cities.json] [--tolerance degrees]")
     exit(1)
 }
 
@@ -26,6 +26,7 @@ let catalogOutput = fileArgument("--catalog")
 let placesInput = fileArgument("--places")
 let citiesOutput = fileArgument("--cities")
 let lakesInput = fileArgument("--lakes")
+let riversInput = fileArgument("--rivers")
 
 let started = Date()
 let features = try GeoJSONReader.read(input)
@@ -34,11 +35,13 @@ let originals = CountryAssembler.assemble(features)
 // working from the whole countries.
 var shaped = originals
 var shores: [[GeoPoint]] = []
+var rawShores: [[GeoPoint]] = []
 var lakeSummary = ""
 if let lakesInput {
     let lakes = LakeCutter.select(try GeoJSONReader.readLakes(lakesInput))
     let result = LakeCutter.cut(originals, lakes: lakes)
     shaped = result.countries
+    rawShores = result.shores
     shores = result.shores.map { TopologySimplifier.simplifyClosed($0, tolerance: tolerance) }
     lakeSummary = "\nlakes: \(lakes.count) selected, \(shores.count) cut into land"
     if !result.skipped.isEmpty { lakeSummary += ", left as land: \(result.skipped.joined(separator: ", "))" }
@@ -65,7 +68,15 @@ for (index, (country, original)) in zip(countries, shaped).enumerated() {
     ))
 }
 
-let data = WorldFileWriter.encode(built, lakes: shores)
+var rivers: [RiverBuilder.Built] = []
+if let riversInput {
+    // Lakes are matched against their unsimplified shores, as cut.
+    let cutShores = lakesInput == nil ? [] : rawShores
+    rivers = RiverBuilder.build(try GeoJSONReader.readRivers(riversInput), countries: countries, shores: cutShores, tolerance: tolerance)
+    lakeSummary += "\nrivers: \(rivers.count) lines, \(rivers.reduce(0) { $0 + $1.points.count }) points"
+}
+
+let data = WorldFileWriter.encode(built, lakes: shores, rivers: rivers)
 try data.write(to: output)
 
 var catalogSummary = ""

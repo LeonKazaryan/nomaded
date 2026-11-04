@@ -4,6 +4,8 @@ import simd
 /// its palette, so GlobeEngine doesn't depend on the design system.
 struct GlobeStyle: Sendable {
     var ocean: SIMD3<Float>
+    /// Rivers. Lakes are the ocean showing through the land.
+    var river: SIMD3<Float>
     var unclaimedLand: SIMD3<Float>
     /// Indexed by `CountryShape.colorSlot`, so neighbouring countries always differ.
     var idleLand: [SIMD3<Float>]

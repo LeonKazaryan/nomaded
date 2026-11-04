@@ -31,6 +31,16 @@ struct SourceLake {
     let polygons: [GeoPolygon]
 }
 
+struct SourceRiver {
+    /// "River", "Lake Centerline", "River (Intermittent)" or "Canal".
+    let kind: String
+    /// 1 for the Amazon and the Nile, up to 12 for creeks.
+    let scaleRank: Int
+    /// How thick Natural Earth draws this stretch, 0.15…2: rivers widen downstream.
+    let strokeWeight: Double
+    let points: [GeoPoint]
+}
+
 struct CountryInput {
     /// ISO 3166-1 alpha-2. Empty for land that belongs to no selectable country.
     let code: String

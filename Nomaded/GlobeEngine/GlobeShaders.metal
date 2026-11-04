@@ -1,7 +1,7 @@
 #include <metal_stdlib>
 using namespace metal;
 
-// Mirrors `GlobeRenderer.FrameUniforms`, `.DrawUniforms` and `.Marker`. Positions are
+// Mirrors `GlobeRenderer.FrameUniforms`, `.DrawUniforms`, `.Marker` and `RiverPoint`. Positions are
 // `float3`, 16 bytes apart like Swift's `SIMD3<Float>`.
 struct FrameUniforms {
     float4x4 viewProjection;
@@ -14,6 +14,11 @@ struct FrameUniforms {
     float4 ring;
     /// rgb: its color. a: its strength, fading to 0.
     float4 ringColor;
+    /// rgb: the rivers' color.
+    float4 riverColor;
+    /// x: the highest rank shown in full, y: width multiplier for the zoom, z: a river's
+    /// radius on land that isn't lifted, w: how bright the fill wave's front lights it.
+    float4 riverStyle;
 };
 
 struct DrawUniforms {
@@ -75,6 +80,89 @@ fragment float4 globeFragment(Fragment in [[stage_in]],
     }
 
     return float4(color, 1);
+}
+
+// MARK: - Rivers
+
+struct RiverPoint {
+    /// xyz: on the unit globe. w: width in points at the normal size.
+    float4 position;
+    /// x: Natural Earth's rank. y: 1 at a line's first point, 2 at its last.
+    float4 params;
+};
+
+struct RiverFragment {
+    float4 position [[position]];
+    /// On the globe before rotation, for the fill wave's glint.
+    float3 local;
+    /// -1 on one bank, 1 on the other.
+    float across;
+    float alpha;
+};
+
+static float2 screenPoint(float4 clip, float2 viewport) {
+    return clip.xy / clip.w * viewport * 0.5;
+}
+
+// A ribbon of constant width on screen along each river: every point becomes two vertices,
+// pushed apart across the river's direction there. Rivers ranked past what the zoom shows
+// fade in narrow and grow to full width, so smaller rivers creep upstream as you zoom in.
+vertex RiverFragment riverVertex(uint vertexID [[vertex_id]],
+                                 const device RiverPoint *points [[buffer(0)]],
+                                 constant FrameUniforms &frame [[buffer(1)]],
+                                 constant DrawUniforms &draw [[buffer(2)]]) {
+    uint i = vertexID >> 1;
+    float side = (vertexID & 1) ? 1.0 : -1.0;
+    RiverPoint point = points[i];
+    uint ends = uint(point.params.y);
+    float3 previous = (ends & 1) ? point.position.xyz : points[i - 1].position.xyz;
+    float3 next = (ends & 2) ? point.position.xyz : points[i + 1].position.xyz;
+
+    // Lifted with its country, like the land under it.
+    float radius = frame.riverStyle.z * draw.scale;
+    float3 local = point.position.xyz * radius;
+    float3 world = (frame.rotation * float4(local, 1)).xyz;
+    float4 clip = frame.viewProjection * float4(world, 1);
+    float4 clipPrevious = frame.viewProjection * (frame.rotation * float4(previous * radius, 1));
+    float4 clipNext = frame.viewProjection * (frame.rotation * float4(next * radius, 1));
+    float2 along = screenPoint(clipNext, frame.viewport) - screenPoint(clipPrevious, frame.viewport);
+    float2 direction = length(along) > 1e-5 ? normalize(along) : float2(1, 0);
+    float2 normal = float2(-direction.y, direction.x);
+
+    float reveal = clamp(frame.riverStyle.x - point.params.x + 0.5, 0.0, 1.0);
+    float width = point.position.w * frame.riverStyle.y * mix(0.35, 1.0, reveal);
+    // Half a point more on each bank for the soft edge.
+    float halfWidth = width * 0.5 + 0.5;
+    clip.xy += normal * side * halfWidth * 2 / frame.viewport * clip.w;
+
+    float3 toCamera = float3(0, 0, frame.cameraDistance) - world;
+    float facing = dot(normalize(world), normalize(toCamera));
+
+    RiverFragment out;
+    out.position = clip;
+    out.local = local;
+    out.across = side;
+    // Fades at the horizon instead of poking past the globe's edge.
+    out.alpha = reveal * smoothstep(0.0, 0.2, facing);
+    return out;
+}
+
+fragment float4 riverFragment(RiverFragment in [[stage_in]],
+                              constant DrawUniforms &draw [[buffer(0)]],
+                              constant FrameUniforms &frame [[buffer(1)]]) {
+    // A one-pixel soft edge, whatever the width.
+    float edge = (1 - abs(in.across)) / max(fwidth(in.across), 1e-5);
+    float3 color = frame.riverColor.rgb;
+
+    if (draw.wave.w >= 0) {
+        // The fill's bright front makes the water flash as it sweeps by.
+        float d = acos(clamp(dot(normalize(in.local), draw.wave.xyz), -1.0, 1.0));
+        float front = exp(-pow((d - draw.wave.w) / draw.waveStyle.y, 2)) * draw.waveStyle.z;
+        color = mix(color, float3(1), clamp(front * frame.riverStyle.w, 0.0, 1.0));
+    }
+
+    float alpha = clamp(edge, 0.0, 1.0) * in.alpha;
+    return float4(color * alpha, alpha);
 }
 
 // MARK: - City markers

@@ -19,6 +19,9 @@ enum Palette {
     /// Raw values for places that can't take a `Color`, like the Metal globe.
     enum RGB {
         static let ocean: UInt32 = 0x1F45B5
+        /// A touch lighter than the ocean: a line a couple of points wide has to read on
+        /// dark land, where a lake can be the ocean's own color.
+        static let river: UInt32 = 0x3263DA
         static let landIdle: UInt32 = 0x4B4778
         static let landUnclaimed: UInt32 = 0x3C3962
         static let candy: [UInt32] = [0xFF6AAE, 0xFF8A3D, 0xFFE04A, 0x4BE8A5, 0x84CEFF, 0xB68AFF]

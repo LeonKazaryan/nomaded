@@ -131,6 +131,7 @@ final class GlobeController {
             Self.log.error("Globe renderer unavailable: \(error)")
         }
         renderer?.oceanColor = style.ocean
+        renderer?.riverColor = style.river
     }
 
     /// The GPU the view's Metal layer must draw with.
@@ -158,6 +159,7 @@ final class GlobeController {
             // Walls follow a moment later, while the intro is still flying in.
             let walls = await Self.buildWalls(world)
             try renderer.setWalls(walls.mesh, ranges: walls.ranges)
+            try renderer.setRivers(await Self.buildRivers(world))
         } catch {
             Self.log.error("Globe failed to load: \(error)")
         }
@@ -166,7 +168,22 @@ final class GlobeController {
     /// One frame: advance the physics, then draw. The view's display link calls this.
     func renderFrame(deltaTime: TimeInterval, in layer: CAMetalLayer) {
         tick(deltaTime: deltaTime)
+        renderer?.riverStyle = riverStyle
         renderer?.draw(in: layer, rotation: GlobeOrientation(yaw: yaw.value, pitch: pitch.value).renderQuaternion, camera: camera)
+    }
+
+    /// Which rivers show and how wide, from the zoom: on a log scale between the normal size
+    /// and fully zoomed in, below it fewer still.
+    private var riverStyle: SIMD4<Float> {
+        let zoom = max(self.zoom.value, 0.01)
+        let progress = Float(Foundation.log(zoom) / Foundation.log(GlobeTuning.zoomRange.upperBound))
+        let ranks = GlobeTuning.riverRanks
+        return SIMD4(
+            ranks.lowerBound + (ranks.upperBound - ranks.lowerBound) * progress,
+            Float(pow(max(zoom, 1), GlobeTuning.riverWidthZoomExponent)),
+            GlobeTuning.landRadius * GlobeTuning.riverLift,
+            GlobeTuning.riverGlint
+        )
     }
 
     func setViewportSize(_ size: CGSize) {
@@ -184,6 +201,10 @@ final class GlobeController {
     /// Off the main thread too, and after the globe is already on screen.
     nonisolated private static func buildWalls(_ world: WorldGeometry) async -> (mesh: MeshData, ranges: [MeshRange]) {
         GlobeMeshes.pack(world.countries.map { GlobeMeshes.walls($0, top: GlobeTuning.landRadius, bottom: GlobeTuning.wallBottom) })
+    }
+
+    nonisolated private static func buildRivers(_ world: WorldGeometry) async -> RiverMesh {
+        GlobeMeshes.rivers(world)
     }
 
     /// Land without a selectable country (`code` is empty) keeps one neutral color.

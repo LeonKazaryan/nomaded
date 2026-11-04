@@ -83,6 +83,43 @@ enum GeoJSONReader {
         }
     }
 
+    /// Reads Natural Earth's rivers (`ne_10m_rivers_lake_centerlines_scale_rank`): each
+    /// stretch with its rank, drawing weight and kind.
+    static func readRivers(_ url: URL) throws -> [SourceRiver] {
+        let data = try Data(contentsOf: url)
+        guard
+            let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let features = root["features"] as? [[String: Any]]
+        else { throw PipelineError.malformed("missing features") }
+        return features.flatMap { feature -> [SourceRiver] in
+            guard
+                let properties = feature["properties"] as? [String: Any],
+                let geometry = feature["geometry"] as? [String: Any]
+            else { return [] }
+            let lines: [Any]
+            switch geometry["type"] as? String {
+            case "LineString": lines = [geometry["coordinates"] as Any]
+            case "MultiLineString": lines = geometry["coordinates"] as? [Any] ?? []
+            default: return []
+            }
+            return lines.compactMap { line in
+                guard let coordinates = line as? [[Double]] else { return nil }
+                var points: [GeoPoint] = []
+                for coordinate in coordinates where coordinate.count >= 2 {
+                    let point = GeoPoint(coordinate[0], coordinate[1])
+                    if points.last != point { points.append(point) }
+                }
+                guard points.count >= 2 else { return nil }
+                return SourceRiver(
+                    kind: properties["featurecla"] as? String ?? "",
+                    scaleRank: (properties["scalerank"] as? NSNumber)?.intValue ?? 99,
+                    strokeWeight: (properties["strokeweig"] as? NSNumber)?.doubleValue ?? 0.2,
+                    points: points
+                )
+            }
+        }
+    }
+
     private static func parsePolygon(_ value: Any?) throws -> GeoPolygon {
         guard let rings = value as? [[[Double]]] else { throw PipelineError.malformed("polygon") }
         let cleaned = rings.map { ring in

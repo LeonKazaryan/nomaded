@@ -8,8 +8,8 @@ enum GlobeRendererError: Error {
     case outOfMemory
 }
 
-/// Draws the globe with Metal: the ocean, every country at its own lift and color, and side
-/// walls under lifted ones. Replaces RealityKit, which never rendered faster than 60 fps on
+/// Draws the globe with Metal: the ocean, every country at its own lift and color, side
+/// walls under lifted ones, and rivers riding on top. Replaces RealityKit, which never rendered faster than 60 fps on
 /// iPhone (ADR-010). This draws as often as the display link asks, up to 120 on ProMotion.
 @MainActor
 final class GlobeRenderer {
@@ -18,6 +18,7 @@ final class GlobeRenderer {
     struct Piece {
         let surface: MeshRange
         var walls: MeshRange?
+        var rivers: MeshRange?
         /// 1 + lift.
         var scale: Float = 1
         /// The color, or, while `wave` runs, the color inside it.
@@ -52,6 +53,8 @@ final class GlobeRenderer {
         var cameraDistance: Float
         var ring: SIMD4<Float>
         var ringColor: SIMD4<Float>
+        var riverColor: SIMD4<Float>
+        var riverStyle: SIMD4<Float>
     }
 
     private struct DrawUniforms {
@@ -82,11 +85,18 @@ final class GlobeRenderer {
     var ring = SIMD4<Float>(0, 0, 0, -1)
     /// rgb and strength.
     var ringColor = SIMD4<Float>(0, 0, 0, 0)
+    var riverColor = SIMD3<Float>(0, 0, 0)
+    /// x: highest rank shown in full, y: width multiplier, z: radius on unlifted land,
+    /// w: glint strength. The controller sets it from the zoom every frame.
+    var riverStyle = SIMD4<Float>(0, 1, 1, 0)
 
     private let queue: MTLCommandQueue
     private let pipeline: MTLRenderPipelineState
     private let markerPipeline: MTLRenderPipelineState
+    private let riverPipeline: MTLRenderPipelineState
     private let depthState: MTLDepthStencilState
+    /// Rivers are hidden by land in front of them but don't hide each other.
+    private let riverDepthState: MTLDepthStencilState
     /// Markers sit on top of the land and fade at the horizon themselves.
     private let overlayDepthState: MTLDepthStencilState
     /// One per frame in flight: the CPU fills the next while the GPU reads the others.
@@ -96,6 +106,7 @@ final class GlobeRenderer {
     private var ocean: GPUMesh?
     private var land: GPUMesh?
     private var walls: GPUMesh?
+    private var rivers: GPUMesh?
     private var targets: (color: MTLTexture, depth: MTLTexture)?
 
     init() throws {
@@ -106,7 +117,9 @@ final class GlobeRenderer {
               let vertex = library.makeFunction(name: "globeVertex"),
               let fragment = library.makeFunction(name: "globeFragment"),
               let markerVertex = library.makeFunction(name: "markerVertex"),
-              let markerFragment = library.makeFunction(name: "markerFragment")
+              let markerFragment = library.makeFunction(name: "markerFragment"),
+              let riverVertex = library.makeFunction(name: "riverVertex"),
+              let riverFragment = library.makeFunction(name: "riverFragment")
         else { throw GlobeRendererError.noShaders }
 
         let descriptor = MTLRenderPipelineDescriptor()
@@ -116,18 +129,24 @@ final class GlobeRenderer {
         descriptor.depthAttachmentPixelFormat = Self.depthFormat
         descriptor.rasterSampleCount = Self.sampleCount
 
-        let markers = MTLRenderPipelineDescriptor()
-        markers.vertexFunction = markerVertex
-        markers.fragmentFunction = markerFragment
-        markers.colorAttachments[0].pixelFormat = Self.pixelFormat
-        markers.colorAttachments[0].isBlendingEnabled = true
-        // The fragment shader returns premultiplied alpha.
-        markers.colorAttachments[0].sourceRGBBlendFactor = .one
-        markers.colorAttachments[0].sourceAlphaBlendFactor = .one
-        markers.colorAttachments[0].destinationRGBBlendFactor = .oneMinusSourceAlpha
-        markers.colorAttachments[0].destinationAlphaBlendFactor = .oneMinusSourceAlpha
-        markers.depthAttachmentPixelFormat = Self.depthFormat
-        markers.rasterSampleCount = Self.sampleCount
+        // Markers and rivers: soft edges blended over the land.
+        func blended(_ vertex: MTLFunction, _ fragment: MTLFunction) -> MTLRenderPipelineDescriptor {
+            let descriptor = MTLRenderPipelineDescriptor()
+            descriptor.vertexFunction = vertex
+            descriptor.fragmentFunction = fragment
+            descriptor.colorAttachments[0].pixelFormat = Self.pixelFormat
+            descriptor.colorAttachments[0].isBlendingEnabled = true
+            // The fragment shaders return premultiplied alpha.
+            descriptor.colorAttachments[0].sourceRGBBlendFactor = .one
+            descriptor.colorAttachments[0].sourceAlphaBlendFactor = .one
+            descriptor.colorAttachments[0].destinationRGBBlendFactor = .oneMinusSourceAlpha
+            descriptor.colorAttachments[0].destinationAlphaBlendFactor = .oneMinusSourceAlpha
+            descriptor.depthAttachmentPixelFormat = Self.depthFormat
+            descriptor.rasterSampleCount = Self.sampleCount
+            return descriptor
+        }
+        let markers = blended(markerVertex, markerFragment)
+        let rivers = blended(riverVertex, riverFragment)
 
         let depth = MTLDepthStencilDescriptor()
         depth.depthCompareFunction = .less
@@ -135,15 +154,21 @@ final class GlobeRenderer {
         let overlay = MTLDepthStencilDescriptor()
         overlay.depthCompareFunction = .always
         overlay.isDepthWriteEnabled = false
+        let riverDepth = MTLDepthStencilDescriptor()
+        riverDepth.depthCompareFunction = .lessEqual
+        riverDepth.isDepthWriteEnabled = false
         guard let depthState = device.makeDepthStencilState(descriptor: depth),
-              let overlayDepthState = device.makeDepthStencilState(descriptor: overlay)
+              let overlayDepthState = device.makeDepthStencilState(descriptor: overlay),
+              let riverDepthState = device.makeDepthStencilState(descriptor: riverDepth)
         else { throw GlobeRendererError.noMetal }
 
         self.device = device
         self.queue = queue
         self.pipeline = try device.makeRenderPipelineState(descriptor: descriptor)
         self.markerPipeline = try device.makeRenderPipelineState(descriptor: markers)
+        self.riverPipeline = try device.makeRenderPipelineState(descriptor: rivers)
         self.depthState = depthState
+        self.riverDepthState = riverDepthState
         self.overlayDepthState = overlayDepthState
     }
 
@@ -156,6 +181,25 @@ final class GlobeRenderer {
         self.walls = try upload(walls)
         for index in pieces.indices where index < ranges.count {
             pieces[index].walls = ranges[index]
+        }
+    }
+
+    func setRivers(_ mesh: RiverMesh) throws {
+        guard !mesh.indices.isEmpty else { return }
+        guard let vertices = device.makeBuffer(
+                  bytes: mesh.points,
+                  length: mesh.points.count * MemoryLayout<RiverPoint>.stride,
+                  options: .storageModeShared
+              ),
+              let indices = device.makeBuffer(
+                  bytes: mesh.indices,
+                  length: mesh.indices.count * MemoryLayout<UInt32>.stride,
+                  options: .storageModeShared
+              )
+        else { throw GlobeRendererError.outOfMemory }
+        rivers = GPUMesh(vertices: vertices, indices: indices, indexCount: mesh.indices.count)
+        for index in pieces.indices where index < mesh.ranges.count {
+            pieces[index].rivers = mesh.ranges[index]
         }
     }
 
@@ -189,7 +233,9 @@ final class GlobeRenderer {
             viewport: SIMD2(Float(camera.viewportSize.width), Float(camera.viewportSize.height)),
             cameraDistance: Float(camera.distance),
             ring: ring,
-            ringColor: ringColor
+            ringColor: ringColor,
+            riverColor: SIMD4(riverColor, 1),
+            riverStyle: riverStyle
         )
         encoder.setVertexBytes(&frame, length: MemoryLayout<FrameUniforms>.stride, index: 1)
         encoder.setFragmentBytes(&frame, length: MemoryLayout<FrameUniforms>.stride, index: 1)
@@ -207,6 +253,18 @@ final class GlobeRenderer {
             for piece in pieces where piece.showsWalls {
                 guard let range = piece.walls else { continue }
                 draw(range, of: walls, piece: piece, shade: GlobeTuning.wallShade, with: encoder)
+            }
+        }
+
+        // Each country's rivers with its lift, and its fill wave for the glint.
+        if let rivers {
+            encoder.setRenderPipelineState(riverPipeline)
+            encoder.setDepthStencilState(riverDepthState)
+            encoder.setCullMode(.none)
+            encoder.setVertexBuffer(rivers.vertices, offset: 0, index: 0)
+            for piece in pieces {
+                guard let range = piece.rivers else { continue }
+                draw(range, of: rivers, piece: piece, with: encoder)
             }
         }
 

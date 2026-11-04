@@ -9,14 +9,18 @@ curl -L -o "$TMPDIR/ne_usa.geojson" \
   https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_10m_admin_0_countries_usa.geojson
 curl -L -o "$TMPDIR/lakes.geojson" \
   https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_10m_lakes.geojson
+curl -L -o "$TMPDIR/rivers.geojson" \
+  https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_10m_rivers_lake_centerlines_scale_rank.geojson
 
 swift run -c release --package-path Tools/GeoPipeline GeoPipeline \
   "$TMPDIR/ne_usa.geojson" Nomaded/Resources/Geo/world.nmgeo \
-  --lakes "$TMPDIR/lakes.geojson" \
+  --lakes "$TMPDIR/lakes.geojson" --rivers "$TMPDIR/rivers.geojson" \
   --catalog Nomaded/Resources/Geo/countries.json
 ```
 
-`--lakes` вырезает из суши ~530 крупнейших озёр и водохранилищ (`LakeCutter.swift`). Без этого флага глобус собирается без озёр.
+`--lakes` вырезает из суши ~530 крупнейших озёр и водохранилищ (`LakeCutter.swift`), `--rivers` добавляет ~1 800 рек (`RiverBuilder.swift`). Без этих флагов глобус собирается без них.
+
+Результат воспроизводим: два запуска на одних данных дают побайтно одинаковый файл. Всё, что зависит от порядка (перевороты рёбер, склейка озёр), идёт в отсортированном порядке, а не в порядке обхода словаря, который в Swift меняется от запуска к запуску.
 
 Справочник городов для поиска собирается из второго файла Natural Earth:
 
@@ -26,7 +30,7 @@ curl -L -o "$TMPDIR/places.geojson" \
 
 swift run -c release --package-path Tools/GeoPipeline GeoPipeline \
   "$TMPDIR/ne_usa.geojson" Nomaded/Resources/Geo/world.nmgeo \
-  --lakes "$TMPDIR/lakes.geojson" \
+  --lakes "$TMPDIR/lakes.geojson" --rivers "$TMPDIR/rivers.geojson" \
   --catalog Nomaded/Resources/Geo/countries.json \
   --places "$TMPDIR/places.geojson" --cities Nomaded/Resources/Geo/cities.json
 ```
@@ -37,7 +41,7 @@ swift run -c release --package-path Tools/GeoPipeline GeoPipeline \
 
 Опция `--tolerance 0.02` задаёт степень упрощения границ в градусах (по умолчанию 0.02°, это ~2 км).
 
-После перегенерации прогони тесты: `WorldGeometryTests` проверяют, что ключевые страны на месте, hit-test находит города (и страну у берега при тапе по озеру), озёра вырезаны из суши, а соседи не одного цвета.
+После перегенерации прогони тесты: `WorldGeometryTests` проверяют, что ключевые страны на месте, hit-test находит города (и страну у берега при тапе по озеру), озёра вырезаны из суши, реки текут по своей стране и обрываются у озёр, а соседи не одного цвета.
 
 ## Что происходит внутри
 
@@ -47,8 +51,9 @@ swift run -c release --package-path Tools/GeoPipeline GeoPipeline \
 4. **Раскраска** (`ColorAssigner`). Каждой стране выдаётся один из 6 цветовых слотов так, чтобы соседи никогда не совпадали.
 5. **Триангуляция** (`Earcut`, порт mapbox/earcut). Если упрощение сделало контур крошечного острова самопересекающимся, полигон строится по исходному контуру. Потом рёбра переворачиваются до триангуляции Делоне (`DelaunayFlipper`): earcut, соединяя дыры с контуром, оставляет длинные щепки через всю страну, и каждую потом пришлось бы резать на десятки кусков. Рёбра контура не трогаются, поэтому стыки с соседями остаются без щелей. С этим 530 озёр стоят всего +2% треугольников.
 6. **Укладка на сферу** (`SphereMeshBuilder`). Треугольники earcut режутся пополам по длинному ребру в той же плоскости lon/lat, пока рёбра не станут ≤ 1.5° по земле. Так меш повторяет кривизну без трещин и не вылезает за контур. Резать по дуге большого круга нельзя: на севере такая дуга выгибается к полюсу, и треугольники уходят в океан (так у России пропадало арктическое побережье). Длинные прямые границы (49-я параллель) уплотняются, чтобы идти по широте.
-7. **Запись** бинарного файла (`WorldFileWriter`, формат описан в комментарии там же).
-8. **Справочник** (`CountryCatalog`, с `--catalog`): континент и подрегион из полей Natural Earth (острова «открытого океана» — по геосхеме ООН), список 195 стран, площадь по исходным контурам на сфере.
+7. **Реки** (`RiverBuilder`, с `--rivers`). Набор `scale_rank`: у каждого участка ранг (1 — Амазонка, Нил) и толщина `strokeweig`, растущая к устью. Берутся реки и осевые линии через озёра до ранга 8. Участки склеиваются в непрерывные линии (толщина и ранг — по точкам), части внутри вырезанных озёр выбрасываются, а линия режется по странам. Страна точки берётся из растровой карты стран 0.05°, а короткие (< 40 км) заходы в соседнюю страну — река вдоль границы — остаются за страной вокруг, чтобы линия не прыгала по высоте. Потом упрощение и уплотнение до ≤ 0.5°.
+8. **Запись** бинарного файла (`WorldFileWriter`, формат описан в комментарии там же).
+9. **Справочник** (`CountryCatalog`, с `--catalog`): континент и подрегион из полей Natural Earth (острова «открытого океана» — по геосхеме ООН), список 195 стран, площадь по исходным контурам на сфере.
 
 ## Данные
 

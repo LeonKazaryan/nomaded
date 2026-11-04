@@ -36,7 +36,10 @@ enum DelaunayFlipper {
             for (p, q) in [(tri.0, tri.1), (tri.1, tri.2), (tri.2, tri.0)] { sides[key(p, q), default: []].append(t) }
         }
 
-        var pending = Array(sides.keys.filter { !fixed.contains($0) && sides[$0]!.count == 2 })
+        // Sorted: with several equally good triangulations (points on one circle, common
+        // along densified borders), the order decides, and the file must come out the same
+        // on every run.
+        var pending = sides.keys.filter { !fixed.contains($0) && sides[$0]!.count == 2 }.sorted()
         var flips = 0
         let limit = tris.count * 50
         while let edge = pending.popLast(), flips < limit {

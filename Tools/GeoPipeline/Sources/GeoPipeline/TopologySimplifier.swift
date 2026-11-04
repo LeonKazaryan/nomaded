@@ -90,7 +90,12 @@ enum TopologySimplifier {
     }
 
     static func douglasPeucker(_ points: [GeoPoint], tolerance: Double) -> [GeoPoint] {
-        guard points.count > 2 else { return points }
+        keptIndices(points, tolerance: tolerance).map { points[$0] }
+    }
+
+    /// Which points Douglas–Peucker keeps, in order; the ends always stay.
+    static func keptIndices(_ points: [GeoPoint], tolerance: Double) -> [Int] {
+        guard points.count > 2 else { return Array(points.indices) }
         var keep = [Bool](repeating: false, count: points.count)
         keep[0] = true
         keep[points.count - 1] = true
@@ -113,6 +118,6 @@ enum TopologySimplifier {
                 stack.append((farthest, b))
             }
         }
-        return points.indices.filter { keep[$0] }.map { points[$0] }
+        return points.indices.filter { keep[$0] }
     }
 }

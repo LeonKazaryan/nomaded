@@ -13,6 +13,24 @@ struct MeshRange: Equatable, Sendable {
     var indexCount: Int
 }
 
+/// One point along a river, as the river shader reads it. Mirrors `RiverPoint` in
+/// GlobeShaders.metal.
+struct RiverPoint: Sendable {
+    /// xyz: on the unit globe. w: width in points at the normal size.
+    var position: SIMD4<Float>
+    /// x: Natural Earth's rank. y: 1 at a line's first point, 2 at its last.
+    var params: SIMD4<Float>
+}
+
+/// Every river as ribbons: two vertices per point, made in the vertex shader, which reads
+/// the point as `vertex_id / 2` and the bank as `vertex_id % 2`.
+struct RiverMesh: Sendable {
+    var points: [RiverPoint] = []
+    var indices: [UInt32] = []
+    /// Each country's rivers, by its index in the world; `nil` where it has none.
+    var ranges: [MeshRange?] = []
+}
+
 /// Builds the globe's meshes as plain arrays. Pure and nonisolated, so it runs off the main
 /// thread and is covered by tests.
 enum GlobeMeshes {
@@ -64,6 +82,34 @@ enum GlobeMeshes {
                 mesh.indices += [topA, bottomA, bottomB, topA, bottomB, topB]
                 mesh.indices += [topA, bottomB, bottomA, topA, topB, bottomB]
             }
+        }
+        return mesh
+    }
+
+    /// All rivers, grouped by country so each country draws its own with its own lift.
+    static func rivers(_ world: WorldGeometry) -> RiverMesh {
+        var mesh = RiverMesh()
+        mesh.ranges = Array(repeating: nil, count: world.countries.count)
+        let byCountry = Dictionary(grouping: world.rivers, by: \.country)
+        for (country, rivers) in byCountry.sorted(by: { $0.key < $1.key }) {
+            let start = mesh.indices.count
+            for river in rivers where river.points.count >= 2 {
+                let base = UInt32(mesh.points.count)
+                let last = river.points.count - 1
+                for (k, point) in river.points.enumerated() {
+                    let width = GlobeTuning.riverWidth(weight: Float(river.weights[k]) / 100)
+                    let ends: Float = (k == 0 ? 1 : 0) + (k == last ? 2 : 0)
+                    mesh.points.append(RiverPoint(
+                        position: SIMD4(GeoMath.unitVector(longitude: point.x, latitude: point.y), width),
+                        params: SIMD4(Float(river.ranks[k]), ends, 0, 0)
+                    ))
+                }
+                for k in 0..<UInt32(last) {
+                    let a = 2 * (base + k), b = a + 2
+                    mesh.indices += [a, a + 1, b, a + 1, b + 1, b]
+                }
+            }
+            mesh.ranges[country] = MeshRange(indexStart: start, indexCount: mesh.indices.count - start)
         }
         return mesh
     }

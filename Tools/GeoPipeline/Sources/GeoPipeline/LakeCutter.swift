@@ -161,12 +161,15 @@ enum LakeCutter {
             }
         }
 
+        // In a fixed order, so the file comes out the same on every run.
+        func before(_ a: GeoPoint, _ b: GeoPoint) -> Bool { (a.x, a.y) < (b.x, b.y) }
         var outgoing: [Key2: [GeoPoint]] = [:]
-        for (edge, count) in edges where count > 0 {
+        for (edge, count) in edges.sorted(by: { before($0.key.a, $1.key.a) || ($0.key.a == $1.key.a && before($0.key.b, $1.key.b)) }) where count > 0 {
             for _ in 0..<count { outgoing[Key2(edge.a), default: []].append(edge.b) }
         }
+        let starts = outgoing.keys.sorted { before($0.point, $1.point) }
         var rings: [[GeoPoint]] = []
-        while let (startKey, ends) = outgoing.first(where: { !$0.value.isEmpty }), let first = ends.first {
+        while let startKey = starts.first(where: { !(outgoing[$0]?.isEmpty ?? true) }), let first = outgoing[startKey]?.first {
             var ring = [startKey.point]
             outgoing[startKey]!.removeFirst()
             var current = first

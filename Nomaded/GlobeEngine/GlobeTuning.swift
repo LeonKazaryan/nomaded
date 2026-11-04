@@ -73,6 +73,21 @@ enum GlobeTuning {
     static let selectedBrightening: Float = 0.22
     static let wallShade: Float = 0.5
 
+    // MARK: Rivers
+
+    /// The ranks shown in full at the normal size and fully zoomed in; the zoom between
+    /// (on a log scale) fades the next ranks in, smaller rivers growing upstream.
+    static let riverRanks: ClosedRange<Float> = 3.5...8.5
+    /// Width in points at the normal size, from Natural Earth's drawing weight (0.15 for a
+    /// stream … 2 for the Amazon's mouth).
+    static func riverWidth(weight: Float) -> Float { 0.6 + weight * 1.0 }
+    /// Rivers widen with the zoom, but slower than the land grows.
+    static let riverWidthZoomExponent = 0.3
+    /// How far above the land a river floats, so the land never shows through it.
+    static let riverLift: Float = 1.0002
+    /// How much brighter than the land the fill wave's front lights the water.
+    static let riverGlint: Float = 1.6
+
     // MARK: Cities
 
     /// Dot radius in points: small sparks on the whole globe, full size up close.

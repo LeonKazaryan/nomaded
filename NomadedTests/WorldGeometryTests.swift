@@ -19,6 +19,10 @@ struct WorldGeometryTests {
 
         #expect(world.countries.count > 200)
         #expect(world.lakes.count > 300)
+        #expect(world.rivers.count > 1000)
+        for river in world.rivers {
+            #expect(river.points.count >= 2 && river.ranks.count == river.points.count && river.weights.count == river.points.count)
+        }
         for code in ["IT", "VA", "KZ", "UA", "TW", "BR", "AQ", "LS"] {
             #expect(codes.contains(code), "missing \(code)")
         }
@@ -85,6 +89,64 @@ struct WorldGeometryTests {
         let shape = try #require(world.countries.first { $0.code == place.expected })
         #expect(!GeoMath.ringsContain(shape.rings, longitude: Float(place.longitude), latitude: Float(place.latitude)))
         #expect(world.lakes.contains { GeoMath.ringsContain([$0.shore], longitude: Float(place.longitude), latitude: Float(place.latitude)) })
+    }
+
+    /// Each river is split where it crosses into the next country, so it rises with the land
+    /// under it. Stretches along a border or out at a river mouth may sit just outside.
+    @Test func riversFlowOverTheirOwnCountry() async throws {
+        let world = try await WorldGeometry.loadBundled()
+        var sampled = 0, inside = 0
+        for river in world.rivers {
+            let rings = world.countries[river.country].rings
+            for point in river.points.enumerated().filter({ $0.offset % 5 == 0 }).map(\.element) {
+                sampled += 1
+                if GeoMath.ringsContain(rings, longitude: point.x, latitude: point.y) { inside += 1 }
+            }
+        }
+        #expect(Double(inside) / Double(sampled) > 0.9, "\(inside) of \(sampled) river points over their country")
+    }
+
+    /// A river ends at the shore of a lake the globe shows as water.
+    @Test func riversStopAtLakes() async throws {
+        let world = try await WorldGeometry.loadBundled()
+        var points = 0, wet = 0
+        for river in world.rivers {
+            for point in river.points {
+                points += 1
+                let inLake = world.lakes.contains {
+                    $0.bounds.contains(longitude: point.x, latitude: point.y)
+                        && GeoMath.ringsContain([$0.shore], longitude: point.x, latitude: point.y)
+                }
+                if inLake { wet += 1 }
+            }
+        }
+        // Lake shores are simplified on their own, so a river's last point can be a hair in.
+        #expect(Double(wet) / Double(points) < 0.01, "\(wet) of \(points) river points inside lakes")
+    }
+
+    /// Ribbons only ever join neighbouring points of one river, and every river's ends are
+    /// marked, so the shader never reaches into the next river for a direction.
+    @Test func riverRibbonsStayOnTheirRiver() async throws {
+        let world = try await WorldGeometry.loadBundled()
+        let mesh = GlobeMeshes.rivers(world)
+        #expect(mesh.points.count == world.rivers.reduce(0) { $0 + $1.points.count })
+        #expect(mesh.indices.count % 6 == 0)
+
+        var strays = 0
+        for quad in stride(from: 0, to: mesh.indices.count, by: 6) {
+            let from = Int(mesh.indices[quad] / 2), to = Int(mesh.indices[quad + 2] / 2)
+            let leavesAnEnd = Int(mesh.points[from].params.y) & 2 != 0
+            let entersAStart = to < mesh.points.count && Int(mesh.points[to].params.y) & 1 != 0
+            if to != from + 1 || leavesAnEnd || entersAStart { strays += 1 }
+        }
+        #expect(strays == 0)
+
+        let ends = mesh.points.map { Int($0.params.y) }
+        #expect(ends.filter { $0 & 1 != 0 }.count == world.rivers.count)
+        #expect(ends.filter { $0 & 2 != 0 }.count == world.rivers.count)
+        #expect(ends.first.map { $0 & 1 != 0 } == true)
+        // Wherever one river ends, the next one starts.
+        #expect(zip(ends, ends.dropFirst()).allSatisfy { ($0 & 2 != 0) == ($1 & 1 != 0) })
     }
 
     @Test func neighboursNeverShareAColor() async throws {
