@@ -44,6 +44,7 @@ xcodebuild -project Nomaded.xcodeproj -scheme Nomaded \
 ## Глобус
 
 - Параметры ощущений (трение, пружины, высоты, зум) — только в `GlobeEngine/GlobeTuning.swift`.
+- Иконка (`AppIcon.appiconset`) рисуется кодом в `Tools/AppIcon` (команда в его README), руками PNG не правим.
 - `Resources/Geo/world.nmgeo`, `countries.json` и `cities.json` руками не редактируются. Их перегенерирует `Tools/GeoPipeline` (команда в его README), после этого прогоняются тесты.
 - Проверка в симуляторе без касаний — DEBUG launch-аргументы (`GlobeScreen.applyDebugLaunchArguments`):
   ```bash

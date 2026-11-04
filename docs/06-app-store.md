@@ -6,13 +6,13 @@
 
 - [ ] 🕐 **Проверить, что имя «Nomaded» свободно.** Названия в App Store уникальны. Как только будет аккаунт разработчика, создаём запись приложения в App Store Connect, и имя закрепляется за нами. Заодно погуглить товарные знаки.
 - [ ] 🕐 **Обновить macOS и Xcode.** Apple регулярно поднимает минимальную версию SDK для загрузки сборок: с весны 2026 App Store Connect принимает только сборки из Xcode 26+ (iOS 26 SDK). Сейчас у нас Xcode 16.4, а Xcode 26 требует macOS 15.6+. Наш проект откроется в новом Xcode без изменений. Заодно получим Liquid Glass (см. 02-design).
-- [ ] 🕐 **Apple Developer Program** — $99 в год, [developer.apple.com/programs](https://developer.apple.com/programs/). Регистрируемся как физлицо (Individual), имя будет видно в App Store как продавец. Нужен Apple ID с двухфакторной аутентификацией. Подтверждение может занять от пары часов до нескольких дней.
+- [x] 🕐 **Apple Developer Program** — куплен 2026-11-04. $99 в год, [developer.apple.com/programs](https://developer.apple.com/programs/). Регистрируемся как физлицо (Individual), имя будет видно в App Store как продавец. Нужен Apple ID с двухфакторной аутентификацией. Подтверждение может занять от пары часов до нескольких дней.
 
 ## 2. Технические требования
 
 - [ ] **Bundle ID** `com.leonkazaryan.nomaded`. При автоматической подписи Xcode зарегистрирует его сам.
 - [ ] **Team** в Signing & Capabilities = платный аккаунт разработчика.
-- [ ] **Иконка** 1024×1024 без прозрачности, плюс варианты dark и tinted (слоты уже есть в `Assets.xcassets/AppIcon`). На Xcode 26 можно сделать «стеклянную» иконку в Icon Composer.
+- [x] **Иконка** 1024×1024 без прозрачности, плюс варианты dark (прозрачный фон) и tinted (серая на чёрном). Рисуется кодом: `Tools/AppIcon`. Позже, на Xcode 26, можно собрать «стеклянную» версию в Icon Composer из тех же слоёв.
 - [x] **Privacy Manifest** (`Nomaded/PrivacyInfo.xcprivacy`): `UserDefaults` / `@AppStorage`, причина `CA92.1`. Трекинга и сбора данных нет.
 - [x] **Экспортное шифрование:** `ITSAppUsesNonExemptEncryption = NO` уже в `Info.plist`, вопрос при каждой загрузке задаваться не будет.
 - [ ] **Строки разрешений** (если добавим фичи): геолокация (`NSLocationWhenInUseUsageDescription`) для «ты здесь», фото (`NSPhotoLibraryUsageDescription`) для импорта поездок. Без них приложение упадёт при запросе.
