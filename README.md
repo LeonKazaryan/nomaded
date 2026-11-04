@@ -2,7 +2,7 @@
 
 Личный паспорт путешественника для iPhone. Интерактивный 3D-глобус, на котором страны, где ты был, заливаются яркими цветами. Главное в приложении — живые, «физические» анимации: глобус крутится по инерции, страна при отметке подпрыгивает и заливается волной, вылетают конфетти и штамп паспорта.
 
-> **Статус:** версия 1.0 готова к TestFlight. Перед отправкой на ревью нужен Xcode 26 и карточка в App Store Connect. План и чек-листы в [`docs/04-roadmap.md`](docs/04-roadmap.md) и [`docs/06-app-store.md`](docs/06-app-store.md).
+> **Статус:** версия 1.0 готова к TestFlight, собирается в Xcode 26.3. Перед отправкой на ревью нужна карточка в App Store Connect. План и чек-листы в [`docs/04-roadmap.md`](docs/04-roadmap.md) и [`docs/06-app-store.md`](docs/06-app-store.md).
 
 ## Что умеет
 
@@ -52,11 +52,13 @@
 
 ```bash
 xcodebuild -project Nomaded.xcodeproj -scheme Nomaded \
-  -destination 'platform=iOS Simulator,name=iPhone 16 Pro' build
+  -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.6' build
 
 xcodebuild -project Nomaded.xcodeproj -scheme Nomaded \
-  -destination 'platform=iOS Simulator,name=iPhone 16 Pro' test
+  -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.6' test
 ```
+
+Нужен Xcode 26.3+. Симулятор iOS 26.3 показывает флаги квадратиками «?». Это баг симулятора, на iPhone флаги на месте.
 
 ## Инструменты разработчика
 

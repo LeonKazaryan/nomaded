@@ -19,12 +19,13 @@ iOS-приложение «личный паспорт путешественн�
 
 ```bash
 xcodebuild -project Nomaded.xcodeproj -scheme Nomaded \
-  -destination 'platform=iOS Simulator,name=iPhone 16 Pro' -quiet build
+  -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.6' -quiet build
 
 xcodebuild -project Nomaded.xcodeproj -scheme Nomaded \
-  -destination 'platform=iOS Simulator,name=iPhone 16 Pro' -quiet test
+  -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.6' -quiet test
 ```
 
+- `OS=18.6` обязателен: без него Xcode 26 ищет iPhone 16 Pro на iOS 26, а там такого симулятора нет. Вид на iOS 26 — `name=iPhone 17 Pro`.
 - Сборка без ошибок и без новых warnings.
 - Анимации и ощущения проверить не можешь: скажи Leon, что именно посмотреть на iPhone.
 
@@ -59,6 +60,7 @@ xcodebuild -project Nomaded.xcodeproj -scheme Nomaded \
 
 ## Окружение
 
-- Xcode 16.4, симулятор iOS 18.6 (iPhone 16 Pro). Перед релизом нужен Xcode 26+ (см. `docs/06-app-store.md`).
+- Xcode 26.3 (iOS 26.2 SDK) в `/Applications/Xcode.app`, Metal Toolchain стоит отдельным компонентом. Симуляторы: iOS 18.6 (iPhone 16 Pro, основной) и iOS 26.3 (iPhone 17 Pro).
+- Симулятор iOS 26.3 рисует эмодзи, в том числе флаги, квадратиками «?». Это баг рантайма Xcode 26.3, на устройствах всё нормально. Скриншоты с флагами снимай на iOS 18.6.
 - Bundle ID: `com.leonkazaryan.nomaded`.
 - Репозиторий: https://github.com/LeonKazaryan/nomaded
