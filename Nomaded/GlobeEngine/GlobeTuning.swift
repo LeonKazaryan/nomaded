@@ -129,6 +129,9 @@ enum GlobeTuning {
     /// Singapore, island nations. Luxembourg (2 600) is big enough to see up close.
     static let microStateAreaKm2 = 1_000.0
     static let microStateDotRadius: Float = 4.2
+    /// How strongly the dot of a country not yet visited shows, 0…1: a quiet hint. Marked
+    /// or selected, it shows in full.
+    static let microStateIdleOpacity = 0.45
     /// The dot fades out between these on-screen radii of the country itself, in points:
     /// once it's big enough to see and tap, it needs no dot.
     static let microStateFade = 3.0...9.0

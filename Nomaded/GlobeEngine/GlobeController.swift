@@ -539,7 +539,11 @@ final class GlobeController {
 
         // Tiny countries first: city dots go on top of them.
         for micro in microStates {
-            guard let node = nodes[micro.code], let alpha = microStateAlpha(micro.radius), alpha > 0.01 else { continue }
+            guard let node = nodes[micro.code], let visibility = microStateAlpha(micro.radius), visibility > 0.01 else { continue }
+            // Quiet until visited or selected; it brightens with the fill and the glow.
+            let emphasis = min(1, max(node.tint.value, node.highlight.value, 0))
+            let idle = GlobeTuning.microStateIdleOpacity
+            let alpha = visibility * Float(idle + (1 - idle) * emphasis)
             let lift = renderer.pieces[node.index].scale * GlobeTuning.landRadius * 1.0004
             markers.append(GlobeRenderer.Marker(
                 position: SIMD4(SIMD3<Float>(GeoMath.unitVector(micro.coordinate)) * lift, GlobeTuning.microStateDotRadius),
