@@ -81,6 +81,9 @@ xcodebuild -project Nomaded.xcodeproj -scheme Nomaded \
 
 - [`Tools/GeoPipeline`](Tools/GeoPipeline/README.md) — Natural Earth → `world.nmgeo` (меши стран, озёра, реки, спорные регионы), наложения границ `world-rus.nmgeo` и `world-chn.nmgeo`, справочники `countries.json` и `cities.json`. Результат детерминирован.
 - [`Tools/AppIcon`](Tools/AppIcon/README.md) — иконка в трёх видах iOS 18 (обычная, тёмная, тонированная) из настоящих контуров стран.
+- [`Tools/Screenshots`](Tools/Screenshots/README.md) — скриншоты для App Store на английском и русском: сцены из самого приложения, подписи и рамка.
+
+Страница поддержки и политика конфиденциальности лежат в `site/` и публикуются на GitHub Pages: https://leonkazaryan.github.io/nomaded/
 
 ## Документация
 
@@ -94,6 +97,7 @@ xcodebuild -project Nomaded.xcodeproj -scheme Nomaded \
 | [`docs/06-app-store.md`](docs/06-app-store.md) | Публикация в App Store, регионы, TestFlight |
 | [`docs/07-apple-rules.md`](docs/07-apple-rules.md) | Правила Apple (HIG + App Review) и чек-лист перед мержем |
 | [`docs/08-ideas.md`](docs/08-ideas.md) | Идеи на будущее |
+| [`docs/09-store-listing.md`](docs/09-store-listing.md) | Тексты для App Store Connect и TestFlight, ответы на анкеты |
 | [`CLAUDE.md`](CLAUDE.md) | Правила для Claude в этом репозитории |
 
 ## Структура
@@ -117,6 +121,8 @@ Nomaded/                 исходники приложения (папка с�
 NomadedTests/            юнит-тесты (Swift Testing)
 Tools/GeoPipeline/       утилита: Natural Earth → геоданные (в приложение не входит)
 Tools/AppIcon/           утилита: иконка приложения (в приложение не входит)
+Tools/Screenshots/       утилита: скриншоты для App Store
+site/                    страница поддержки и политика конфиденциальности (GitHub Pages)
 docs/                    документация проекта
 ```
 

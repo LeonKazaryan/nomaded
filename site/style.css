@@ -1,0 +1,140 @@
+/* Nomaded's support site: the app's night sky and type, nothing else. Colors from Palette.swift. */
+:root {
+    color-scheme: dark;
+    --night: #0d0a2e;
+    --nebula: #3b1f8c;
+    --accent: #7c5cff;
+    --accent-light: #a88bff;
+    --text: #f4f2ff;
+    --secondary: rgba(244, 242, 255, 0.68);
+    --card: rgba(255, 255, 255, 0.06);
+    --hairline: rgba(255, 255, 255, 0.12);
+}
+
+* { box-sizing: border-box; }
+
+html { background: var(--night); }
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    background: radial-gradient(120% 70% at 50% 110%, var(--nebula) 0%, var(--night) 70%) fixed;
+    color: var(--text);
+    font: 17px/1.6 ui-rounded, -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+main {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 48px 16px 64px;
+}
+
+.top {
+    display: flex;
+    justify-content: flex-end;
+    font-size: 15px;
+}
+
+.hero {
+    text-align: center;
+    margin: 24px 0 40px;
+}
+
+.hero img {
+    width: 112px;
+    height: 112px;
+    border-radius: 25px;
+    box-shadow: 0 16px 48px rgba(124, 92, 255, 0.35);
+}
+
+h1 {
+    margin: 20px 0 4px;
+    font-size: 40px;
+    line-height: 1.15;
+    font-weight: 800;
+    overflow-wrap: break-word;
+    hyphens: auto;
+}
+
+h2 {
+    margin: 40px 0 12px;
+    font-size: 24px;
+    line-height: 1.25;
+    font-weight: 700;
+}
+
+h3 {
+    margin: 0 0 6px;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+p, ul { margin: 0 0 14px; }
+
+ul { padding-left: 22px; }
+
+li { margin-bottom: 6px; }
+
+.lead {
+    color: var(--secondary);
+    font-size: 19px;
+    margin: 0 auto;
+    max-width: 520px;
+}
+
+.meta { color: var(--secondary); font-size: 15px; }
+
+a { color: var(--accent-light); text-decoration: none; }
+
+a:hover { text-decoration: underline; }
+
+.card {
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: 24px;
+    padding: 20px 22px;
+    margin-bottom: 12px;
+}
+
+.card p:last-child, .card ul:last-child { margin-bottom: 0; }
+
+.contact {
+    text-align: center;
+    padding: 28px 22px;
+}
+
+.button {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 12px 24px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.button:hover { text-decoration: none; filter: brightness(1.1); }
+
+.summary {
+    border-color: rgba(168, 139, 255, 0.45);
+    background: rgba(124, 92, 255, 0.12);
+}
+
+footer {
+    margin-top: 48px;
+    padding-top: 20px;
+    border-top: 1px solid var(--hairline);
+    color: var(--secondary);
+    font-size: 15px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    justify-content: space-between;
+}
+
+@media (max-width: 480px) {
+    main { padding-top: 32px; }
+    h1 { font-size: 32px; }
+}

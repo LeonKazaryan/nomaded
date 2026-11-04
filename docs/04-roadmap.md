@@ -92,8 +92,12 @@
 - [x] Xcode 26.3, сборка на iOS 26 SDK: собирается без warnings, тесты проходят на iOS 18.6 и 26.3, экраны на iOS 26 в порядке
 - [ ] **Leon:** проверить на iPhone с iOS 26, собранном из Xcode 26.3 (флаги, глобус, отметка, статистика)
 - [x] Apple Developer Program (2026-11-04)
-- [ ] Privacy policy + support URL
-- [ ] App Store Connect: карточка, скриншоты, видео-превью
+- [x] Privacy policy + support URL: `site/` на GitHub Pages, EN + RU
+  - [ ] **Leon:** включить Pages (Settings → Pages → Source: GitHub Actions)
+- [x] Тексты карточки, ответы на анкеты, заметки для ревью и TestFlight: [`09-store-listing.md`](09-store-listing.md)
+- [x] Скриншоты 6,9″ EN + RU с подписями (`Tools/Screenshots`)
+- [ ] **Leon:** App Store Connect — создать приложение, заполнить по `09-store-listing.md`, загрузить скриншоты
+- [ ] Видео-превью (необязательно для 1.0)
 - [ ] TestFlight с друзьями, сбор фидбэка
 - [x] Спорные территории (ADR-015, App Review 5 Legal). Принцип: непризнанные государства отдельными странами не добавляем, считаем по ООН
   - [x] Границы по витрине App Store (`Storefront`, ADR-015): Россия — Крым, Севастополь и 4 области в составе России; Китай — Тайвань и Аруначал-Прадеш; остальной мир — как Natural Earth «USA». Города и сохранённые города на спорной земле принадлежат стране, которую показывает глобус
