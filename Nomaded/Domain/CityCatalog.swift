@@ -95,6 +95,13 @@ struct CityCatalog: Sendable {
             .map { cities[$0.index] }
     }
 
+    /// A country's cities before anything is typed: the capital first (Astana before the
+    /// bigger Almaty), then the biggest.
+    func cities(in countryCode: String, limit: Int = 50) -> [KnownCity] {
+        let local = cities.filter { $0.countryCode == countryCode }
+        return Array((local.filter(\.isCapital) + local.filter { !$0.isCapital }).prefix(limit))
+    }
+
     /// The capital a saved city is, if it's within `km` of one in its country.
     func capital(latitude: Double, longitude: Double, countryCode: String, within km: Double = 25) -> KnownCity? {
         capitals.first { capital in

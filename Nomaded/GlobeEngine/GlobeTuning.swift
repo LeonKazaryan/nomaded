@@ -113,13 +113,18 @@ enum GlobeTuning {
 
     static let tapSlop = 10.0
     static let microStateTapRadius = 14.0
+    /// Share of the screen width a tapped country takes once the globe has turned to it:
+    /// up close a tap on Russia pulls back, from afar a tap on Belgium moves in.
+    static let tapFitFraction = 0.6
+    static let tapZoomSpring = SpringParameters(response: 0.8, dampingRatio: 1)
 
     // MARK: Flight to a country (search)
 
     /// Share of the screen width the country takes when the flight lands.
     static let flightFitFraction = 0.6
-    /// Parts of a country farther than this from its center (radians, ~26°) are ignored
-    /// when framing it: France is framed without French Guiana.
+    /// Parts of a country farther than this from the middle of its biggest landmass
+    /// (radians, ~26°) are ignored when framing it, unless that landmass is wider itself
+    /// (Russia): France is framed without French Guiana, the US without Alaska.
     static let framingExtentLimit = 0.45
     /// How far a flight pulls back on the way: cruise zoom = this / trip length in radians.
     /// Long trips zoom out to the whole globe, short hops stay close.

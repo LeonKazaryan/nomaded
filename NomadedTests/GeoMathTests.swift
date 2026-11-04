@@ -109,6 +109,38 @@ struct GeoMathTests {
         #expect(abs(radius - corner) < 1e-6)
     }
 
+    @Test func framingAimsAtTheMainland() throws {
+        let mainland: [SIMD2<Float>] = [[-10, -10], [10, -10], [10, 10], [-10, 10]]
+        let nearIsland: [SIMD2<Float>] = [[14, 0], [15, 0], [15, 1]]
+        let farIsland: [SIMD2<Float>] = [[60, 0], [61, 0], [61, 1]]
+
+        let framing = try #require(GeoMath.framing(of: [nearIsland, farIsland, mainland], limit: 0.45))
+
+        #expect(abs(framing.center.latitude) < 1e-6 && abs(framing.center.longitude) < 1e-6)
+        #expect(abs(framing.radius - GeoMath.radians(15)) < 1e-3)
+    }
+
+    @Test func framingTakesInAllOfRussia() async throws {
+        let world = try await WorldGeometry.loadBundled()
+        let shape = { (code: String) in try #require(world.countries.first { $0.code == code }) }
+        func framing(_ code: String) throws -> (center: GeoCoordinate, radius: Double) {
+            try #require(GeoMath.framing(of: try shape(code).rings, limit: GlobeTuning.framingExtentLimit))
+        }
+        func reaches(_ framing: (center: GeoCoordinate, radius: Double), _ latitude: Double, _ longitude: Double) -> Bool {
+            GeoMath.angularDistance(framing.center, GeoCoordinate(latitude: latitude, longitude: longitude)) <= framing.radius
+        }
+
+        // Around Siberia, from Moscow to Chukotka, not around the label in Europe.
+        let russia = try framing("RU")
+        #expect(russia.center.longitude > 80 && russia.center.longitude < 120)
+        #expect(reaches(russia, 55.75, 37.6) && reaches(russia, 64.7, 177.5))
+        // Far-off parts still stay out.
+        let france = try framing("FR")
+        #expect(reaches(france, 48.85, 2.35) && !reaches(france, 4.9, -52.3))
+        let us = try framing("US")
+        #expect(reaches(us, 40.7, -74) && reaches(us, 47.6, -122.3) && !reaches(us, 61.2, -149.9))
+    }
+
     @Test func springSettlesOnTarget() {
         var spring = SpringValue(0)
         spring.target = 1

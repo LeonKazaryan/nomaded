@@ -511,6 +511,7 @@ struct GlobeScreen: View {
     #if DEBUG
     /// Lets screenshots be scripted from the command line (and later, App Store shots):
     /// `-NomadedDebugVisited IT,FR -NomadedDebugSelect IT -NomadedDebugTap 186,459 -NomadedDebugMarkAfterTap YES`
+    /// (`-NomadedDebugTap "186,459;120,300"` taps several times, 3 s apart),
     /// `-NomadedDebugFly LU` flies to a country after the intro, `-NomadedDebugSearch Ita`
     /// opens the search with a query typed in (`-NomadedDebugSearchCities YES`: on the Cities
     /// tab), `-NomadedDebugSearchPick YES` then picks the
@@ -548,22 +549,25 @@ struct GlobeScreen: View {
         let marks = defaults.string(forKey: "NomadedDebugMark")
         let addsCityTo = defaults.string(forKey: "NomadedDebugAddCity")
         let landsCity = defaults.string(forKey: "NomadedDebugLandCity").flatMap { Self.debugCity($0[...]) }
-        let tap = defaults.string(forKey: "NomadedDebugTap")?.split(separator: ",").compactMap { Double($0) }
+        let taps = (defaults.string(forKey: "NomadedDebugTap")?.split(separator: ";") ?? [])
+            .map { $0.split(separator: ",").compactMap { Double($0) } }
+            .filter { $0.count == 2 }
         let fly = defaults.string(forKey: "NomadedDebugFly")
         let search = defaults.string(forKey: "NomadedDebugSearch")
         let showsList = defaults.bool(forKey: "NomadedDebugVisitedList")
         let showsStats = defaults.bool(forKey: "NomadedDebugStats")
-        guard (tap?.count == 2) || fly != nil || search != nil || showsList || showsStats || focusesCity
+        guard !taps.isEmpty || fly != nil || search != nil || showsList || showsStats || focusesCity
                 || addsCityTo != nil || landsCity != nil || marks != nil || debugMilestone != nil
         else { return }
         Task {
             // Wait for the intro to settle.
             try? await Task.sleep(for: .seconds(4))
-            if let tap, tap.count == 2 {
+            for (index, tap) in taps.enumerated() {
+                if index > 0 { try? await Task.sleep(for: .seconds(3)) }
                 controller.tap(at: CGPoint(x: tap[0], y: tap[1]))
-                if defaults.bool(forKey: "NomadedDebugMarkAfterTap"), let selected {
-                    toggleVisited(selected)
-                }
+            }
+            if !taps.isEmpty, defaults.bool(forKey: "NomadedDebugMarkAfterTap"), let selected {
+                toggleVisited(selected)
             }
             if let fly { flyTo(fly) }
             if showsList { setShowingVisited(true) }

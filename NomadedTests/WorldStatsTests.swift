@@ -176,6 +176,48 @@ struct CityCatalogTests {
         #expect(catalog.search("London", in: "CA").map(\.countryCode) == ["CA"])
     }
 
+    @Test func countryListPutsTheCapitalFirst() {
+        let kazakhstan = CityCatalog([
+            Self.city("Shymkent", "KZ", pop: 465_392),
+            Self.city("Almaty", "KZ", pop: 1_209_000),
+            Self.city("Astana", "KZ", pop: 345_604, capital: true),
+            Self.city("Bishkek", "KG", pop: 837_000, capital: true),
+        ])
+        #expect(kazakhstan.cities(in: "KZ").map(\.name) == ["Astana", "Almaty", "Shymkent"])
+        #expect(kazakhstan.cities(in: "KZ", limit: 2).map(\.name) == ["Astana", "Almaty"])
+        #expect(kazakhstan.cities(in: "UZ").isEmpty)
+    }
+
+    @Test @MainActor func emptyFieldListsOnlyACountrysCities() {
+        let catalog = CityCatalog([
+            Self.city("Almaty", "KZ", pop: 1_209_000),
+            Self.city("Astana", "KZ", pop: 345_604, capital: true),
+            Self.city("Bishkek", "KG", pop: 837_000, capital: true),
+        ])
+        let inCountry = CitySearch(countryCode: "KZ", catalog: catalog)
+        inCountry.query = ""
+        #expect(inCountry.results.map(\.title) == ["Astana", "Almaty"])
+        #expect(inCountry.results.first?.isCapital == true)
+        inCountry.query = "Alm"
+        #expect(inCountry.results.map(\.title) == ["Almaty"])
+
+        // The whole world is too much to list: it waits for a name.
+        let worldwide = CitySearch(catalog: catalog)
+        worldwide.query = ""
+        #expect(worldwide.results.isEmpty)
+    }
+
+    @Test func bundledCountryListsLeadWithTheirCapital() throws {
+        let bundled = try CityCatalog.loadBundled()
+        #expect(bundled.cities(in: "IT").prefix(3).map(\.name) == ["Rome", "Milan", "Naples"])
+        #expect(bundled.cities(in: "US").first?.name == "Washington")
+        #expect(bundled.cities(in: "RU").count == 50)
+        #expect(bundled.cities(in: "VA").map(\.name) == ["Vatican City"])
+        // Renamed back in 2022; the old name still finds it.
+        #expect(bundled.cities(in: "KZ").first?.name == "Astana")
+        #expect(bundled.search("Нур-Султан").first?.name == "Astana")
+    }
+
     @Test func findsCapitalsNearby() {
         let westminster = CityPin(id: UUID(), name: "London", region: "", countryCode: "GB", latitude: 51.51, longitude: -0.13, createdAt: .now)
         let ontario = CityPin(id: UUID(), name: "London", region: "", countryCode: "CA", latitude: 42.97, longitude: -81.25, createdAt: .now)

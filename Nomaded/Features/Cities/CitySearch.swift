@@ -7,6 +7,7 @@ import Observation
 /// - then MapKit for everything smaller: names in the user's language, no API key, no
 ///   location permission, only cities (iOS 18's address filter), minus the ones above.
 /// Either the whole world, or strictly one country: the "+ City" button in a country's card.
+/// There, an empty field already lists the country's cities, capital first, then by size.
 @Observable @MainActor
 final class CitySearch: NSObject {
     struct Result: Identifiable {
@@ -42,8 +43,12 @@ final class CitySearch: NSObject {
             problem = nil
             let trimmed = query.trimmingCharacters(in: .whitespaces)
             completer.queryFragment = trimmed
-            known = catalog.search(trimmed, in: country?.code)
-            if trimmed.isEmpty { fromMaps = [] }
+            if trimmed.isEmpty {
+                known = country.map { catalog.cities(in: $0.code) } ?? []
+                fromMaps = []
+            } else {
+                known = catalog.search(trimmed, in: country?.code)
+            }
             merge()
         }
     }
@@ -118,6 +123,8 @@ final class CitySearch: NSObject {
     }
 
     fileprivate func update(_ completions: [MKLocalSearchCompletion]) {
+        // A late answer to what was typed before the field was cleared.
+        guard !query.trimmingCharacters(in: .whitespaces).isEmpty else { return }
         fromMaps = completions
         merge()
     }

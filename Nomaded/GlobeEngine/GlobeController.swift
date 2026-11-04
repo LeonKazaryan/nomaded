@@ -14,7 +14,7 @@ import simd
 final class GlobeController {
     /// How the camera frames a newly selected country.
     enum Framing {
-        /// A tap: turn the globe to the country and keep the zoom.
+        /// A tap: turn the globe to the country and zoom until it fits, out or in.
         case turn
         /// A search result: fly there and zoom in until the whole country fits.
         case flight
@@ -324,7 +324,7 @@ final class GlobeController {
         [previous, code].compactMap { $0 }.forEach(retarget)
         if let code, let shape = nodes[code]?.shape {
             switch framing {
-            case .turn: focus(on: shape.label, spring: GlobeTuning.focusSpring)
+            case .turn: turn(to: shape)
             case .flight: fly(to: shape)
             case .point(let coordinate): fly(to: coordinate, arrivalZoom: GlobeTuning.cityZoom)
             }
@@ -772,8 +772,39 @@ final class GlobeController {
     /// Pulls back if the trip is long, swings over, then zooms in until the country fills
     /// `flightFitFraction` of the screen. Reduce Motion jumps straight there.
     private func fly(to shape: CountryShape) {
-        let extent = GeoMath.capRadius(around: shape.label, rings: shape.rings, limit: GlobeTuning.framingExtentLimit)
-        fly(to: shape.label, arrivalZoom: max(1, zoom(fitting: extent, widthFraction: GlobeTuning.flightFitFraction)))
+        let target = framing(of: shape, widthFraction: GlobeTuning.flightFitFraction)
+        fly(to: target.center, arrivalZoom: target.zoom)
+    }
+
+    /// A tapped country is already in view, so there's no pulling back on the way: the globe
+    /// turns to it and the zoom changes until it fills `tapFitFraction` of the screen.
+    /// Zooming out starts at once, so up close Russia comes into view as the globe turns
+    /// instead of the turn crawling under the speed limit. Zooming in waits for the end of
+    /// the turn, like a flight's, or the country would slide off screen first. Both springs
+    /// are critically damped, so Reduce Motion gets the same calm move.
+    private func turn(to shape: CountryShape) {
+        let start = GlobeOrientation(yaw: yaw.value, pitch: pitch.value).centerCoordinate
+        let target = framing(of: shape, widthFraction: GlobeTuning.tapFitFraction)
+        let arrivalZoom = target.zoom
+        focus(on: target.center, spring: GlobeTuning.focusSpring, atZoom: arrivalZoom)
+        zoomSpring = GlobeTuning.tapZoomSpring
+        guard arrivalZoom > zoom.value else {
+            zoom.target = arrivalZoom
+            return
+        }
+        // Holds the zoom where it is (a previous tap may still be pulling back) until the handoff.
+        zoom.target = zoom.value
+        let destination = GlobeOrientation(yaw: yaw.target, pitch: pitch.target).centerCoordinate
+        flight = Flight(destination: destination, length: GeoMath.angularDistance(start, destination), arrivalZoom: arrivalZoom)
+    }
+
+    /// Where to aim at the country, and the zoom at which it (without far-off parts) spans
+    /// `widthFraction` of the screen width; never below the whole globe.
+    private func framing(of shape: CountryShape, widthFraction: Double) -> (center: GeoCoordinate, zoom: Double) {
+        let limit = GlobeTuning.framingExtentLimit
+        let framing = GeoMath.framing(of: shape.rings, limit: limit)
+            ?? (shape.label, GeoMath.capRadius(around: shape.label, rings: shape.rings, limit: limit))
+        return (framing.center, max(1, zoom(fitting: framing.radius, widthFraction: widthFraction)))
     }
 
     private func fly(to coordinate: GeoCoordinate, arrivalZoom: Double) {

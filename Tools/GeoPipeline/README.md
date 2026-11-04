@@ -35,7 +35,7 @@ swift run -c release --package-path Tools/GeoPipeline GeoPipeline \
   --places "$TMPDIR/places.geojson" --cities Nomaded/Resources/Geo/cities.json
 ```
 
-`--cities` (`CityCatalogBuilder.swift`): ~7 300 городов с населением, координатами, столицей (`ADM0CAP`, без «alt» вроде Гааги) и названиями en/ru. Места без ISO-кода (Косово, Северный Кипр, Сомалиленд) приписаны стране, в которой их показывает глобус.
+`--cities` (`CityCatalogBuilder.swift`): ~7 300 городов с населением, координатами, столицей (`ADM0CAP`, без «alt» вроде Гааги) и названиями en/ru. Города, переименованные после выхода данных Natural Earth (Нур-Султан → Астана), правит `CityCatalogBuilder.renames`, старое название остаётся в поиске. Места без ISO-кода (Косово, Северный Кипр, Сомалиленд) приписаны стране, в которой их показывает глобус.
 
 `--catalog` пишет справочник для статистики: континент, регион ООН, «одна из 195» и площадь каждой страны (`CountryCatalog.swift`).
 

@@ -90,6 +90,43 @@ enum GeoMath {
         return acos(smallestCosine)
     }
 
+    /// Where to aim the camera at a country and how far around that it reaches (radians):
+    /// the middle of its biggest landmass, and every outline point within `limit` of it, or
+    /// within the landmass's own reach if that's wider. Russia is framed around Siberia from
+    /// the Baltic to Chukotka, not around its label in Europe; France still without French
+    /// Guiana. `nil` for no outline.
+    static func framing(of rings: [[SIMD2<Float>]], limit: Double) -> (center: GeoCoordinate, radius: Double)? {
+        guard let land = rings.max(by: { area(of: $0) < area(of: $1) }), !land.isEmpty else { return nil }
+        // The middle of the box around its points in 3D: unlike longitudes, it doesn't
+        // care about the date line.
+        var low = SIMD3<Double>(repeating: .infinity)
+        var high = -low
+        for point in land {
+            let vector = unitVector(GeoCoordinate(latitude: Double(point.y), longitude: Double(point.x)))
+            low = simd_min(low, vector)
+            high = simd_max(high, vector)
+        }
+        let middle = (low + high) / 2
+        guard simd_length(middle) > 1e-6 else { return nil }
+        let center = coordinate(of: middle)
+        let reach = capRadius(around: center, rings: [land], limit: .pi)
+        return (center, capRadius(around: center, rings: rings, limit: max(limit, reach)))
+    }
+
+    /// A ring's area in square degrees, on the sinusoidal projection (equal-area), so a
+    /// far-north island isn't mistaken for the mainland.
+    private static func area(of ring: [SIMD2<Float>]) -> Double {
+        var sum = 0.0
+        var j = ring.count - 1
+        for i in ring.indices {
+            let a = ring[j], b = ring[i]
+            let ax = Double(a.x) * cos(radians(Double(a.y))), bx = Double(b.x) * cos(radians(Double(b.y)))
+            sum += ax * Double(b.y) - bx * Double(a.y)
+            j = i
+        }
+        return abs(sum) / 2
+    }
+
     /// How far (radians) a fill starting at `origin` must spread to cover the part of the
     /// country it starts in: out to the farthest outline point before a gap wider than
     /// `gap`. France's fill stops at its own coasts instead of crossing the Atlantic to

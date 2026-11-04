@@ -26,7 +26,8 @@ struct CountryShape: Sendable {
     let code: String
     /// 0…5, assigned by the pipeline so that neighbours never share a slot.
     let colorSlot: Int
-    /// Where to point the camera when the country is selected.
+    /// Its visual middle (Natural Earth's label point): fills start here and quick turns
+    /// aim here. Framing a selected country uses its whole outline instead.
     let label: GeoCoordinate
     let bounds: GeoBounds
     /// Outline as (longitude, latitude), holes included (enclaves and lakes). Use the

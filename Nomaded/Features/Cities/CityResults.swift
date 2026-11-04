@@ -4,7 +4,7 @@ import SwiftUI
 /// Shared by the search in a country's card and the Cities tab of the main search.
 struct CityResults: View {
     let search: CitySearch
-    /// Shown before anything's typed.
+    /// Shown before anything's typed, unless the search already has cities to suggest.
     let hint: LocalizedStringKey
     let onPick: (CitySearch.Result) -> Void
 
@@ -29,8 +29,11 @@ struct CityResults: View {
     }
 
     private var note: LocalizedStringKey? {
-        // An empty field only ever asks for a name, whatever happened before.
-        if search.query.trimmingCharacters(in: .whitespaces).isEmpty { return hint }
+        // An empty field only ever asks for a name or shows a country's own list, whatever
+        // happened before.
+        if search.query.trimmingCharacters(in: .whitespaces).isEmpty {
+            return search.results.isEmpty ? hint : nil
+        }
         switch search.problem {
         case .offline: return "Can't reach Maps. Check the connection and try again."
         case .otherCountry: return "That city is in another country"

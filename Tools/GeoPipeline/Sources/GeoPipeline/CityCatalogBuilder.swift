@@ -22,6 +22,8 @@ enum CityCatalogBuilder {
     /// Places Natural Earth leaves without an ISO code, given the country the globe shows
     /// them in.
     static let codeFallbacks = ["KOS": "XK", "CYN": "CY", "SOL": "SO"]
+    /// Cities renamed since Natural Earth's data; the old names still find them.
+    static let renames: [String: (name: String, nameRu: String)] = ["Nur-Sultan": ("Astana", "Астана")]
     /// Not cities: research stations, ruins.
     static let skippedClasses: Set<String> = ["Scientific station", "Meteorological Station", "Historic place"]
 
@@ -33,7 +35,7 @@ enum CityCatalogBuilder {
 
         return features.compactMap { feature -> CityEntry? in
             guard let p = feature["properties"] as? [String: Any],
-                  let name = (p["NAME_EN"] as? String) ?? (p["NAME"] as? String),
+                  var name = (p["NAME_EN"] as? String) ?? (p["NAME"] as? String),
                   let lat = (p["LATITUDE"] as? NSNumber)?.doubleValue,
                   let lon = (p["LONGITUDE"] as? NSNumber)?.doubleValue,
                   !skippedClasses.contains(p["FEATURECLA"] as? String ?? "")
@@ -47,7 +49,11 @@ enum CityCatalogBuilder {
             for key in ["NAME", "NAMEASCII"] {
                 if let value = p[key] as? String { aliases.append(value) }
             }
-            let nameRu = p["NAME_RU"] as? String
+            var nameRu = p["NAME_RU"] as? String
+            if let rename = renames[name] {
+                aliases += [name, nameRu].compactMap { $0 }
+                (name, nameRu) = (rename.name, rename.nameRu)
+            }
             aliases = Array(Set(aliases.filter { !$0.isEmpty && $0 != name && $0 != nameRu })).sorted()
 
             return CityEntry(
