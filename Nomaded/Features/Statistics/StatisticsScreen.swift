@@ -29,6 +29,14 @@ struct StatisticsScreen: View {
     @Namespace private var hero
     @ScaledMetric(relativeTo: .body) private var detailMapHeight = 230
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.countryCatalog) private var catalog
+    #if DEBUG
+    @Environment(\.developerTools) private var developer
+    /// How far the list is stretched past its end right now.
+    @State private var bottomPull: CGFloat = 0
+    @State private var bottomPulls = 0
+    @State private var isDeveloperOpen = false
+    #endif
 
     /// How far to pull past the top before letting go closes the screen.
     private static let closeDistance: CGFloat = 90
@@ -50,6 +58,13 @@ struct StatisticsScreen: View {
         .sensoryFeedback(Haptics.select, trigger: openDetail) { _, new in new != nil }
         #if DEBUG
         .task {
+            // `-NomadedDebugDeveloper YES` opens the developer zone without the three pulls.
+            if UserDefaults.standard.bool(forKey: "NomadedDebugDeveloper"), developer != nil {
+                try? await Task.sleep(for: .seconds(1))
+                withAnimation(Motion.bouncy) { isDeveloperOpen = true }
+            }
+        }
+        .task {
             // `-NomadedDebugContinent europe` (or `world`) opens a list once the cards are in.
             guard let raw = UserDefaults.standard.string(forKey: "NomadedDebugContinent") else { return }
             let detail: Detail? = raw == "world" ? .world : Continent(rawValue: raw).map(Detail.continent)
@@ -66,7 +81,7 @@ struct StatisticsScreen: View {
             PlacesDetail(
                 title: "Whole world",
                 tally: nil,
-                places: StatsCalculator.places(on: nil, visited: visited, catalog: .bundled),
+                places: StatsCalculator.places(on: nil, visited: visited, catalog: catalog),
                 visited: visited,
                 onPick: onPick,
                 onBack: { open(nil) },
@@ -80,7 +95,7 @@ struct StatisticsScreen: View {
             PlacesDetail(
                 title: continent.name,
                 tally: progress?.countries,
-                places: StatsCalculator.places(on: continent, visited: visited, catalog: .bundled),
+                places: StatsCalculator.places(on: continent, visited: visited, catalog: catalog),
                 visited: visited,
                 onPick: onPick,
                 onBack: { open(nil) },
@@ -101,6 +116,7 @@ struct StatisticsScreen: View {
     }
 
     private var overview: some View {
+        ScrollViewReader { proxy in
         ScrollView {
             VStack(spacing: 16) {
                 header
@@ -120,6 +136,12 @@ struct StatisticsScreen: View {
                     FactsCard(stats: stats)
                         .cascade(5, appeared: appeared)
                 }
+                #if DEBUG
+                if let developer {
+                    DeveloperZone(tools: developer, pulls: bottomPulls, isOpen: isDeveloperOpen)
+                        .id(Self.developerID)
+                }
+                #endif
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 24)
@@ -129,8 +151,41 @@ struct StatisticsScreen: View {
         .scrollIndicators(.hidden)
         .fadingUnderStatusBar()
         .pullToClose($pull, distance: Self.closeDistance, onClose: onClose)
+        #if DEBUG
+        .onScrollGeometryChange(for: CGFloat.self) { geometry in
+            let end = max(-geometry.contentInsets.top, geometry.contentSize.height + geometry.contentInsets.bottom - geometry.containerSize.height)
+            return geometry.contentOffset.y - end
+        } action: { _, overscroll in
+            bottomPull = max(0, overscroll)
+        }
+        .onScrollPhaseChange { old, new in
+            // Every pull past the end that's let go counts; the third opens the zone.
+            guard developer != nil, !isDeveloperOpen, old == .interacting, new != .interacting,
+                  bottomPull > DeveloperUnlock.distance
+            else { return }
+            withAnimation(Motion.bouncy) {
+                bottomPulls += 1
+                if bottomPulls >= DeveloperUnlock.pulls { isDeveloperOpen = true }
+            }
+        }
+        .onChange(of: isDeveloperOpen) { _, isOpen in
+            guard isOpen else { return }
+            Task {
+                // Once it has sprung open, bring all of it into view.
+                try? await Task.sleep(for: .seconds(0.35))
+                withAnimation(Motion.smooth) { proxy.scrollTo(Self.developerID, anchor: .bottom) }
+            }
+        }
+        .sensoryFeedback(Haptics.tap, trigger: bottomPulls)
+        .sensoryFeedback(Haptics.markVisited, trigger: isDeveloperOpen) { _, isOpen in isOpen }
+        #endif
         .onAppear { appeared = true }
+        }
     }
+
+    #if DEBUG
+    private static let developerID = "developer"
+    #endif
 
     private var header: some View {
         HStack {

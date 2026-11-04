@@ -53,6 +53,32 @@ enum GeoJSONReader {
         )
     }
 
+    /// Reads the admin-1 regions (`ne_10m_admin_1_states_provinces`) with these ISO 3166-2
+    /// codes, for `Worldview`.
+    static func readRegions(_ url: URL, codes: Set<String>) throws -> [String: [GeoPolygon]] {
+        let data = try Data(contentsOf: url)
+        guard
+            let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let features = root["features"] as? [[String: Any]]
+        else { throw PipelineError.malformed("admin-1 features") }
+        var regions: [String: [GeoPolygon]] = [:]
+        for feature in features {
+            guard let properties = feature["properties"] as? [String: Any],
+                  let code = properties["iso_3166_2"] as? String, codes.contains(code),
+                  let geometry = feature["geometry"] as? [String: Any]
+            else { continue }
+            switch geometry["type"] as? String {
+            case "Polygon": regions[code, default: []].append(try parsePolygon(geometry["coordinates"]))
+            case "MultiPolygon":
+                guard let parts = geometry["coordinates"] as? [Any] else { throw PipelineError.malformed("multipolygon") }
+                regions[code, default: []] += try parts.map(parsePolygon)
+            default: continue
+            }
+            regions[code]?.removeAll { $0.rings.isEmpty }
+        }
+        return regions
+    }
+
     /// Reads Natural Earth's lakes (`ne_10m_lakes`): name, rank and outline.
     static func readLakes(_ url: URL) throws -> [SourceLake] {
         let data = try Data(contentsOf: url)

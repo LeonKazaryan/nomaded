@@ -68,6 +68,9 @@ final class CitySearch: NSObject {
     @ObservationIgnored private let catalog: CityCatalog
     /// Tells which country a Maps result is in, from how Maps names it.
     @ObservationIgnored private let countries: CountrySearchIndex
+    /// The globe's borders: a city Maps finds on disputed land goes to the country the globe
+    /// shows there, whatever Maps calls it.
+    @ObservationIgnored private let world: WorldGeometry?
     @ObservationIgnored private var known: [KnownCity] = []
     @ObservationIgnored private var fromMaps: [MapsHit] = []
     @ObservationIgnored private let completer = MKLocalSearchCompleter()
@@ -80,10 +83,12 @@ final class CitySearch: NSObject {
         countryCode: String? = nil,
         region: MKCoordinateRegion? = nil,
         catalog: CityCatalog = .bundled,
+        world: WorldGeometry? = nil,
         countries: CountrySearchIndex = .places
     ) {
         country = countryCode
         self.catalog = catalog
+        self.world = world
         self.countries = countries
         super.init()
         completer.delegate = self
@@ -135,7 +140,8 @@ final class CitySearch: NSObject {
                     }
                 }
             }
-        guard let code = place.code?.uppercased() else { throw Problem.notOnGlobe }
+        let coordinate = GeoCoordinate(latitude: place.latitude, longitude: place.longitude)
+        guard let code = world?.owner(at: coordinate) ?? place.code?.uppercased() else { throw Problem.notOnGlobe }
         if let country, code != country { throw Problem.otherCountry }
         guard knownCountries.contains(code) else { throw Problem.notOnGlobe }
         // Maps may still name a city the bundled list has differently: then it's saved the

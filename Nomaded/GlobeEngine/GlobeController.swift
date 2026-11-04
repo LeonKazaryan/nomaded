@@ -50,6 +50,8 @@ final class GlobeController {
 
     /// The loaded outlines, for screens that draw maps of their own. `nil` until `isReady`.
     @ObservationIgnored private(set) var world: WorldGeometry?
+    /// Whose borders the globe draws (see `Worldview`).
+    @ObservationIgnored private(set) var worldview = Worldview.standard
     /// While paused nothing moves or redraws, e.g. under a full-screen panel.
     var isPaused = false
 
@@ -151,12 +153,13 @@ final class GlobeController {
     // MARK: - Scene
 
     /// Loads the countries and builds the scene once. Call from the view's `.task`.
-    func load() async {
+    func load(_ worldview: Worldview) async {
         guard !loadStarted, let renderer else { return }
         loadStarted = true
+        self.worldview = worldview
         do {
             let started = CACurrentMediaTime()
-            let world = try await WorldGeometry.loadBundled()
+            let world = try await WorldGeometry.loadBundled(worldview)
             let scene = await Self.buildScene(world)
             try renderer.setScene(ocean: scene.ocean, land: scene.land)
             setUpCountries(world, ranges: scene.ranges)
@@ -176,6 +179,61 @@ final class GlobeController {
         } catch {
             Self.log.error("Globe failed to load: \(error)")
         }
+    }
+
+    /// Redraws the borders for another worldview. The globe turns to where they change, the
+    /// new outlines land once it's there, and the countries they changed jump and light up.
+    /// Reduce Motion just swaps them. Returns once the new borders are on the globe.
+    func switchWorldview(_ worldview: Worldview) async {
+        guard isReady, worldview != self.worldview, let renderer, let old = world else { return }
+        let previous = self.worldview
+        self.worldview = worldview
+        if !reduceMotion, let focus = worldview.focus ?? previous.focus {
+            fly(to: focus, arrivalZoom: GlobeTuning.worldviewZoom)
+            wake()
+        }
+        do {
+            let world = try await WorldGeometry.loadBundled(worldview)
+            async let scene = Self.buildScene(world)
+            async let walls = Self.buildWalls(world)
+            async let rivers = Self.buildRivers(world)
+            let built = await (scene: scene, walls: walls, rivers: rivers)
+            // The change happens in view: wait for the globe to arrive (a drag ends the wait).
+            let deadline = CACurrentMediaTime() + 3
+            while flight != nil || isFocusing, CACurrentMediaTime() < deadline {
+                try? await Task.sleep(for: .milliseconds(50))
+            }
+            try renderer.setScene(ocean: built.scene.ocean, land: built.scene.land)
+            setUpCountries(world, ranges: built.scene.ranges)
+            try renderer.setWalls(built.walls.mesh, ranges: built.walls.ranges)
+            try renderer.setRivers(built.rivers)
+            hitTester = GlobeHitTester(world: world)
+            self.world = world
+
+            let before = Dictionary(old.countries.map { ($0.code, $0.vertices.count) }, uniquingKeysWith: { first, _ in first })
+            if !reduceMotion {
+                for country in world.countries where !country.code.isEmpty && before[country.code] != country.vertices.count {
+                    guard var node = nodes[country.code] else { continue }
+                    node.lift.velocity += GlobeTuning.celebrationKick * GlobeTuning.quietKickScale
+                    // A flash that fades back to whatever the country's glow should be.
+                    node.highlight.value = 1
+                    nodes[country.code] = node
+                    animating.insert(country.code)
+                }
+            }
+            wake()
+        } catch {
+            Self.log.error("Worldview \(worldview.rawValue) failed to load: \(error)")
+        }
+    }
+
+    /// The first launch's arrival out of deep space, again: for a fresh start.
+    func replayArrival() {
+        introStyle = .arrival
+        flight = nil
+        isFocusing = false
+        playIntro()
+        wake()
     }
 
     /// One frame: advance the physics, then draw. The view's display link calls this and
@@ -290,6 +348,9 @@ final class GlobeController {
     /// Land without a selectable country (`code` is empty) keeps one neutral color.
     private func setUpCountries(_ world: WorldGeometry, ranges: [MeshRange]) {
         guard let renderer else { return }
+        // A new worldview starts over: Taiwan has no node in China's.
+        nodes = [:]
+        animating = []
         renderer.pieces = zip(world.countries, ranges).map { shape, range in
             GlobeRenderer.Piece(
                 surface: range,

@@ -11,14 +11,18 @@ curl -L -o "$TMPDIR/lakes.geojson" \
   https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_10m_lakes.geojson
 curl -L -o "$TMPDIR/rivers.geojson" \
   https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_10m_rivers_lake_centerlines_scale_rank.geojson
+curl -L -o "$TMPDIR/admin1.geojson" \
+  https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_10m_admin_1_states_provinces.geojson
 
 swift run -c release --package-path Tools/GeoPipeline GeoPipeline \
   "$TMPDIR/ne_usa.geojson" Nomaded/Resources/Geo/world.nmgeo \
-  --lakes "$TMPDIR/lakes.geojson" --rivers "$TMPDIR/rivers.geojson" \
+  --lakes "$TMPDIR/lakes.geojson" --rivers "$TMPDIR/rivers.geojson" --admin1 "$TMPDIR/admin1.geojson" \
   --catalog Nomaded/Resources/Geo/countries.json
 ```
 
 `--lakes` вырезает из суши ~530 крупнейших озёр и водохранилищ (`LakeCutter.swift`), `--rivers` добавляет ~1 800 рек (`RiverBuilder.swift`). Без этих флагов глобус собирается без них.
+
+`--admin1` собирает виды границ для витрин App Store (`Worldview.swift`, ADR-015): рядом с `world.nmgeo` появляются наложения `world-rus.nmgeo` (Крым, Севастополь, Донецкая, Луганская, Запорожская и Херсонская области → Россия) и `world-chn.nmgeo` (Тайвань и Аруначал-Прадеш → Китай). В наложении только страны, которые вид изменил, их реки и список убранных стран. Регионы берутся из слоя админ-1 Natural Earth: его вершины на границах совпадают с админ-0, поэтому регион вырезается из одной страны и приклеивается к другой отменой общих рёбер (`PolygonDissolver`), без приближений. Пайплайн сам проверяет, что реки остальных стран вышли такими же, как в базе. В `world.nmgeo` пишутся точные контуры спорных регионов с владельцем по умолчанию, в наложения — с владельцем этого вида: по ним приложение отдаёт городу на спорной земле ту страну, которую рисует глобус. Города из справочника на спорной земле получают владельца по умолчанию (крымские у Natural Earth записаны за Россией, на стандартной карте Крым украинский). Natural Earth не обновлялся с мая 2022 года, поэтому его собственные файлы worldview не подходят: переносы прописаны явно.
 
 Результат воспроизводим: два запуска на одних данных дают побайтно одинаковый файл. Всё, что зависит от порядка (перевороты рёбер, склейка озёр), идёт в отсортированном порядке, а не в порядке обхода словаря, который в Swift меняется от запуска к запуску.
 
@@ -30,7 +34,7 @@ curl -L -o "$TMPDIR/places.geojson" \
 
 swift run -c release --package-path Tools/GeoPipeline GeoPipeline \
   "$TMPDIR/ne_usa.geojson" Nomaded/Resources/Geo/world.nmgeo \
-  --lakes "$TMPDIR/lakes.geojson" --rivers "$TMPDIR/rivers.geojson" \
+  --lakes "$TMPDIR/lakes.geojson" --rivers "$TMPDIR/rivers.geojson" --admin1 "$TMPDIR/admin1.geojson" \
   --catalog Nomaded/Resources/Geo/countries.json \
   --places "$TMPDIR/places.geojson" --cities Nomaded/Resources/Geo/cities.json
 ```

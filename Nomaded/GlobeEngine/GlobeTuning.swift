@@ -129,6 +129,10 @@ enum GlobeTuning {
 
     // MARK: Flight to a country (search)
 
+    /// How close the globe comes when the borders switch to another App Store region's: close
+    /// enough to see Crimea and Donbas change hands, wide enough to see both countries.
+    static let worldviewZoom = 2.6
+
     /// Share of the screen width the country takes when the flight lands.
     static let flightFitFraction = 0.6
     /// Parts of a country farther than this from the middle of its biggest landmass

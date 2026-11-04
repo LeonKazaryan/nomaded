@@ -81,7 +81,8 @@ enum LakeCutter {
         return members.values.sorted { $0[0] < $1[0] }.flatMap { group -> [Lake] in
             guard group.count > 1 else { return [lakes[group[0]]] }
             let name = group.map { lakes[$0].name }.filter { !$0.isEmpty }.joined(separator: " + ")
-            return joined(group.map { oriented[$0] }).map { (name, $0) }
+            // Slivers where the shared line didn't quite match up are no lake.
+            return PolygonDissolver.joined(group.map { oriented[$0] }, minimumArea: minimumPieceArea).map { (name, $0) }
         }
     }
 
@@ -136,61 +137,6 @@ enum LakeCutter {
             }
             return (lake.name, GeoPolygon(rings: rings))
         }
-    }
-
-    /// The rings left once edges shared by two of the polygons cancel out, sorted back
-    /// into outer shores and their islands.
-    private static func joined(_ polygons: [GeoPolygon]) -> [GeoPolygon] {
-        struct Edge: Hashable {
-            let a: GeoPoint, b: GeoPoint
-            func hash(into hasher: inout Hasher) {
-                hasher.combine(a.x.bitPattern); hasher.combine(a.y.bitPattern)
-                hasher.combine(b.x.bitPattern); hasher.combine(b.y.bitPattern)
-            }
-        }
-        var edges: [Edge: Int] = [:]
-        for ring in polygons.flatMap(\.rings) {
-            for k in ring.indices {
-                let edge = Edge(a: ring[k], b: ring[(k + 1) % ring.count])
-                let reverse = Edge(a: edge.b, b: edge.a)
-                if let count = edges[reverse], count > 0 {
-                    edges[reverse] = count - 1
-                } else {
-                    edges[edge, default: 0] += 1
-                }
-            }
-        }
-
-        // In a fixed order, so the file comes out the same on every run.
-        func before(_ a: GeoPoint, _ b: GeoPoint) -> Bool { (a.x, a.y) < (b.x, b.y) }
-        var outgoing: [Key2: [GeoPoint]] = [:]
-        for (edge, count) in edges.sorted(by: { before($0.key.a, $1.key.a) || ($0.key.a == $1.key.a && before($0.key.b, $1.key.b)) }) where count > 0 {
-            for _ in 0..<count { outgoing[Key2(edge.a), default: []].append(edge.b) }
-        }
-        let starts = outgoing.keys.sorted { before($0.point, $1.point) }
-        var rings: [[GeoPoint]] = []
-        while let startKey = starts.first(where: { !(outgoing[$0]?.isEmpty ?? true) }), let first = outgoing[startKey]?.first {
-            var ring = [startKey.point]
-            outgoing[startKey]!.removeFirst()
-            var current = first
-            while Key2(current) != startKey, var nexts = outgoing[Key2(current)], !nexts.isEmpty {
-                ring.append(current)
-                let next = nexts.removeFirst()
-                outgoing[Key2(current)] = nexts
-                current = next
-            }
-            // Slivers where the shared line didn't quite match up are no lake.
-            if ring.count >= 3, abs(Planar.signedArea(ring)) > minimumPieceArea { rings.append(ring) }
-        }
-
-        var result = rings.filter(isCounterClockwise).map { GeoPolygon(rings: [$0]) }
-        for island in rings where !isCounterClockwise(island) {
-            let around = result.indices
-                .filter { PolygonClipper.contains(result[$0].rings[0], island[0]) }
-                .min { abs(Planar.signedArea(result[$0].rings[0])) < abs(Planar.signedArea(result[$1].rings[0])) }
-            if let around { result[around].rings.append(island) }
-        }
-        return result
     }
 
     private struct Key2: Hashable {

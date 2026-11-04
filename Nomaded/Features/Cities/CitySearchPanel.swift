@@ -19,6 +19,8 @@ struct CitySearchPanel: View {
         bounds: GeoBounds?,
         initialQuery: String = "",
         knownCountries: Set<String>,
+        catalog: CityCatalog = .bundled,
+        world: WorldGeometry? = nil,
         isFieldFocused: FocusState<Bool>.Binding,
         onPick: @escaping (CityDraft) -> Void,
         onCancel: @escaping () -> Void
@@ -28,7 +30,7 @@ struct CitySearchPanel: View {
         self.isFieldFocused = isFieldFocused
         self.onPick = onPick
         self.onCancel = onCancel
-        let search = CitySearch(countryCode: countryCode, region: bounds.map(MKCoordinateRegion.init))
+        let search = CitySearch(countryCode: countryCode, region: bounds.map(MKCoordinateRegion.init), catalog: catalog, world: world)
         search.query = initialQuery
         _search = State(initialValue: search)
     }

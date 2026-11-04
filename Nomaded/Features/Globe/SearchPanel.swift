@@ -21,7 +21,7 @@ struct SearchPanel: View {
     @State private var mode: Mode
     @State private var query: String
     /// The whole world's cities, for the Cities tab.
-    @State private var cities = CitySearch()
+    @State private var cities: CitySearch
     @ScaledMetric(relativeTo: .body) private var rowHeight = 56
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -29,6 +29,8 @@ struct SearchPanel: View {
         index: CountrySearchIndex,
         visited: Set<String>,
         knownCountries: Set<String>,
+        cityCatalog: CityCatalog = .bundled,
+        world: WorldGeometry? = nil,
         initialQuery: String = "",
         initialMode: Mode = .countries,
         isFieldFocused: FocusState<Bool>.Binding,
@@ -45,6 +47,7 @@ struct SearchPanel: View {
         self.onCancel = onCancel
         _query = State(initialValue: initialQuery)
         _mode = State(initialValue: initialMode)
+        _cities = State(initialValue: CitySearch(catalog: cityCatalog, world: world))
     }
 
     var body: some View {

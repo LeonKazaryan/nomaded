@@ -10,7 +10,7 @@ struct KnownCity: Decodable, Sendable, Equatable {
     let aliases: [String]
     /// First-level region, to tell same-named cities in one country apart.
     let region: String?
-    let countryCode: String
+    var countryCode: String
     let latitude: Double
     let longitude: Double
     let population: Int
@@ -75,6 +75,21 @@ struct CityCatalog: Sendable {
         let latin = name.unicodeScalars.allSatisfy(\.isASCII) ? name : name.applyingTransform(.toLatin, reverse: false) ?? name
         let folded = latin.folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: nil)
         return String(String.UnicodeScalarView(folded.unicodeScalars.filter(CharacterSet.alphanumerics.contains)))
+    }
+
+    /// The same cities with disputed land given to its owner in the globe's worldview
+    /// (`WorldGeometry.owner(at:)`): Simferopol is Ukraine's by default, Russia's in Russia's
+    /// App Store.
+    func relabeled(by owner: (GeoCoordinate) -> String?) -> CityCatalog {
+        var changed = false
+        let relabeled = cities.map { city in
+            guard let code = owner(GeoCoordinate(latitude: city.latitude, longitude: city.longitude)), code != city.countryCode else { return city }
+            changed = true
+            var moved = city
+            moved.countryCode = code
+            return moved
+        }
+        return changed ? CityCatalog(relabeled) : self
     }
 
     /// The bundled cities in a country that go by `name`, in any spelling or script.

@@ -25,6 +25,12 @@ struct GlobeScreen: View {
     @State private var shownMilestone: MilestoneEvent?
     /// The bundled city list, loaded off the main thread at launch: capitals get stars.
     @State private var cityCatalog: CityCatalog?
+    /// The places on the globe in its worldview: what every list and count here is made of.
+    @State private var places = CountryCatalog.bundled
+    #if DEBUG
+    @AppStorage("NomadedDebugShowsFrameRate") private var showsFrameRate = true
+    @State private var worldviewSwitches = 0
+    #endif
     @State private var initialCityQuery = ""
     /// Built in the background once the globe has loaded, so statistics open instantly.
     @State private var continentMaps: ContinentMaps?
@@ -45,7 +51,7 @@ struct GlobeScreen: View {
 
     /// The one split every counter on this screen uses.
     private var visitedPlaces: VisitedPlaces {
-        CountryCatalog.bundled.split(world.visitedCodes)
+        places.split(world.visitedCodes)
     }
 
     var body: some View {
@@ -145,6 +151,8 @@ struct GlobeScreen: View {
                     index: searchIndex,
                     visited: world.visitedCodes,
                     knownCountries: Set(controller.countryCodes),
+                    cityCatalog: cityCatalog ?? .bundled,
+                    world: controller.world,
                     initialQuery: initialSearchQuery,
                     initialMode: initialSearchMode,
                     isFieldFocused: $isSearchFieldFocused,
@@ -163,6 +171,8 @@ struct GlobeScreen: View {
                     bounds: controller.world?.countries.first { $0.code == code }?.bounds,
                     initialQuery: initialCityQuery,
                     knownCountries: Set(controller.countryCodes),
+                    catalog: cityCatalog ?? .bundled,
+                    world: controller.world,
                     isFieldFocused: $isSearchFieldFocused,
                     onPick: addCity,
                     onCancel: { setAddingCity(nil) }
@@ -174,13 +184,21 @@ struct GlobeScreen: View {
 
             if isShowingStats {
                 StatisticsScreen(
-                    stats: StatsCalculator.stats(visited: world.visitedCodes, catalog: .bundled, cities: world.cities.count),
+                    stats: StatsCalculator.stats(visited: world.visitedCodes, catalog: places, cities: world.cities.count),
                     visited: world.visitedCodes,
                     maps: continentMaps,
                     earned: world.milestones,
                     onPick: flyTo,
                     onClose: { setShowingStats(false) }
                 )
+                #if DEBUG
+                .developerZone(
+                    worldview: controller.worldview,
+                    storefront: WorldviewSource.lastStorefront,
+                    onWorldview: forceWorldview,
+                    onReset: resetProgress
+                )
+                #endif
                 .transition(.opacity)
             }
 
@@ -204,12 +222,18 @@ struct GlobeScreen: View {
             }
 
             #if DEBUG
-            FrameRateBadge(framesPerSecond: controller.framesPerSecond, demand: controller.frameDemand)
+            if showsFrameRate {
+                FrameRateBadge(framesPerSecond: controller.framesPerSecond, demand: controller.isPaused ? .none : controller.frameDemand)
+            }
             #endif
         }
+        .environment(\.countryCatalog, places)
         .sensoryFeedback(Haptics.select, trigger: selected) { _, new in new != nil }
         .sensoryFeedback(Haptics.markVisited, trigger: celebrations)
         .sensoryFeedback(Haptics.cityLanded, trigger: landings)
+        #if DEBUG
+        .sensoryFeedback(Haptics.markVisited, trigger: worldviewSwitches)
+        #endif
         .sensoryFeedback(Haptics.select, trigger: picks)
         .confirmationDialog(
             Text("Remove \(RegionDisplay.name(for: confirmingUnmark ?? "")) from visited?"),
@@ -258,16 +282,79 @@ struct GlobeScreen: View {
         }
         .task {
             // About a megabyte to decode; search uses it too, so it's ready before anyone types.
-            cityCatalog = await Task.detached(priority: .utility) { CityCatalog.bundled }.value
-            updateCityMarkers()
+            await refreshCityCatalog()
         }
         .onChange(of: controller.isReady) { _, isReady in
-            guard isReady, let geometry = controller.world else { return }
+            guard isReady else { return }
             // The globe starts flying in now, not at launch: loading can take a moment.
             if onboarding == .welcome, !reduceMotion { warpStart = .now }
-            Task { continentMaps = await ContinentMaps.build(world: geometry, catalog: .bundled) }
+            worldDidLoad()
         }
     }
+
+    // MARK: - Worldview
+
+    /// Everything made from the globe's outlines, made again for the borders it now draws:
+    /// the places counted, the continent maps, the search, the cities on disputed land.
+    private func worldDidLoad() {
+        guard let geometry = controller.world else { return }
+        let catalog = CountryCatalog.bundled.limited(to: geometry.countries.map(\.code))
+        places = catalog
+        searchIndex = nil
+        // Saved before (or in another App Store region): a city on disputed land goes with it.
+        world.reassignCities { geometry.owner(at: $0) }
+        Task { continentMaps = await ContinentMaps.build(world: geometry, catalog: catalog) }
+        Task { await refreshCityCatalog() }
+    }
+
+    /// The bundled cities with disputed land given to its owner in the globe's worldview.
+    private func refreshCityCatalog() async {
+        let geometry = controller.world
+        let worldview = geometry.map { _ in controller.worldview }
+        let catalog = await Task.detached(priority: .utility) {
+            geometry.map { geometry in CityCatalog.bundled.relabeled { geometry.owner(at: $0) } } ?? CityCatalog.bundled
+        }.value
+        // Another world came in meanwhile: its own refresh is on the way.
+        guard controller.world.map({ _ in controller.worldview }) == worldview else { return }
+        cityCatalog = catalog
+        updateCityMarkers()
+    }
+
+    #if DEBUG
+    /// The developer zone forced a worldview (`nil`: back to the storefront's). The statistics
+    /// close, and the globe flies to where the borders change and redraws them there.
+    private func forceWorldview(_ forced: Worldview?) {
+        if let forced {
+            UserDefaults.standard.set(forced.rawValue, forKey: WorldviewSource.overrideKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: WorldviewSource.overrideKey)
+        }
+        setShowingStats(false)
+        select(nil)
+        Task {
+            let target = await WorldviewSource.resolve()
+            guard target != controller.worldview else { return }
+            await controller.switchWorldview(target)
+            worldDidLoad()
+            worldviewSwitches += 1
+        }
+    }
+
+    /// The developer zone wiped everything: the first launch again, from the arrival on.
+    private func resetProgress() {
+        world.resetAll()
+        hasOnboarded = false
+        setShowingStats(false)
+        select(nil)
+        justMarked = nil
+        milestoneQueue = []
+        shownMilestone = nil
+        controller.frame(offset: 0, zoom: 1)
+        controller.replayArrival()
+        if !reduceMotion { warpStart = .now }
+        withAnimation(Motion.smooth) { onboarding = .welcome }
+    }
+    #endif
 
     // MARK: - First launch
 
@@ -486,7 +573,7 @@ struct GlobeScreen: View {
     /// has had its moment, one at a time.
     private func queueMilestones(_ milestones: [Milestone], from code: String) {
         guard !milestones.isEmpty else { return }
-        let stats = StatsCalculator.stats(visited: world.visitedCodes, catalog: .bundled)
+        let stats = StatsCalculator.stats(visited: world.visitedCodes, catalog: places)
         let events = milestones.map { milestone in
             var remaining: Int?
             if case .continent(let continent) = milestone,
@@ -521,6 +608,10 @@ struct GlobeScreen: View {
     /// Lets screenshots be scripted from the command line (and later, App Store shots):
     /// `-NomadedDebugVisited IT,FR -NomadedDebugSelect IT -NomadedDebugTap 186,459 -NomadedDebugMarkAfterTap YES`
     /// (`-NomadedDebugTap "186,459;120,300"` taps several times, 3 s apart),
+    /// `-NomadedDebugWorldview rus` draws a region's borders (`standard`, `rus`, `chn`),
+    /// `-NomadedDebugSwitchWorldview rus` switches to them after the intro, as the developer
+    /// zone does, `-NomadedDebugDeveloper YES` (with `-NomadedDebugStats YES`) opens that zone,
+    /// `-NomadedDebugReset YES` wipes the progress after the intro, as its button does,
     /// `-NomadedDebugFly LU` flies to a country after the intro, `-NomadedDebugSearch Ita`
     /// opens the search with a query typed in (`-NomadedDebugSearchCities YES`: on the Cities
     /// tab), `-NomadedDebugSearchPick YES` then picks the
@@ -562,10 +653,12 @@ struct GlobeScreen: View {
             .map { $0.split(separator: ",").compactMap { Double($0) } }
             .filter { $0.count == 2 }
         let fly = defaults.string(forKey: "NomadedDebugFly")
+        let switchesTo = defaults.string(forKey: "NomadedDebugSwitchWorldview").flatMap(Worldview.init(rawValue:))
+        let resets = defaults.bool(forKey: "NomadedDebugReset")
         let search = defaults.string(forKey: "NomadedDebugSearch")
         let showsList = defaults.bool(forKey: "NomadedDebugVisitedList")
         let showsStats = defaults.bool(forKey: "NomadedDebugStats")
-        guard !taps.isEmpty || fly != nil || search != nil || showsList || showsStats || focusesCity
+        guard !taps.isEmpty || fly != nil || switchesTo != nil || resets || search != nil || showsList || showsStats || focusesCity
                 || addsCityTo != nil || landsCity != nil || marks != nil || debugMilestone != nil
         else { return }
         Task {
@@ -579,6 +672,13 @@ struct GlobeScreen: View {
                 toggleVisited(selected)
             }
             if let fly { flyTo(fly) }
+            if resets { resetProgress() }
+            if let switchesTo {
+                // For this run only, unlike the developer zone's switch.
+                await controller.switchWorldview(switchesTo)
+                worldDidLoad()
+                worldviewSwitches += 1
+            }
             if showsList { setShowingVisited(true) }
             if showsStats { setShowingStats(true) }
             if focusesCity, let first = world.cities.first { focus(on: first) }
@@ -818,8 +918,11 @@ private final class DisplayRateMeter: NSObject {
 }
 #endif
 
+#if DEBUG
+// The scratch store exists in Debug only; Release builds (and archives) skip the preview.
 #Preview {
     GlobeScreen()
         .environment(WorldStore.scratch())
         .preferredColorScheme(.dark)
 }
+#endif

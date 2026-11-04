@@ -34,7 +34,9 @@ enum CityCatalogBuilder {
     /// Not cities: research stations, ruins.
     static let skippedClasses: Set<String> = ["Scientific station", "Meteorological Station", "Historic place"]
 
-    static func entries(_ url: URL, countries: Set<String>) throws -> [CityEntry] {
+    /// - Parameter owner: The country disputed land belongs to in the default worldview:
+    ///   Natural Earth files Crimea's cities under Russia, the default globe shows Ukraine.
+    static func entries(_ url: URL, countries: Set<String>, owner: (GeoPoint) -> String? = { _ in nil }) throws -> [CityEntry] {
         guard
             let root = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any],
             let features = root["features"] as? [[String: Any]]
@@ -49,6 +51,7 @@ enum CityCatalogBuilder {
             else { return nil }
             var code = p["ISO_A2"] as? String ?? "-99"
             if code == "-99" { code = codeFallbacks[p["ADM0_A3"] as? String ?? ""] ?? code }
+            code = owner(GeoPoint(lon, lat)) ?? code
             guard countries.contains(code) else { return nil }
 
             // NAMEALT is left out: many of its entries are cut off mid-word ("Ciudad de M").

@@ -99,6 +99,40 @@ final class WorldStore {
         save()
     }
 
+    /// Saved cities on disputed land go to its owner in the globe's worldview, and mark it
+    /// like any city does. Their old country stays marked: there's no telling whether that
+    /// was the city's doing. Returns whether anything moved.
+    @discardableResult
+    func reassignCities(owner: (GeoCoordinate) -> String?) -> Bool {
+        do {
+            var moved = false
+            var marked = visitedCodes
+            for city in try context.fetch(FetchDescriptor<VisitedCity>()) {
+                guard let code = owner(GeoCoordinate(latitude: city.latitude, longitude: city.longitude)), code != city.countryCode else { continue }
+                city.countryCode = code
+                if marked.insert(code).inserted { context.insert(Visit(countryCode: code)) }
+                moved = true
+            }
+            if moved { save() }
+            return moved
+        } catch {
+            Self.log.error("Reassigning cities failed: \(error)")
+            return false
+        }
+    }
+
+    /// Everything marked, every city and medal, gone: a fresh start.
+    func resetAll() {
+        do {
+            try context.delete(model: Visit.self)
+            try context.delete(model: VisitedCity.self)
+            try context.delete(model: EarnedMilestone.self)
+        } catch {
+            Self.log.error("Reset failed: \(error)")
+        }
+        save()
+    }
+
     /// Records every milestone the visited places now reach that wasn't reached before, and
     /// returns them in celebration order. Call it as a mark is celebrated.
     @discardableResult

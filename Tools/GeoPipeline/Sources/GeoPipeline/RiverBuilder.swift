@@ -14,7 +14,7 @@ enum RiverBuilder {
     /// Longer segments are cut, so the line follows the globe's curve.
     static let maximumSegmentDegrees = 0.5
 
-    struct Built {
+    struct Built: Equatable {
         /// Index into the countries, in file order.
         let country: Int
         let points: [GeoPoint]

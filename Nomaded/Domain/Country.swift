@@ -112,6 +112,13 @@ struct CountryCatalog: Sendable {
 
     subscript(code: String) -> Country? { byCode[code] }
 
+    /// Only the places the globe has: China's App Store draws Taiwan as part of China, so no
+    /// list or count shows it on its own there.
+    func limited(to codes: some Sequence<String>) -> CountryCatalog {
+        let codes = Set(codes)
+        return CountryCatalog(countries.filter { codes.contains($0.code) })
+    }
+
     /// Keeps the order of `codes`. Codes the catalog doesn't know are dropped.
     func split(_ codes: some Sequence<String>) -> VisitedPlaces {
         var places = VisitedPlaces()

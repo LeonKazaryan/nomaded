@@ -46,6 +46,14 @@ struct LakeShape: Sendable {
     let shore: [SIMD2<Float>]
 }
 
+/// Land some worldview draws differently (Crimea, Taiwan), and who owns it in this one.
+struct DisputedRegion: Sendable {
+    let code: String
+    let bounds: GeoBounds
+    /// (longitude, latitude), even-odd.
+    let rings: [[SIMD2<Float>]]
+}
+
 /// A river, or the stretch of one inside a single country: it rises with that country.
 struct RiverShape: Sendable {
     /// Index into `WorldGeometry.countries`.
@@ -64,24 +72,78 @@ enum WorldGeometryError: Error {
     case truncated
 }
 
-/// All countries, the larger lakes and the rivers, decoded from the bundled `world.nmgeo`.
-/// The format is documented in Tools/GeoPipeline/Sources/GeoPipeline/WorldFileWriter.swift.
+/// All countries, the larger lakes and the rivers, decoded from the bundled `world.nmgeo`,
+/// with the borders of a worldview laid over it (`world-rus.nmgeo`). The format is
+/// documented in Tools/GeoPipeline/Sources/GeoPipeline/WorldFileWriter.swift.
 struct WorldGeometry: Sendable {
     static let magic: UInt32 = 0x4E4D_4757 // "NMGW"
-    static let version: UInt16 = 4
+    static let version: UInt16 = 5
 
     let countries: [CountryShape]
     let lakes: [LakeShape]
     let rivers: [RiverShape]
+    /// Disputed land with its owner in this worldview.
+    let disputes: [DisputedRegion]
+    /// An overlay: only the countries its worldview changes.
+    let isOverlay: Bool
+    /// In an overlay, the countries its worldview doesn't have.
+    let removedCodes: [String]
 
     /// Decodes off the main thread; the file is a few megabytes.
-    static func loadBundled() async throws -> WorldGeometry {
-        guard let url = Bundle.main.url(forResource: "world", withExtension: "nmgeo") else {
-            throw WorldGeometryError.missingResource
+    static func loadBundled(_ worldview: Worldview = .standard) async throws -> WorldGeometry {
+        func url(_ name: String) throws -> URL {
+            guard let url = Bundle.main.url(forResource: name, withExtension: "nmgeo") else { throw WorldGeometryError.missingResource }
+            return url
         }
+        let base = try url("world")
+        let overlay = try worldview.overlayName.map(url)
         return try await Task.detached(priority: .userInitiated) {
-            try WorldGeometry(data: Data(contentsOf: url, options: .mappedIfSafe))
+            let world = try WorldGeometry(data: Data(contentsOf: base, options: .mappedIfSafe))
+            return try overlay.map { try world.applying(WorldGeometry(data: Data(contentsOf: $0, options: .mappedIfSafe))) } ?? world
         }.value
+    }
+
+    /// The country a point belongs to when it lies on disputed land; `nil` elsewhere, where
+    /// the outlines decide. Exact where the simplified outlines aren't: a city on Crimea's
+    /// coast is never out at sea or across the line.
+    func owner(at coordinate: GeoCoordinate) -> String? {
+        let x = Float(coordinate.longitude), y = Float(coordinate.latitude)
+        return disputes.first { $0.bounds.contains(longitude: x, latitude: y) && GeoMath.ringsContain($0.rings, longitude: x, latitude: y) }?.code
+    }
+
+    /// This world with a worldview's overlay laid over it: its countries replace the base's
+    /// in place (new ones go last), the ones it removes go, and so do their rivers.
+    func applying(_ overlay: WorldGeometry) -> WorldGeometry {
+        let replacements = Dictionary(overlay.countries.map { ($0.code, $0) }, uniquingKeysWith: { first, _ in first })
+        let removed = Set(overlay.removedCodes)
+        var countries: [CountryShape] = []
+        var newIndex: [Int: Int] = [:]
+        for (index, country) in self.countries.enumerated() where !removed.contains(country.code) {
+            newIndex[index] = countries.count
+            countries.append(replacements[country.code] ?? country)
+        }
+        let present = Set(countries.map(\.code))
+        countries += overlay.countries.filter { !present.contains($0.code) }
+        let overlayIndex = overlay.countries.map { country in countries.firstIndex { $0.code == country.code }! }
+
+        let redrawn = removed.union(replacements.keys)
+        let kept = rivers.compactMap { river -> RiverShape? in
+            guard !redrawn.contains(self.countries[river.country].code), let index = newIndex[river.country] else { return nil }
+            return RiverShape(country: index, points: river.points, ranks: river.ranks, weights: river.weights)
+        }
+        let added = overlay.rivers.map { river in
+            RiverShape(country: overlayIndex[river.country], points: river.points, ranks: river.ranks, weights: river.weights)
+        }
+        return WorldGeometry(countries: countries, lakes: lakes, rivers: kept + added, disputes: overlay.disputes, isOverlay: false, removedCodes: [])
+    }
+
+    private init(countries: [CountryShape], lakes: [LakeShape], rivers: [RiverShape], disputes: [DisputedRegion], isOverlay: Bool, removedCodes: [String]) {
+        self.countries = countries
+        self.lakes = lakes
+        self.rivers = rivers
+        self.disputes = disputes
+        self.isOverlay = isOverlay
+        self.removedCodes = removedCodes
     }
 
     init(data: Data) throws {
@@ -89,7 +151,7 @@ struct WorldGeometry: Sendable {
         guard try reader.read(UInt32.self) == Self.magic, try reader.read(UInt16.self) == Self.version else {
             throw WorldGeometryError.badHeader
         }
-        _ = try reader.read(UInt16.self)
+        isOverlay = try reader.read(UInt16.self) & 1 != 0
 
         let count = try reader.readCount()
         var countries: [CountryShape] = []
@@ -121,6 +183,28 @@ struct WorldGeometry: Sendable {
             rivers.append(RiverShape(country: country, points: points, ranks: ranks, weights: weights))
         }
         self.rivers = rivers
+
+        let disputeCount = try reader.readCount()
+        var disputes: [DisputedRegion] = []
+        for _ in 0..<disputeCount {
+            let code = try Self.readCode(&reader)
+            let bounds = try Self.readBounds(&reader)
+            let ringCount = try reader.readCount()
+            var rings: [[SIMD2<Float>]] = []
+            for _ in 0..<ringCount {
+                rings.append(try reader.readArray(SIMD2<Float>.self, count: try reader.readCount()))
+            }
+            disputes.append(DisputedRegion(code: code, bounds: bounds, rings: rings))
+        }
+        self.disputes = disputes
+
+        let removedCount = try reader.readCount()
+        removedCodes = try (0..<removedCount).map { _ in try Self.readCode(&reader) }
+    }
+
+    private static func readCode(_ reader: inout BinaryReader) throws -> String {
+        let length = Int(try reader.read(UInt8.self))
+        return String(decoding: try reader.readArray(UInt8.self, count: length), as: UTF8.self)
     }
 
     private static func readBounds(_ reader: inout BinaryReader) throws -> GeoBounds {
@@ -133,8 +217,7 @@ struct WorldGeometry: Sendable {
     }
 
     private static func readCountry(_ reader: inout BinaryReader) throws -> CountryShape {
-        let codeLength = Int(try reader.read(UInt8.self))
-        let code = String(decoding: try reader.readArray(UInt8.self, count: codeLength), as: UTF8.self)
+        let code = try readCode(&reader)
         let colorSlot = Int(try reader.read(UInt8.self))
 
         let labelLongitude = try reader.readFloat()

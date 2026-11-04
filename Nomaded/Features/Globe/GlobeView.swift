@@ -12,7 +12,7 @@ struct GlobeView: View {
     var body: some View {
         GeometryReader { proxy in
             GlobeSurface(controller: controller, isPaused: controller.isPaused)
-            .task { await controller.load() }
+            .task { await controller.load(await WorldviewSource.resolve()) }
             // An overlay, not a ZStack sibling: the glow is wider than the screen and must
             // not push the globe off-center.
             .overlay {
