@@ -126,6 +126,9 @@ final class GlobeController {
     @ObservationIgnored private var touchIncludedPinch = false
     @ObservationIgnored private var flight: Flight?
     @ObservationIgnored private var liftScale = 1.0
+    /// Countries too small to see or tap from afar, with their dot's spot and how big the
+    /// country itself is (angular radius), so the dot can fade as it grows.
+    @ObservationIgnored private var microStates: [(code: String, coordinate: GeoCoordinate, radius: Double)] = []
     /// The slow spin on the whole globe after a few idle seconds is on.
     @ObservationIgnored private var isAutoRotating = false
     /// Wakes a globe at rest for the idle spin, which starts on a timer, not a touch.
@@ -357,6 +360,12 @@ final class GlobeController {
                 color: shape.code.isEmpty ? style.unclaimedLand : style.idleColor(slot: shape.colorSlot)
             )
         }
+        microStates = world.countries.compactMap { shape in
+            guard !shape.code.isEmpty else { return nil }
+            let area = shape.areaKm2
+            guard area < GlobeTuning.microStateAreaKm2 else { return nil }
+            return (shape.code, shape.label, (area / .pi).squareRoot() / GeoMath.earthRadiusKm)
+        }
         for (index, shape) in world.countries.enumerated() where !shape.code.isEmpty {
             var node = CountryNode(
                 shape: shape,
@@ -528,6 +537,17 @@ final class GlobeController {
         let growth = min(1, max(0, (zoom.value - 1) / (full - 1)))
         let radius = GlobeTuning.cityDotRadius.lowerBound + (GlobeTuning.cityDotRadius.upperBound - GlobeTuning.cityDotRadius.lowerBound) * growth
 
+        // Tiny countries first: city dots go on top of them.
+        for micro in microStates {
+            guard let node = nodes[micro.code], let alpha = microStateAlpha(micro.radius), alpha > 0.01 else { continue }
+            let lift = renderer.pieces[node.index].scale * GlobeTuning.landRadius * 1.0004
+            markers.append(GlobeRenderer.Marker(
+                position: SIMD4(SIMD3<Float>(GeoMath.unitVector(micro.coordinate)) * lift, GlobeTuning.microStateDotRadius),
+                color: SIMD4(node.currentColor, alpha),
+                params: SIMD4(1, -1, Float(max(0, node.highlight.value)), 2)
+            ))
+        }
+
         for city in cities {
             guard var motion = cityMotion[city.id], let node = nodes[city.countryCode] else { continue }
             if pendingLandings.contains(city.id) {
@@ -626,6 +646,32 @@ final class GlobeController {
         return camera.screenPoint(ofWorld: world)
     }
 
+    /// How strongly a tiny country's dot shows: fully while the country is a speck on
+    /// screen, gone once it's big enough to see and tap itself.
+    private func microStateAlpha(_ radius: Double) -> Float? {
+        func smoothstep(_ range: ClosedRange<Double>, _ x: Double) -> Double {
+            let t = min(1, max(0, (x - range.lowerBound) / (range.upperBound - range.lowerBound)))
+            return t * t * (3 - 2 * t)
+        }
+        let shown = smoothstep(GlobeTuning.microStateZoom, zoom.value)
+        let tooBig = smoothstep(GlobeTuning.microStateFade, radius * camera.pointsPerRadian)
+        return Float(shown * (1 - tooBig))
+    }
+
+    /// The tiny country whose dot is under the finger, if its dot shows, and how far off.
+    private func microState(at point: CGPoint) -> (micro: (code: String, coordinate: GeoCoordinate), distance: Double)? {
+        let orientation = GlobeOrientation(yaw: yaw.value, pitch: pitch.value)
+        return microStates
+            .filter { (microStateAlpha($0.radius) ?? 0) > 0.3 }
+            .compactMap { micro -> (micro: (code: String, coordinate: GeoCoordinate), distance: Double)? in
+                let world = orientation.quaternion.act(GeoMath.unitVector(micro.coordinate) * Double(GlobeTuning.landRadius))
+                guard camera.faces(worldPoint: world), let screen = camera.screenPoint(ofWorld: world) else { return nil }
+                return ((micro.code, micro.coordinate), hypot(screen.x - point.x, screen.y - point.y))
+            }
+            .filter { $0.distance < GlobeTuning.microStateDotTapRadius * 2 }
+            .min { $0.distance < $1.distance }
+    }
+
     private func city(at point: CGPoint) -> UUID? {
         let radius = GlobeTuning.cityTapRadius
         return cities
@@ -717,6 +763,11 @@ final class GlobeController {
         guard !touchIncludedPinch else { return }
         if let city = city(at: point), let onCityTap {
             onCityTap(city)
+        } else if let hit = microState(at: point), hit.distance < GlobeTuning.microStateDotTapRadius
+                    || [nil, hit.micro.code].contains(country(at: point)) {
+            // Its fill starts from the dot, not from the sea next to it.
+            lastTouch = hit.micro
+            onCountryTap?(hit.micro.code)
         } else {
             let code = country(at: point)
             lastTouch = code.flatMap { code in coordinate(at: point).map { (code, $0) } }

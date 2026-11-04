@@ -24,20 +24,25 @@ struct CountryPeekCard: View {
     let onClose: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .headline) private var buttonHeight = 54
 
     var body: some View {
+        let name = RegionDisplay.name(for: code)
+        let isLarge = dynamicTypeSize.isAccessibilitySize
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 14) {
                 Text(verbatim: RegionDisplay.flag(for: code))
-                    .font(.system(size: 48))
+                    .font(.system(size: isLarge ? 36 : 48))
                     .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(verbatim: RegionDisplay.name(for: code))
+                    Text(verbatim: name)
                         .font(Typography.title)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.8)
+                        // A one-word name shrinks rather than breaking mid-word ("Фран-ция");
+                        // a longer one wraps between its words.
+                        .lineLimit(name.contains(" ") ? 2 : 1)
+                        .minimumScaleFactor(isLarge ? 0.5 : 0.8)
                     Text(isVisited ? "Visited" : "Not visited yet")
                         .font(Typography.label)
                         .foregroundStyle(.secondary)
@@ -59,7 +64,8 @@ struct CountryPeekCard: View {
                 .accessibilityLabel("Close")
             }
 
-            HStack(spacing: 10) {
+            // With the largest text the two buttons can't share a row.
+            (isLarge ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(spacing: 10))) {
                 Button(action: onToggleVisited) {
                     HStack(spacing: 8) {
                         Image(systemName: isVisited ? "checkmark.seal.fill" : "plus.circle.fill")
@@ -67,7 +73,7 @@ struct CountryPeekCard: View {
                         if !isVisited {
                             Text("Mark as visited")
                                 .lineLimit(1)
-                                .minimumScaleFactor(0.8)
+                                .minimumScaleFactor(isLarge ? 0.6 : 0.8)
                                 .transition(.opacity)
                         }
                     }
@@ -107,7 +113,7 @@ struct CountryPeekCard: View {
                 PassportStamp(code: code, date: visitedSince, ink: stampInk, slamsIn: stampSlams)
                     // Pressed across the card's top edge, left of the close button.
                     .offset(x: -58, y: -26)
-                    .transition(.scale(scale: 0.7).combined(with: .opacity))
+                    .transition(reduceMotion ? .opacity : .scale(scale: 0.7).combined(with: .opacity))
             }
         }
         .animation(reduceMotion ? Motion.snappy : Motion.bouncy, value: isVisited)

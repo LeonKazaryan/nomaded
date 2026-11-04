@@ -4,12 +4,42 @@
     "" : {
 
     },
+    "%@ added" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Город %@ добавлен"
+          }
+        }
+      }
+    },
+    "%@ marked as visited" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ — в посещённых"
+          }
+        }
+      }
+    },
     "%@ of all land" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ всей суши"
+          }
+        }
+      }
+    },
+    "%@ removed from visited" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ больше не в посещённых"
           }
         }
       }
@@ -544,12 +574,12 @@
         }
       }
     },
-    "Drag to spin, pinch to zoom, tap a country to select it" : {
+    "Drag to spin, pinch to zoom, tap a country to select it. Actions open the search and your lists." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Проведите пальцем, чтобы вращать, сведите пальцы для масштаба, коснитесь страны, чтобы выбрать её"
+            "value" : "Проведите пальцем, чтобы вращать, сведите пальцы для масштаба, коснитесь страны, чтобы выбрать её. В действиях — поиск и ваши списки."
           }
         }
       }

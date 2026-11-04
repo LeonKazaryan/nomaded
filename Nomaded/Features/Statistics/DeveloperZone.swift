@@ -44,14 +44,15 @@ struct DeveloperZone: View {
     let tools: DeveloperTools
     let pulls: Int
     let isOpen: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         if isOpen {
             DeveloperPanel(tools: tools)
-                .transition(.scale(scale: 0.8, anchor: .top).combined(with: .opacity))
+                .transition(reduceMotion ? .opacity : .scale(scale: 0.8, anchor: .top).combined(with: .opacity))
         } else if pulls > 0 {
             hint
-                .transition(.scale(scale: 0.5).combined(with: .opacity))
+                .transition(reduceMotion ? .opacity : .scale(scale: 0.5).combined(with: .opacity))
         }
     }
 

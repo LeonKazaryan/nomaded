@@ -173,7 +173,8 @@ struct Marker {
     /// The country's color, for the rim and the glow.
     float4 color;
     /// x: size multiplier (a landing city starts big). y: landing ring 0…1, below 0 none.
-    /// z: highlight 0…1. w: 1 for a capital, drawn as a star.
+    /// z: highlight 0…1. w: 1 for a capital, drawn as a star; 2 for a country too small to
+    /// see (Vatican, Malta), drawn as a dot of its own color.
     float4 params;
 };
 
@@ -203,7 +204,7 @@ vertex MarkerFragment markerVertex(uint vertexID [[vertex_id]],
     float radius = marker.position.w * marker.params.x * (1 + 0.35 * marker.params.z);
     float ripple = marker.params.y;
     // A star's points reach well past a dot's edge.
-    float reach = radius * (marker.params.w > 0.5 ? 1.8 : 1);
+    float reach = radius * (marker.params.w > 0.5 && marker.params.w < 1.5 ? 1.8 : 1);
     // Room for the glow, and for the landing ring while it spreads.
     float extent = max(reach * 3.2, ripple >= 0 ? reach + 34 : 0);
     float2 corner = float2((vertexID & 1) ? 1 : -1, (vertexID & 2) ? 1 : -1);
@@ -245,15 +246,31 @@ static float4 over(float4 destination, float3 color, float alpha) {
 
 // White core, a rim in the country's color, a dark hairline so it reads on any land, and
 // a soft glow. A capital is the same, shaped as a star. A landing city also sends out a ring.
+// A tiny country is the other way round: its own color inside, a light rim, so it never
+// reads as a city. Alpha fades it out as the country itself grows big enough to see.
 fragment float4 markerFragment(MarkerFragment in [[stage_in]]) {
     float r = length(in.local);
     float core = in.radius;
-    // Distance to the shape's edge, in points: negative inside.
-    float d = in.star > 0.5 ? starDistance(in.local, core * 1.8, 0.48) : r - core;
     float3 tint = in.color.rgb;
     float4 result = float4(0);
+    // Glows fade out before the quad's edge (3.2 radii out), so it never shows as a square.
+    float window = 1 - smoothstep(core * 2.2, core * 3.1, r);
 
-    float glow = exp(-pow(max(d, 0.0) / (core * (1.1 + in.highlight)), 2)) * (0.45 + 0.4 * in.highlight);
+    if (in.star > 1.5) {
+        float d = r - core;
+        float glow = exp(-pow(max(d, 0.0) / (core * (1.2 + in.highlight)), 2)) * (0.3 + 0.5 * in.highlight) * window;
+        result = over(result, tint, glow * step(0.0, d));
+        result = over(result, float3(0.05, 0.04, 0.12), (1 - smoothstep(1.6, 2.4, d)) * 0.55);
+        result = over(result, mix(float3(1), tint, 0.25), 1 - smoothstep(0.6, 1.4, d));
+        result = over(result, tint, 1 - smoothstep(-0.5, 0.5, d + core * 0.3));
+        return result * in.fade * in.color.a;
+    }
+
+    // Distance to the shape's edge, in points: negative inside.
+    float d = in.star > 0.5 ? starDistance(in.local, core * 1.8, 0.48) : r - core;
+
+    float glow = exp(-pow(max(d, 0.0) / (core * (1.1 + in.highlight)), 2)) * (0.45 + 0.4 * in.highlight)
+        * (in.star > 0.5 ? 1.0 : window);
     result = over(result, tint, glow * step(0.0, d));
 
     if (in.ripple >= 0) {

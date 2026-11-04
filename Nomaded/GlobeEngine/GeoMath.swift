@@ -12,6 +12,9 @@ struct GeoCoordinate: Equatable, Sendable {
 /// Convention (must match Tools/GeoPipeline): +Y is north, latitude/longitude (0, 0)
 /// faces +Z, and +X points to 90°E.
 enum GeoMath {
+    /// Mean Earth radius.
+    static let earthRadiusKm = 6371.0088
+
     static func radians(_ degrees: Double) -> Double { degrees * .pi / 180 }
 
     static func unitVector(_ coordinate: GeoCoordinate) -> SIMD3<Double> {

@@ -66,6 +66,10 @@ struct GlobeScreen: View {
 
             GlobeView(controller: controller)
                 .ignoresSafeArea()
+                // VoiceOver can't spin or tap the globe; everything it does is a list away.
+                .accessibilityAction(named: Text("Search countries")) { setSearching(true) }
+                .accessibilityAction(named: Text("Visited countries")) { setShowingVisited(true) }
+                .accessibilityAction(named: Text("Statistics")) { setShowingStats(true) }
                 // Under the statistics the globe steps back and dims, still in view; under a
                 // milestone it only dims (the milestone's own dark veil frames it).
                 .scaleEffect(isShowingStats && !reduceMotion ? 0.8 : 1)
@@ -135,7 +139,7 @@ struct GlobeScreen: View {
                             onClose: { select(nil) }
                         )
                         .id(selected)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
                     }
                 }
                 .padding(.horizontal, 16)
@@ -259,6 +263,9 @@ struct GlobeScreen: View {
             controller.onCityTap = { selectCity($0) }
             controller.onCityLanded = { id, point, marksCountry in
                 landings += 1
+                if !marksCountry, let city = world.cities.first(where: { $0.id == id }) {
+                    announce("\(city.name) added")
+                }
                 if marksCountry, let city = world.cities.first(where: { $0.id == id }) {
                     awaitingLanding = nil
                     celebrateMark(city.countryCode, at: point)
@@ -550,6 +557,12 @@ struct GlobeScreen: View {
         world.unmarkVisited(code)
         controller.drain(code)
         if justMarked == code { justMarked = nil }
+        announce("\(RegionDisplay.name(for: code)) removed from visited")
+    }
+
+    /// Said by VoiceOver: the fill, the stamp and the haptic say it to everyone else.
+    private func announce(_ message: LocalizedStringResource) {
+        AccessibilityNotification.Announcement(String(localized: message)).post()
     }
 
     /// The SwiftUI half of marking a country, after the globe's fill and ring: the haptic,
@@ -558,6 +571,7 @@ struct GlobeScreen: View {
         celebrations += 1
         justMarked = code
         queueMilestones(world.earnMilestones(), from: code)
+        announce("\(RegionDisplay.name(for: code)) marked as visited")
         guard !reduceMotion, let point, let color = controller.visitedColor(of: code) else { return }
         let candy = Color(components: color)
         let pale = Color(components: color + (SIMD3(repeating: 1) - color) * 0.5)
@@ -745,19 +759,21 @@ private struct TopBar: View {
         .accessibilityHint(isShowingVisited ? "Hides the list" : "Shows the countries you've visited")
         .frame(maxWidth: .infinity)
         .overlay(alignment: .leading) {
-            RoundButton(systemImage: "chart.bar.fill", action: onStats)
+            RoundButton(title: "Statistics", systemImage: "chart.bar.fill", action: onStats)
                 .disabled(!isReady)
-                .accessibilityLabel("Statistics")
         }
         .overlay(alignment: .trailing) {
-            RoundButton(systemImage: "magnifyingglass", action: onSearch)
+            RoundButton(title: "Search countries", systemImage: "magnifyingglass", action: onSearch)
                 .disabled(!isReady)
-                .accessibilityLabel("Search countries")
         }
+        // A bar: it stops growing at the largest regular size, and a long press shows its
+        // buttons big instead (the large content viewer).
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 }
 
 private struct RoundButton: View {
+    let title: LocalizedStringKey
     let systemImage: String
     let action: () -> Void
 
@@ -769,6 +785,8 @@ private struct RoundButton: View {
                 .glass(Circle())
         }
         .buttonStyle(.pressable)
+        .accessibilityLabel(title)
+        .accessibilityShowsLargeContentViewer { Label(title, systemImage: systemImage) }
     }
 }
 
@@ -780,6 +798,7 @@ private struct WorldSummaryChip: View {
     let isExpanded: Bool
 
     @State private var bumps: [UUID] = []
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 8) {
@@ -792,7 +811,7 @@ private struct WorldSummaryChip: View {
                     .foregroundStyle(.secondary)
                     .contentTransition(.numericText(value: Double(territories)))
                     .accessibilityLabel(Text("+\(territories) territories"))
-                    .transition(.scale(scale: 0.5).combined(with: .opacity))
+                    .transition(reduceMotion ? .opacity : .scale(scale: 0.5).combined(with: .opacity))
             }
             // Hints that the counter opens the list.
             Image(systemName: "chevron.down")

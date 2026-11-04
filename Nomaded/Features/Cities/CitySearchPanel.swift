@@ -48,9 +48,13 @@ struct CitySearchPanel: View {
                 Button("Cancel", action: onCancel)
                     .font(Typography.label)
                     .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .fixedSize()
                     .frame(minHeight: 44)
                     .buttonStyle(.pressable)
             }
+            // Bars stop growing at the largest regular size.
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             CityResults(search: search, hint: "Start typing a city's name", onPick: pick)
         }
         .frame(maxHeight: .infinity, alignment: .top)

@@ -191,6 +191,8 @@ struct StatisticsScreen: View {
         HStack {
             Text("Statistics")
                 .font(Typography.largeTitle)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
             Spacer()
             Button(action: onClose) {
                 Image(systemName: "xmark")
@@ -458,6 +460,8 @@ private struct SectionHeader<Trailing: View>: View {
         HStack(alignment: .firstTextBaseline) {
             Text(title)
                 .font(Typography.headline)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
             Spacer()
             trailing
                 .font(Typography.label)

@@ -23,6 +23,7 @@ struct PickCountriesStep: View {
     @FocusState private var isSearchFocused: Bool
     @ScaledMetric(relativeTo: .body) private var rowHeight = 54
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         GeometryReader { proxy in
@@ -64,7 +65,10 @@ struct PickCountriesStep: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 12) {
+        // With the largest text "Skip" gets a row of its own, so the title has the width.
+        let isLarge = dynamicTypeSize.isAccessibilitySize
+        return (isLarge ? AnyLayout(VStackLayout(alignment: .trailing, spacing: 0)) : AnyLayout(HStackLayout(alignment: .top, spacing: 12))) {
+            if isLarge { skip }
             VStack(alignment: .leading, spacing: 4) {
                 Text("Where have you been?")
                     .font(Typography.title)
@@ -72,14 +76,18 @@ struct PickCountriesStep: View {
                     .font(Typography.caption)
                     .foregroundStyle(.secondary)
             }
-            Spacer(minLength: 0)
-            Button("Skip", action: onDone)
-                .font(Typography.label)
-                .foregroundStyle(.secondary)
-                .frame(minHeight: 44)
-                .buttonStyle(.pressable)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if !isLarge { skip }
         }
         .padding(.top, 8)
+    }
+
+    private var skip: some View {
+        Button("Skip", action: onDone)
+            .font(Typography.label)
+            .foregroundStyle(.secondary)
+            .frame(minHeight: 44)
+            .buttonStyle(.pressable)
     }
 
     private func panelHeight(in height: Double) -> Double {
@@ -150,7 +158,7 @@ struct PickCountriesStep: View {
                         .padding(.vertical, 2)
                         .background(.white.opacity(0.25), in: Capsule())
                         .contentTransition(.numericText(value: Double(count)))
-                        .transition(.scale.combined(with: .opacity))
+                        .transition(reduceMotion ? .opacity : .scale.combined(with: .opacity))
                 }
             }
             .animation(Motion.bouncy, value: count)

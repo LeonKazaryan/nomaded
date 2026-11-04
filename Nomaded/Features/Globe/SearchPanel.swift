@@ -65,9 +65,13 @@ struct SearchPanel: View {
                 Button("Cancel", action: onCancel)
                     .font(Typography.label)
                     .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .fixedSize()
                     .frame(minHeight: 44)
                     .buttonStyle(.pressable)
             }
+            // Bars stop growing at the largest regular size.
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
 
             PillPicker(
                 options: [
@@ -76,6 +80,7 @@ struct SearchPanel: View {
                 ],
                 selection: $mode
             )
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
 
             Group {
                 switch mode {

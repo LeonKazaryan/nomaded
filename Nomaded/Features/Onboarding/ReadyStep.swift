@@ -9,6 +9,7 @@ struct ReadyStep: View {
     @Binding var globeRoom: GlobeRoom
     let onFinish: () -> Void
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(WorldStore.self) private var world
     @State private var appeared = false
     @State private var cheers = 0
@@ -50,7 +51,8 @@ struct ReadyStep: View {
     }
 
     private func summary(_ stats: WorldStats) -> some View {
-        HStack(spacing: 18) {
+        // With the largest text the numbers go under the ring, where they have the width.
+        (dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 12)) : AnyLayout(HStackLayout(spacing: 18))) {
             WorldProgressRing(progress: stats.countries.share)
                 .frame(width: ringSize, height: ringSize)
             VStack(alignment: .leading, spacing: 6) {
@@ -58,6 +60,8 @@ struct ReadyStep: View {
                 Text("\(stats.visitedContinents) of \(stats.continents.count) continents")
                     .font(Typography.label)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
             .frame(maxWidth: .infinity)
         }

@@ -149,6 +149,24 @@ struct WorldGeometryTests {
         #expect(zip(ends, ends.dropFirst()).allSatisfy { ($0 & 2 != 0) == ($1 & 1 != 0) })
     }
 
+    /// Countries too small to see from afar get a dot (`GlobeTuning.microStateAreaKm2`).
+    @Test func tinyCountriesGetADot() async throws {
+        let world = try await WorldGeometry.loadBundled()
+        let area = { (code: String) in world.countries.first { $0.code == code }!.areaKm2 }
+        let tiny = Set(world.countries.filter { !$0.code.isEmpty && $0.areaKm2 < GlobeTuning.microStateAreaKm2 }.map(\.code))
+
+        for code in ["VA", "MC", "SM", "LI", "AD", "MT", "SG", "MV", "TV", "NR"] {
+            #expect(tiny.contains(code), "\(code) should get a dot")
+        }
+        for code in ["LU", "IT", "CY", "BH"] where area(code) > GlobeTuning.microStateAreaKm2 {
+            #expect(!tiny.contains(code))
+        }
+        // The mesh area is close to the real one.
+        #expect(abs(area("MT") - 316) < 60)
+        #expect(abs(area("LU") - 2_586) < 300)
+        #expect(area("VA") < 2)
+    }
+
     @Test func neighboursNeverShareAColor() async throws {
         let world = try await WorldGeometry.loadBundled()
         let slots = Dictionary(uniqueKeysWithValues: world.countries.filter { !$0.code.isEmpty }.map { ($0.code, $0.colorSlot) })

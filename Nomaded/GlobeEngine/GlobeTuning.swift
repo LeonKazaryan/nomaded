@@ -122,6 +122,23 @@ enum GlobeTuning {
 
     static let tapSlop = 10.0
     static let microStateTapRadius = 14.0
+
+    // MARK: Tiny countries
+
+    /// Countries and territories smaller than this (km²) get a dot: Vatican, Monaco, Malta,
+    /// Singapore, island nations. Luxembourg (2 600) is big enough to see up close.
+    static let microStateAreaKm2 = 1_000.0
+    static let microStateDotRadius: Float = 4.2
+    /// The dot fades out between these on-screen radii of the country itself, in points:
+    /// once it's big enough to see and tap, it needs no dot.
+    static let microStateFade = 3.0...9.0
+    /// …and fades in over this zoom: on the whole globe Italy is a few dozen points, and
+    /// the Vatican's and San Marino's dots would cover it.
+    static let microStateZoom = 1.4...2.2
+    /// A tap this close to a tiny country's dot picks it, in points: on the dot itself
+    /// always, out to twice as far when the finger is on the sea or on that country.
+    /// Further out on a neighbour's land (Rome's suburbs around the Vatican) the land wins.
+    static let microStateDotTapRadius = 7.0
     /// Share of the screen width a tapped country takes once the globe has turned to it:
     /// up close a tap on Russia pulls back, from afar a tap on Belgium moves in.
     static let tapFitFraction = 0.6

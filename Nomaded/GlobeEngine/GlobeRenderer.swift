@@ -41,7 +41,7 @@ final class GlobeRenderer {
         var position: SIMD4<Float>
         var color: SIMD4<Float>
         /// x: size multiplier, y: landing ring 0…1 (below 0: none), z: highlight 0…1,
-        /// w: 1 for a capital, drawn as a star.
+        /// w: 1 for a capital, drawn as a star; 2 for a tiny country's dot. color.a fades it.
         var params: SIMD4<Float>
     }
 

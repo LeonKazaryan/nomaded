@@ -38,6 +38,20 @@ struct CountryShape: Sendable {
     let indices: [UInt32]
 }
 
+extension CountryShape {
+    /// Its land area from the mesh: plenty exact to tell Malta from Luxembourg.
+    var areaKm2: Double {
+        var area = 0.0
+        for t in stride(from: 0, to: indices.count - 2, by: 3) {
+            let a = SIMD3<Double>(vertices[Int(indices[t])])
+            let b = SIMD3<Double>(vertices[Int(indices[t + 1])])
+            let c = SIMD3<Double>(vertices[Int(indices[t + 2])])
+            area += simd_length(simd_cross(b - a, c - a)) / 2
+        }
+        return area * GeoMath.earthRadiusKm * GeoMath.earthRadiusKm
+    }
+}
+
 /// A lake the pipeline cut out of the land. The countries already show it as water; its
 /// shore is kept to tell a tap on the lake from one on the ocean.
 struct LakeShape: Sendable {

@@ -35,7 +35,7 @@ struct GlobeView: View {
         }
         .accessibilityElement()
         .accessibilityLabel("Globe")
-        .accessibilityHint("Drag to spin, pinch to zoom, tap a country to select it")
+        .accessibilityHint("Drag to spin, pinch to zoom, tap a country to select it. Actions open the search and your lists.")
     }
 
     private var rotateGesture: some Gesture {
