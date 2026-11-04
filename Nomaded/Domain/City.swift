@@ -11,6 +11,11 @@ struct CityPin: Identifiable, Equatable, Sendable {
     let latitude: Double
     let longitude: Double
     let createdAt: Date
+
+    /// The same city under another name, for display.
+    func renamed(_ name: String) -> CityPin {
+        CityPin(id: id, name: name, region: region, countryCode: countryCode, latitude: latitude, longitude: longitude, createdAt: createdAt)
+    }
 }
 
 /// A city picked in search, before it's saved.
@@ -20,6 +25,35 @@ struct CityDraft: Equatable, Sendable {
     let countryCode: String
     let latitude: Double
     let longitude: Double
+}
+
+enum PlaceNames {
+    /// The language the app's own strings came out in ("en" or "ru").
+    static var appLanguage: String { Bundle.main.preferredLocalizations.first ?? "en" }
+
+    /// A name in letters the app's language reads. Cities the bundled list knows already come
+    /// in that language; this is for the rest, as Maps or the user's own search typed them.
+    /// An English app gets Cyrillic the way English spells Russian names ("Шымкент" →
+    /// "Shymkent"); a Russian app keeps Cyrillic and Latin as they are; other scripts
+    /// become Latin in both.
+    static func readable(_ name: String, language: String = appLanguage) -> String {
+        let readsCyrillic = language.hasPrefix("ru")
+        let isForeign = name.unicodeScalars.contains { scalar in
+            guard scalar.properties.isAlphabetic, !isLatin(scalar) else { return false }
+            return !(readsCyrillic && (0x400...0x52F).contains(scalar.value))
+        }
+        guard isForeign,
+              let latin = name.applyingTransform(StringTransform("Russian-Latin/BGN; Any-Latin; Latin-ASCII"), reverse: false)
+        else { return name }
+        // Soft signs and Kazakh marks come out as apostrophes nobody writes: "Ust'-Kamenogorsk".
+        let plain = latin.filter { !"'ʹˌ".contains($0) }
+        // Scripts without capitals come out all lowercase: "bei jing".
+        return plain == plain.lowercased() ? plain.capitalized : plain
+    }
+
+    private static func isLatin(_ scalar: Unicode.Scalar) -> Bool {
+        scalar.value < 0x250 || (0x1E00...0x1EFF).contains(scalar.value)
+    }
 }
 
 enum CityMath {

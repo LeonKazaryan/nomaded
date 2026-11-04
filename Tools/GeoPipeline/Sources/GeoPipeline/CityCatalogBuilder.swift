@@ -14,7 +14,7 @@ struct CityEntry: Encodable {
     let lat: Double
     let lon: Double
     let population: Int
-    let capital: Bool
+    var capital: Bool
 }
 
 /// Natural Earth's populated places (~7,300) → the app's city list.
@@ -23,7 +23,14 @@ enum CityCatalogBuilder {
     /// them in.
     static let codeFallbacks = ["KOS": "XK", "CYN": "CY", "SOL": "SO"]
     /// Cities renamed since Natural Earth's data; the old names still find them.
-    static let renames: [String: (name: String, nameRu: String)] = ["Nur-Sultan": ("Astana", "Астана")]
+    static let renames: [String: (name: String, nameRu: String)] = [
+        "Nur-Sultan": ("Astana", "Астана"),
+        // Natural Earth has the Soviet "Алма-Ата"; Kazakhstan and Apple Maps say "Алматы".
+        "Almaty": ("Almaty", "Алматы"),
+    ]
+    /// Natural Earth lists a few cities twice, a few kilometres apart (two Aktau, two
+    /// Denpasar): closer than this, with one name and one region, they're one city.
+    static let duplicateKm = 15.0
     /// Not cities: research stations, ruins.
     static let skippedClasses: Set<String> = ["Scientific station", "Meteorological Station", "Historic place"]
 
@@ -33,7 +40,7 @@ enum CityCatalogBuilder {
             let features = root["features"] as? [[String: Any]]
         else { throw PipelineError.malformed("populated places") }
 
-        return features.compactMap { feature -> CityEntry? in
+        let entries = features.compactMap { feature -> CityEntry? in
             guard let p = feature["properties"] as? [String: Any],
                   var name = (p["NAME_EN"] as? String) ?? (p["NAME"] as? String),
                   let lat = (p["LATITUDE"] as? NSNumber)?.doubleValue,
@@ -70,6 +77,57 @@ enum CityCatalogBuilder {
             )
         }
         .sorted { ($0.population, $1.name) > ($1.population, $0.name) }
+        return withoutDuplicates(entries)
+    }
+
+    /// Keeps the bigger of two entries for one city. Twin cities across a border keep both:
+    /// Kansas City, Missouri and Kansas City, Kansas are two cities.
+    static func withoutDuplicates(_ entries: [CityEntry]) -> [CityEntry] {
+        var kept: [CityEntry] = []
+        var byCountry: [String: [Int]] = [:]
+        for entry in entries {
+            let twin = byCountry[entry.code, default: []].first { index in
+                let other = kept[index]
+                return other.name == entry.name
+                    && distanceKm(other.lat, other.lon, entry.lat, entry.lon) < duplicateKm
+                    && editDistance(fold(other.region ?? ""), fold(entry.region ?? "")) <= 2
+            }
+            if let twin {
+                // Natural Earth's typos aside ("Kasssrine"), a capital stays one.
+                kept[twin].capital = kept[twin].capital || entry.capital
+                continue
+            }
+            byCountry[entry.code, default: []].append(kept.count)
+            kept.append(entry)
+        }
+        return kept
+    }
+
+    private static func fold(_ text: String) -> String {
+        text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+    }
+
+    private static func editDistance(_ a: String, _ b: String) -> Int {
+        let a = Array(a), b = Array(b)
+        var row = Array(0...b.count)
+        for i in 1...max(a.count, 1) where !a.isEmpty {
+            var previous = row[0]
+            row[0] = i
+            for j in stride(from: 1, through: b.count, by: 1) {
+                let current = row[j]
+                row[j] = min(row[j] + 1, row[j - 1] + 1, previous + (a[i - 1] == b[j - 1] ? 0 : 1))
+                previous = current
+            }
+        }
+        return row[b.count]
+    }
+
+    private static func distanceKm(_ lat1: Double, _ lon1: Double, _ lat2: Double, _ lon2: Double) -> Double {
+        let radians = Double.pi / 180
+        let dLat = (lat2 - lat1) * radians
+        let dLon = (lon2 - lon1) * radians
+        let h = sin(dLat / 2) * sin(dLat / 2) + cos(lat1 * radians) * cos(lat2 * radians) * sin(dLon / 2) * sin(dLon / 2)
+        return 2 * 6371.0088 * asin(min(1, h.squareRoot()))
     }
 
     static func encode(_ entries: [CityEntry]) throws -> Data {

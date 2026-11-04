@@ -4,8 +4,11 @@ import Observation
 /// Finds cities as the user types, from two sources:
 /// - the bundled `CityCatalog` first: instant, offline, ranked by match and then by size,
 ///   so London, UK comes before London, Kentucky, with capitals marked;
-/// - then MapKit for everything smaller: names in the user's language, no API key, no
-///   location permission, only cities (iOS 18's address filter), minus the ones above.
+/// - then MapKit for everything smaller: no API key, no location permission, only cities
+///   (iOS 18's address filter).
+/// Every row looks the same whatever it came from: the name, then the country's flag and
+/// name in the app's language. A city Maps finds that the bundled list has ("Алматы" for
+/// Almaty) shows once, as the list's; one Maps can't place in a country doesn't show.
 /// Either the whole world, or strictly one country: the "+ City" button in a country's card.
 /// There, an empty field already lists the country's cities, capital first, then by size.
 @Observable @MainActor
@@ -13,7 +16,7 @@ final class CitySearch: NSObject {
     struct Result: Identifiable {
         fileprivate enum Source {
             case known(KnownCity)
-            case maps(MKLocalSearchCompletion)
+            case maps(MapsHit, place: CompletionPlace, countryCode: String)
         }
 
         let id: String
@@ -21,6 +24,13 @@ final class CitySearch: NSObject {
         let subtitle: String
         let isCapital: Bool
         fileprivate let source: Source
+    }
+
+    /// One Maps suggestion as text, and the completion to look it up with (none in tests).
+    struct MapsHit {
+        let title: String
+        let subtitle: String
+        var completion: MKLocalSearchCompletion?
     }
 
     /// Why there are no results to show.
@@ -44,29 +54,37 @@ final class CitySearch: NSObject {
             let trimmed = query.trimmingCharacters(in: .whitespaces)
             completer.queryFragment = trimmed
             if trimmed.isEmpty {
-                known = country.map { catalog.cities(in: $0.code) } ?? []
+                known = country.map { catalog.cities(in: $0) } ?? []
                 fromMaps = []
             } else {
-                known = catalog.search(trimmed, in: country?.code)
+                known = catalog.search(trimmed, in: country)
             }
             merge()
         }
     }
 
-    /// The country searched in, if any: its code and its name folded for matching.
-    private let country: (code: String, name: String)?
+    /// The country searched in, if any.
+    private let country: String?
     @ObservationIgnored private let catalog: CityCatalog
+    /// Tells which country a Maps result is in, from how Maps names it.
+    @ObservationIgnored private let countries: CountrySearchIndex
     @ObservationIgnored private var known: [KnownCity] = []
-    @ObservationIgnored private var fromMaps: [MKLocalSearchCompletion] = []
+    @ObservationIgnored private var fromMaps: [MapsHit] = []
     @ObservationIgnored private let completer = MKLocalSearchCompleter()
     /// Held while it runs: MapKit cancels a lookup whose object goes away.
     @ObservationIgnored private var lookup: MKLocalSearch?
 
     /// `countryCode: nil` searches the whole world. With a country, only its cities come
     /// up, and `region` (its box) narrows what Maps looks through.
-    init(countryCode: String? = nil, region: MKCoordinateRegion? = nil, catalog: CityCatalog = .bundled) {
-        country = countryCode.map { ($0, CountrySearchIndex.fold(RegionDisplay.name(for: $0))) }
+    init(
+        countryCode: String? = nil,
+        region: MKCoordinateRegion? = nil,
+        catalog: CityCatalog = .bundled,
+        countries: CountrySearchIndex = .places
+    ) {
+        country = countryCode
         self.catalog = catalog
+        self.countries = countries
         super.init()
         completer.delegate = self
         completer.resultTypes = .address
@@ -87,8 +105,9 @@ final class CitySearch: NSObject {
             case .known(let city):
                 guard knownCountries.contains(city.countryCode) else { throw Problem.notOnGlobe }
                 return city.draft
-            case .maps(let completion):
-                return try await resolve(completion, title: result.title, knownCountries: knownCountries)
+            case .maps(let hit, let place, _):
+                guard let completion = hit.completion else { throw Problem.offline }
+                return try await resolve(completion, name: place.name, knownCountries: knownCountries)
             }
         } catch let problem as Problem {
             self.problem = problem
@@ -98,7 +117,7 @@ final class CitySearch: NSObject {
         return nil
     }
 
-    private func resolve(_ completion: MKLocalSearchCompletion, title: String, knownCountries: Set<String>) async throws -> CityDraft {
+    private func resolve(_ completion: MKLocalSearchCompletion, name: String, knownCountries: Set<String>) async throws -> CityDraft {
         let lookup = MKLocalSearch(request: MKLocalSearch.Request(completion: completion))
         self.lookup = lookup
         defer { self.lookup = nil }
@@ -117,15 +136,25 @@ final class CitySearch: NSObject {
                 }
             }
         guard let code = place.code?.uppercased() else { throw Problem.notOnGlobe }
-        if let country, code != country.code { throw Problem.otherCountry }
+        if let country, code != country { throw Problem.otherCountry }
         guard knownCountries.contains(code) else { throw Problem.notOnGlobe }
-        return CityDraft(name: title, region: place.region ?? "", countryCode: code, latitude: place.latitude, longitude: place.longitude)
+        // Maps may still name a city the bundled list has differently: then it's saved the
+        // list's way, so it shows in the app's language like the rest.
+        if let known = catalog.city(named: name, in: code, latitude: place.latitude, longitude: place.longitude) {
+            return known.draft
+        }
+        return CityDraft(name: name, region: place.region ?? "", countryCode: code, latitude: place.latitude, longitude: place.longitude)
     }
 
     fileprivate func update(_ completions: [MKLocalSearchCompletion]) {
+        receive(completions.map { MapsHit(title: $0.title, subtitle: $0.subtitle, completion: $0) })
+    }
+
+    /// What Maps suggests for the current query.
+    func receive(_ hits: [MapsHit]) {
         // A late answer to what was typed before the field was cleared.
         guard !query.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-        fromMaps = completions
+        fromMaps = hits
         merge()
     }
 
@@ -139,51 +168,68 @@ final class CitySearch: NSObject {
         if isNetworkError, isTyping, results.isEmpty { problem = .offline }
     }
 
-    /// The bundled cities first, then whatever Maps adds that they don't already cover.
+    /// The bundled cities first, then what Maps adds. A Maps city the bundled list has joins
+    /// the list's rows instead; one it can't place in a country (or in the one searched) is
+    /// left out, since it couldn't go on the globe anyway.
     private func merge() {
         let languages = Locale.preferredLanguages
-        let names = known.map { CountrySearchIndex.fold($0.name(in: languages)) }
-        let knownNames = Set(known.flatMap { city in
-            ([city.name, city.nameRu].compactMap { $0 } + city.aliases).map { CountrySearchIndex.fold($0) + "\u{1F}" + city.countryCode }
-        })
+        var cities = known
+        var places: [(hit: MapsHit, place: CompletionPlace, code: String)] = []
+        var seen = Set<String>()
+        for hit in fromMaps {
+            let place = CompletionPlace(title: hit.title, subtitle: hit.subtitle)
+            guard let countryName = place.country, let code = countries.code(named: countryName),
+                  country == nil || code == country
+            else { continue }
+            let listed = catalog.cities(named: place.name, in: code)
+            if !listed.isEmpty {
+                // Several of that name: the list's own results already have them, by size.
+                if listed.count == 1, !cities.contains(listed[0]) { cities.append(listed[0]) }
+                continue
+            }
+            guard seen.insert([place.name, code, place.region ?? ""].map(CityCatalog.key).joined(separator: "\u{1F}")).inserted
+            else { continue }
+            places.append((hit, place, code))
+        }
 
-        var merged = known.enumerated().map { index, city in
-            // Two cities of one name in one country: say which region.
-            let twin = names.indices.contains { $0 != index && names[$0] == names[index] && known[$0].countryCode == city.countryCode }
-            var place = RegionDisplay.name(for: city.countryCode)
-            if twin, let region = city.region { place = region + ", " + place }
-            let size = city.population > 0 ? " · " + city.population.formatted(.number.notation(.compactName)) : ""
+        // Two of one name in one country say which region.
+        let titles = cities.map { ($0.name(in: languages), $0.countryCode) } + places.map { ($0.place.name, $0.code) }
+        var counts: [String: Int] = [:]
+        for (title, code) in titles { counts[CityCatalog.key(title) + code, default: 0] += 1 }
+        func isTwin(_ title: String, _ code: String) -> Bool { counts[CityCatalog.key(title) + code, default: 0] > 1 }
+
+        results = cities.enumerated().map { index, city in
+            let title = city.name(in: languages)
             return Result(
                 id: "known\u{1F}\(index)\u{1F}\(city.name)",
-                title: city.name(in: languages),
-                subtitle: RegionDisplay.flag(for: city.countryCode) + " " + place + size,
+                title: title,
+                subtitle: Self.subtitle(city.countryCode, region: isTwin(title, city.countryCode) ? city.region : nil, population: city.population),
                 isCapital: city.isCapital,
                 source: .known(city)
             )
-        }
-
-        for completion in fromMaps {
-            let subtitle = CountrySearchIndex.fold(completion.subtitle)
-            // A country's region is a box, so its neighbours' towns slip in. Maps names
-            // the country in the subtitle ("Lazio, Italy"); keep only those.
-            if let country, !subtitle.contains(country.name) { continue }
-            // Already above, from the bundled list: same name, same country.
-            let title = CountrySearchIndex.fold(completion.title.split(separator: ",").first.map(String.init) ?? completion.title)
-            let isDuplicate = known.contains { city in
-                knownNames.contains(title + "\u{1F}" + city.countryCode)
-                    && subtitle.contains(CountrySearchIndex.fold(RegionDisplay.name(for: city.countryCode)))
-            }
-            if isDuplicate { continue }
-            merged.append(Result(
-                id: "maps\u{1F}" + completion.title + "\u{1F}" + completion.subtitle,
-                title: completion.title,
-                subtitle: completion.subtitle,
+        } + places.map { hit, place, code in
+            Result(
+                id: "maps\u{1F}" + hit.title + "\u{1F}" + hit.subtitle,
+                title: PlaceNames.readable(place.name),
+                subtitle: Self.subtitle(code, region: isTwin(place.name, code) ? place.region : nil, population: 0),
                 isCapital: false,
-                source: .maps(completion)
-            ))
+                source: .maps(hit, place: place, countryCode: code)
+            )
         }
-        results = merged
     }
+
+    /// "🇰🇿 Kazakhstan · 1.2M", with the region first when it tells two cities apart.
+    private static func subtitle(_ code: String, region: String?, population: Int) -> String {
+        var place = RegionDisplay.name(for: code)
+        if let region, !region.isEmpty { place = region + ", " + place }
+        let size = population > 0 ? " · " + population.formatted(.number.notation(.compactName)) : ""
+        return RegionDisplay.flag(for: code) + " " + place + size
+    }
+}
+
+extension CountrySearchIndex {
+    /// Every country and territory on the globe, to tell which one a Maps result is in.
+    static let places = CountrySearchIndex(codes: CountryCatalog.bundled.countries.map(\.code))
 }
 
 extension CitySearch: MKLocalSearchCompleterDelegate {

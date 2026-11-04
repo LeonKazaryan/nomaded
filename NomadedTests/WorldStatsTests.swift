@@ -218,6 +218,37 @@ struct CityCatalogTests {
         #expect(bundled.search("Нур-Султан").first?.name == "Astana")
     }
 
+    @Test func spellingsAndScriptsMeet() {
+        #expect(CityCatalog.key("Алматы") == CityCatalog.key("Almaty"))
+        #expect(CityCatalog.key("São Paulo") == "saopaulo")
+        #expect(CityCatalog.key("Alma-Ata") == "almaata")
+    }
+
+    @Test func savedCitiesFindTheirListEntry() {
+        let catalog = CityCatalog([
+            Self.city("Almaty", ru: "Алматы", "KZ", pop: 1_209_000, lat: 43.27, lon: 76.91),
+            Self.city("Talgar", "KZ", pop: 45_000, lat: 43.3, lon: 77.24),
+        ])
+        // Saved from a Russian search: the same city by name, a few kilometres off.
+        #expect(catalog.city(named: "Алматы", in: "KZ", latitude: 43.24, longitude: 76.95)?.name == "Almaty")
+        // Right on top of it, whatever it's called.
+        #expect(catalog.city(named: "Medeu", in: "KZ", latitude: 43.275, longitude: 76.915)?.name == "Almaty")
+        // A town nearby isn't the city.
+        #expect(catalog.city(named: "Boraldai", in: "KZ", latitude: 43.36, longitude: 76.86) == nil)
+        #expect(catalog.cities(named: "Talgar", in: "KZ").count == 1)
+        #expect(catalog.cities(named: "Talgar", in: "KG").isEmpty)
+    }
+
+    @Test func bundledListHasEachCityOnce() throws {
+        let bundled = try CityCatalog.loadBundled()
+        #expect(bundled.cities(named: "Aktau", in: "KZ").count == 1)
+        #expect(bundled.cities(named: "Denpasar", in: "ID").count == 1)
+        // Twin cities across a state line stay two.
+        #expect(bundled.cities(named: "Kansas City", in: "US").count == 2)
+        #expect(bundled.cities(in: "KZ").first { $0.name == "Almaty" }?.nameRu == "Алматы")
+        #expect(bundled.search("Алма-Ата").first?.name == "Almaty")
+    }
+
     @Test func findsCapitalsNearby() {
         let westminster = CityPin(id: UUID(), name: "London", region: "", countryCode: "GB", latitude: 51.51, longitude: -0.13, createdAt: .now)
         let ontario = CityPin(id: UUID(), name: "London", region: "", countryCode: "CA", latitude: 42.97, longitude: -81.25, createdAt: .now)

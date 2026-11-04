@@ -109,6 +109,15 @@ enum GlobeTuning {
     /// A name popping up out of its dot as it comes into view, and sinking back as it goes.
     static let cityLabelSpring = SpringParameters(response: 0.32, dampingRatio: 0.62)
 
+    // MARK: Power
+
+    /// A globe coasting slower than this (points per second on screen) counts as stopped:
+    /// it stops drawing until something changes.
+    static let restSpeed = 0.5
+    /// Frames per second while only the idle spin moves. It's so slow that more frames
+    /// look no smoother, and the globe spends most of its on-screen time like this.
+    static let idleSpinFrameRate: Float = 30
+
     // MARK: Taps
 
     static let tapSlop = 10.0

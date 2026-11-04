@@ -73,8 +73,9 @@ private struct GlobeSurface: UIViewRepresentable {
     func makeUIView(context: Context) -> GlobeMetalView {
         let view = GlobeMetalView(device: controller.device)
         view.onFrame = { [weak controller] deltaTime, layer in
-            controller?.renderFrame(deltaTime: deltaTime, in: layer)
+            controller?.renderFrame(deltaTime: deltaTime, in: layer) ?? .none
         }
+        controller.onWake = { [weak view] in view?.wake() }
         return view
     }
 

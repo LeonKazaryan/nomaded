@@ -55,6 +55,15 @@ struct CountrySearchTests {
         #expect(index.results(for: "южная корея") == ["KR"])
     }
 
+    @Test func placeNamesFromMapsFindTheirCountry() {
+        #expect(index.code(named: "Kazakhstan") == "KZ")
+        #expect(index.code(named: "Соединённые Штаты Америки") == "US")
+        #expect(index.code(named: "United States") == "US")
+        #expect(index.code(named: "Côte d'Ivoire") == "CI")
+        #expect(index.code(named: "Atlantis") == nil)
+        #expect(index.code(named: "") == nil)
+    }
+
     @Test func noMatchIsEmpty() {
         #expect(index.results(for: "zzzz").isEmpty)
     }

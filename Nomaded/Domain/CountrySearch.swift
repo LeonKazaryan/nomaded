@@ -27,7 +27,12 @@ struct CountrySearchIndex: Sendable {
         "TR": ["Turkey"],
         "CI": ["Ivory Coast", "Берег Слоновой Кости"],
         "SZ": ["Swaziland", "Свазиленд"],
-        "CD": ["DRC", "DR Congo", "ДР Конго", "ДРК"],
+        "CD": ["DRC", "DR Congo", "Democratic Republic of the Congo", "ДР Конго", "ДРК", "Демократическая Республика Конго"],
+        "CG": ["Republic of the Congo", "Congo", "Республика Конго", "Конго"],
+        "MM": ["Myanmar", "Burma", "Мьянма", "Бирма"],
+        "PS": ["Palestine", "Палестина"],
+        "HK": ["Hong Kong", "Гонконг"],
+        "MO": ["Macao", "Macau", "Макао"],
         "BY": ["Belorussia", "Белоруссия"],
         "MD": ["Moldavia", "Молдавия"],
         "KG": ["Kirghizia", "Кыргызстан"],
@@ -65,6 +70,32 @@ struct CountrySearchIndex: Sendable {
             }
             .sorted { ($0.rank, $0.position) < ($1.rank, $1.position) }
             .map { $0.code }
+    }
+
+    /// The country a place name from elsewhere (Apple Maps) ends with: its name in any search
+    /// language or an alias, or one of those followed by more words ("Соединённые Штаты
+    /// Америки" → US). "&" and "and", "St." and "Saint" count as the same.
+    func code(named text: String) -> String? {
+        let needle = Self.placeFold(text)
+        guard !needle.isEmpty else { return nil }
+        var best: (code: String, length: Int)?
+        for entry in entries {
+            for name in entry.names.map(Self.placeFold) {
+                if name == needle { return entry.code }
+                if needle.hasPrefix(name), needle.dropFirst(name.count).first.map(Self.isWordSeparator) == true,
+                   name.count > best?.length ?? 0 {
+                    best = (entry.code, name.count)
+                }
+            }
+        }
+        return best?.code
+    }
+
+    private static func placeFold(_ text: String) -> String {
+        fold(text)
+            .replacingOccurrences(of: " & ", with: " and ")
+            .replacingOccurrences(of: "st. ", with: "saint ")
+            .trimmingCharacters(in: .whitespaces)
     }
 
     /// Lower is better: exact name or code, then name prefix, then a word prefix

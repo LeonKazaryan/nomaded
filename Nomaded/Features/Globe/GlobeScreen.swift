@@ -116,7 +116,7 @@ struct GlobeScreen: View {
                             code: selected,
                             isVisited: world.isVisited(selected),
                             // Newest first: a city just added is the first chip.
-                            cities: world.cities(in: selected).reversed(),
+                            cities: world.cities(in: selected).reversed().map(shownName),
                             highlightedCity: highlightedCity,
                             visitedSince: awaitingLanding == selected ? nil : world.firstVisits[selected],
                             stampInk: controller.visitedColor(of: selected).map(Color.init(components:)) ?? Palette.accentLight,
@@ -204,7 +204,7 @@ struct GlobeScreen: View {
             }
 
             #if DEBUG
-            FrameRateBadge(framesPerSecond: controller.framesPerSecond)
+            FrameRateBadge(framesPerSecond: controller.framesPerSecond, demand: controller.frameDemand)
             #endif
         }
         .sensoryFeedback(Haptics.select, trigger: selected) { _, new in new != nil }
@@ -319,8 +319,16 @@ struct GlobeScreen: View {
         isShowingStats || shownMilestone != nil
     }
 
+    /// A saved city under the name the app's language gives it: the bundled list's, so "Алматы"
+    /// saved from a Russian search reads "Almaty" in English, else at least in letters the
+    /// language reads ("Талгар" → "Talgar").
+    private func shownName(_ city: CityPin) -> CityPin {
+        let known = cityCatalog?.city(named: city.name, in: city.countryCode, latitude: city.latitude, longitude: city.longitude)
+        return city.renamed(known?.name(in: Locale.preferredLanguages) ?? PlaceNames.readable(city.name))
+    }
+
     private func updateCityMarkers() {
-        controller.setCities(world.cities.map { city in
+        controller.setCities(world.cities.map(shownName).map { city in
             GlobeController.CityMarker(
                 id: city.id,
                 name: city.name,
@@ -744,15 +752,18 @@ private struct PlusOne: View {
 #if DEBUG
 /// The globe's render rate next to the rate the screen can give the app. "60 fps · display 120"
 /// means the renderer holds the globe at 60; both at 60 means the phone does (Low Power Mode,
-/// or Accessibility → Motion → Limit Frame Rate).
+/// or Accessibility → Motion → Limit Frame Rate). "rest" means nothing moves and nothing is
+/// drawn; "spin" is the idle spin at its own low rate. The meter only runs while the globe
+/// draws at full rate, or it would keep the screen at 120 Hz by itself.
 private struct FrameRateBadge: View {
     let framesPerSecond: Int
+    let demand: FrameDemand
     @State private var display = DisplayRateMeter()
 
     var body: some View {
-        Text(verbatim: "\(framesPerSecond) fps · display \(display.framesPerSecond)")
+        Text(verbatim: text)
             .font(.system(.caption2, design: .monospaced, weight: .semibold))
-            .foregroundStyle(framesPerSecond >= 55 ? .green : .orange)
+            .foregroundStyle(demand != .full || framesPerSecond >= 55 ? .green : .orange)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(.black.opacity(0.45), in: Capsule())
@@ -762,8 +773,18 @@ private struct FrameRateBadge: View {
             .padding(.top, 52)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
-            .onAppear { display.start() }
+            .onChange(of: demand == .full, initial: true) { _, isFull in
+                if isFull { display.start() } else { display.stop() }
+            }
             .onDisappear { display.stop() }
+    }
+
+    private var text: String {
+        switch demand {
+        case .full: "\(framesPerSecond) fps · display \(display.framesPerSecond)"
+        case .slow: "\(framesPerSecond) fps · spin"
+        case .none: "rest · 0 fps"
+        }
     }
 }
 

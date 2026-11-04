@@ -45,20 +45,53 @@ struct KnownCity: Decodable, Sendable, Equatable {
 }
 
 /// The bundled city list: instant, offline city search ranked by how well the name matches
-/// and then by size (London, UK before London, Kentucky), and the capitals.
+/// and then by size (London, UK before London, Kentucky), and the capitals. It's also the
+/// reference other sources are matched against, so one city shows once, under the name the
+/// app's language gives it.
 struct CityCatalog: Sendable {
     /// Biggest first.
     let cities: [KnownCity]
     /// Every name of each city, folded for matching.
     private let names: [[String]]
+    /// Every name of each city as a `key(_:)`.
+    private let keys: [Set<String>]
+    /// Indices into `cities` by country, biggest first.
+    private let byCountry: [String: [Int]]
     private let capitals: [KnownCity]
 
     init(_ cities: [KnownCity]) {
-        self.cities = cities.sorted { $0.population > $1.population }
-        names = self.cities.map { city in
-            ([city.name, city.nameRu].compactMap { $0 } + city.aliases).map(CountrySearchIndex.fold)
-        }
-        capitals = self.cities.filter(\.isCapital)
+        let sorted = cities.sorted { $0.population > $1.population }
+        self.cities = sorted
+        let spellings = sorted.map { city in [city.name, city.nameRu].compactMap { $0 } + city.aliases }
+        names = spellings.map { $0.map(CountrySearchIndex.fold) }
+        keys = spellings.map { Set($0.map(Self.key)) }
+        byCountry = Dictionary(grouping: sorted.indices) { sorted[$0].countryCode }
+        capitals = sorted.filter(\.isCapital)
+    }
+
+    /// A name boiled down so that spellings and scripts meet: other scripts in Latin
+    /// letters, no case, accents, spaces or hyphens. "Алматы" and "Almaty" are both "almaty".
+    static func key(_ name: String) -> String {
+        let latin = name.unicodeScalars.allSatisfy(\.isASCII) ? name : name.applyingTransform(.toLatin, reverse: false) ?? name
+        let folded = latin.folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: nil)
+        return String(String.UnicodeScalarView(folded.unicodeScalars.filter(CharacterSet.alphanumerics.contains)))
+    }
+
+    /// The bundled cities in a country that go by `name`, in any spelling or script.
+    func cities(named name: String, in countryCode: String) -> [KnownCity] {
+        let key = Self.key(name)
+        return (byCountry[countryCode] ?? []).filter { keys[$0].contains(key) }.map { cities[$0] }
+    }
+
+    /// The bundled city a saved one is: one of its names nearby, or anything right on top
+    /// of it (see `CityMath`). Its name then follows the app's language.
+    func city(named name: String, in countryCode: String, latitude: Double, longitude: Double) -> KnownCity? {
+        let key = Self.key(name)
+        return (byCountry[countryCode] ?? [])
+            .map { (index: $0, km: CityMath.distanceKm(latitude, longitude, cities[$0].latitude, cities[$0].longitude)) }
+            .filter { $0.km < CityMath.samePlaceKm || ($0.km < CityMath.sameNameKm && keys[$0.index].contains(key)) }
+            .min { $0.km < $1.km }
+            .map { cities[$0.index] }
     }
 
     /// Loads on first use, about a megabyte. Touch it early off the main thread to warm it.
@@ -85,8 +118,7 @@ struct CityCatalog: Sendable {
         let needle = CountrySearchIndex.fold(query.trimmingCharacters(in: .whitespaces))
         guard !needle.isEmpty else { return [] }
         var matches: [(tier: Int, index: Int)] = []
-        for (index, city) in cities.enumerated() {
-            if let countryCode, city.countryCode != countryCode { continue }
+        for index in countryCode.map({ byCountry[$0] ?? [] }) ?? Array(cities.indices) {
             if let tier = Self.tier(names[index], needle) { matches.append((tier, index)) }
         }
         // `cities` is biggest first, so the index breaks ties by size.
@@ -98,7 +130,7 @@ struct CityCatalog: Sendable {
     /// A country's cities before anything is typed: the capital first (Astana before the
     /// bigger Almaty), then the biggest.
     func cities(in countryCode: String, limit: Int = 50) -> [KnownCity] {
-        let local = cities.filter { $0.countryCode == countryCode }
+        let local = (byCountry[countryCode] ?? []).map { cities[$0] }
         return Array((local.filter(\.isCapital) + local.filter { !$0.isCapital }).prefix(limit))
     }
 

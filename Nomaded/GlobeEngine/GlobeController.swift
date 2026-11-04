@@ -45,6 +45,8 @@ final class GlobeController {
     private(set) var isReady = false
     /// Measured render rate, for the debug HUD.
     private(set) var framesPerSecond = 0
+    /// How often the globe is drawing now: at rest it isn't, which saves the battery.
+    private(set) var frameDemand = FrameDemand.full
 
     /// The loaded outlines, for screens that draw maps of their own. `nil` until `isReady`.
     @ObservationIgnored private(set) var world: WorldGeometry?
@@ -64,7 +66,12 @@ final class GlobeController {
     /// A new city just touched down, at this point on screen: the moment for a haptic, and
     /// for confetti if it marked its country (`true`).
     @ObservationIgnored var onCityLanded: (@MainActor (UUID, CGPoint?, Bool) -> Void)?
-    @ObservationIgnored var reduceMotion = false
+    @ObservationIgnored var reduceMotion = false {
+        // The idle spin may start or stop.
+        didSet { wake() }
+    }
+    /// Asks the view for frames again after the globe came to rest. Set by the view.
+    @ObservationIgnored var onWake: (@MainActor () -> Void)?
     /// Set before the globe loads.
     @ObservationIgnored var introStyle = IntroStyle.standard
 
@@ -117,6 +124,10 @@ final class GlobeController {
     @ObservationIgnored private var touchIncludedPinch = false
     @ObservationIgnored private var flight: Flight?
     @ObservationIgnored private var liftScale = 1.0
+    /// The slow spin on the whole globe after a few idle seconds is on.
+    @ObservationIgnored private var isAutoRotating = false
+    /// Wakes a globe at rest for the idle spin, which starts on a timer, not a touch.
+    @ObservationIgnored private var spinWake: Task<Void, Never>?
 
     @ObservationIgnored private var frameSample = (frames: 0, elapsed: 0.0)
 
@@ -153,6 +164,7 @@ final class GlobeController {
             self.world = world
             isReady = true
             playIntro()
+            wake()
             let elapsed = Int((CACurrentMediaTime() - started) * 1000)
             Self.log.info("Globe ready in \(elapsed) ms")
 
@@ -160,16 +172,83 @@ final class GlobeController {
             let walls = await Self.buildWalls(world)
             try renderer.setWalls(walls.mesh, ranges: walls.ranges)
             try renderer.setRivers(await Self.buildRivers(world))
+            wake()
         } catch {
             Self.log.error("Globe failed to load: \(error)")
         }
     }
 
-    /// One frame: advance the physics, then draw. The view's display link calls this.
-    func renderFrame(deltaTime: TimeInterval, in layer: CAMetalLayer) {
+    /// One frame: advance the physics, then draw. The view's display link calls this and
+    /// asks again as often as the answer says.
+    func renderFrame(deltaTime: TimeInterval, in layer: CAMetalLayer) -> FrameDemand {
         tick(deltaTime: deltaTime)
         renderer?.riverStyle = riverStyle
         renderer?.draw(in: layer, rotation: GlobeOrientation(yaw: yaw.value, pitch: pitch.value).renderQuaternion, camera: camera)
+        let demand = nextDemand()
+        if demand != frameDemand { frameDemand = demand }
+        return demand
+    }
+
+    // MARK: - Power
+
+    /// Something changed: draw again, at full rate. Cheap, so everything that can move or
+    /// change the globe calls it.
+    private func wake() {
+        spinWake?.cancel()
+        spinWake = nil
+        guard frameDemand != .full else { return }
+        frameDemand = .full
+        onWake?()
+    }
+
+    /// What the globe needs after this frame: full rate while anything moves, a low rate
+    /// for the idle spin alone, nothing at rest.
+    private func nextDemand() -> FrameDemand {
+        guard isReady else { return .none }
+        if isMoving { return .full }
+        if isAutoRotating { return .slow }
+        // What's left of a flick is too slow to see; dropped, it can't jump on the next wake.
+        yaw.velocity = 0
+        pitch.velocity = 0
+        scheduleSpinWake()
+        #if DEBUG
+        framesPerSecond = 0
+        frameSample = (0, 0)
+        #endif
+        return .none
+    }
+
+    private var isMoving: Bool {
+        if isDragging || isPinching || isFocusing || flight != nil || ring != nil || !animating.isEmpty
+            || !zoom.isSettled || !centerOffset.isSettled {
+            return true
+        }
+        // Coasting after a flick, or springing back inside the tilt limit, faster than the eye
+        // can tell from standing still.
+        let still = GlobeTuning.restSpeed / max(camera.pointsPerRadian, 1)
+        let spin = isAutoRotating ? GlobeTuning.autoRotateSpeed * 1.5 : still
+        if abs(yaw.velocity) > spin || abs(pitch.velocity) > still
+            || abs(pitch.value) - pitchLimit(atZoom: zoom.value) > still / 10 {
+            return true
+        }
+        if cityMotion.values.contains(where: { !$0.scale.isSettled || $0.landedAt != nil })
+            || labelAppearance.values.contains(where: { !$0.isSettled }) {
+            return true
+        }
+        // A landing waits for the camera to settle, then goes on the next frame.
+        return !pendingLandings.isEmpty && cities.contains { pendingLandings.contains($0.id) && nodes[$0.countryCode] != nil }
+    }
+
+    /// On the whole globe with nothing selected the idle spin starts `autoRotateDelay` after
+    /// the last touch; a globe at rest by then has to wake up for it.
+    private func scheduleSpinWake() {
+        guard spinWake == nil, !reduceMotion, selected == nil, zoom.value <= GlobeTuning.autoRotateMaxZoom else { return }
+        let delay = max(0, lastInteraction + GlobeTuning.autoRotateDelay - CACurrentMediaTime())
+        spinWake = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+            guard !Task.isCancelled else { return }
+            self?.wake()
+        }
     }
 
     /// Which rivers show and how wide, from the zoom: on a log scale between the normal size
@@ -190,6 +269,7 @@ final class GlobeController {
         guard size != camera.viewportSize, size.width > 0, size.height > 0 else { return }
         camera.viewportSize = size
         applyCamera()
+        wake()
     }
 
     /// Off the main thread: packing ~165k vertices takes a moment.
@@ -233,6 +313,7 @@ final class GlobeController {
     // MARK: - Countries
 
     func setVisited(_ codes: Set<String>) {
+        wake()
         let changed = visited.symmetricDifference(codes)
         visited = codes
         changed.forEach(retarget)
@@ -245,6 +326,7 @@ final class GlobeController {
     /// `quietly`: a smaller jump and no ring, for marking many countries one after another.
     @discardableResult
     func celebrate(_ code: String, from origin: GeoCoordinate? = nil, quietly: Bool = false) -> CGPoint? {
+        wake()
         guard var node = nodes[code] else { return nil }
         let start = origin ?? (lastTouch?.code == code ? lastTouch?.coordinate : nil) ?? node.shape.label
         let reach = GeoMath.spreadRadius(from: start, rings: node.shape.rings)
@@ -271,6 +353,7 @@ final class GlobeController {
     /// Slides the globe up by `offset` points and settles it at `zoom`, leaving room for a
     /// panel underneath. `frame(offset: 0, zoom: 1)` puts it back.
     func frame(offset: Double, zoom: Double) {
+        wake()
         centerOffset.target = offset
         restingZoom = zoom
         flight = nil
@@ -286,6 +369,7 @@ final class GlobeController {
 
     /// Turns the country to the middle without selecting it.
     func lookAt(_ code: String) {
+        wake()
         guard let label = nodes[code]?.shape.label else { return }
         focus(on: label, spring: GlobeTuning.focusSpring)
         lastInteraction = CACurrentMediaTime()
@@ -293,6 +377,7 @@ final class GlobeController {
 
     /// Unmarking, the calm way back: the color drains to the country's middle.
     func drain(_ code: String) {
+        wake()
         guard var node = nodes[code] else { return }
         node.tint = SpringValue(0)
         var progress = SpringValue(1)
@@ -318,6 +403,7 @@ final class GlobeController {
 
     /// Highlights a country and brings it to the center. `nil` clears the selection.
     func select(_ code: String?, framing: Framing = .turn) {
+        wake()
         let previous = selected
         selected = code
         flight = nil
@@ -341,6 +427,7 @@ final class GlobeController {
     }
 
     func setCities(_ markers: [CityMarker]) {
+        wake()
         cities = markers
         let ids = Set(markers.map(\.id))
         cityMotion = cityMotion.filter { ids.contains($0.key) }
@@ -355,6 +442,7 @@ final class GlobeController {
     /// celebrated too, filling from the city, right as it lands. Works before `setCities`
     /// has it, too.
     func landCity(_ id: UUID, marking countryCode: String? = nil) {
+        wake()
         pendingLandings.insert(id)
         if let countryCode {
             landingsThatMark[id] = countryCode
@@ -365,6 +453,7 @@ final class GlobeController {
 
     /// The city whose name always shows and whose dot glows a little brighter.
     func highlightCity(_ id: UUID?) {
+        wake()
         highlightedCity = id
     }
 
@@ -503,6 +592,7 @@ final class GlobeController {
     // MARK: - Gestures
 
     func dragChanged(translation: CGSize) {
+        wake()
         if !isDragging {
             isDragging = true
             isFocusing = false
@@ -535,6 +625,7 @@ final class GlobeController {
     /// (the app went to the background, a system gesture took the touch). A cancelled gesture
     /// never reports its end, and a drag or pinch left "on" would freeze flights and taps.
     func touchesEnded() {
+        wake()
         if isDragging {
             isDragging = false
             lastInteraction = CACurrentMediaTime()
@@ -543,6 +634,7 @@ final class GlobeController {
     }
 
     func dragEnded(velocity: CGSize) {
+        wake()
         isDragging = false
         lastInteraction = CACurrentMediaTime()
         // The finger left over from a pinch shouldn't fling the globe.
@@ -556,6 +648,7 @@ final class GlobeController {
 
     /// A touch that barely moved: it stops the spin and picks whatever is under the finger.
     func tap(at point: CGPoint) {
+        wake()
         isDragging = false
         yaw.velocity = 0
         pitch.velocity = 0
@@ -573,6 +666,7 @@ final class GlobeController {
     /// Zooms toward `anchor`, the point between the fingers when the pinch began: the
     /// place under it stays under it, like on a map.
     func pinchChanged(magnification: CGFloat, anchor: CGPoint) {
+        wake()
         if !isPinching {
             isPinching = true
             touchIncludedPinch = true
@@ -601,6 +695,7 @@ final class GlobeController {
     }
 
     func pinchEnded() {
+        wake()
         isPinching = false
         pinchAnchor = nil
         let range = GlobeTuning.zoomRange
@@ -690,6 +785,7 @@ final class GlobeController {
     }
 
     private func stepRotation(_ dt: Double) {
+        isAutoRotating = false
         guard !isDragging else { return }
 
         if isFocusing {
@@ -703,7 +799,8 @@ final class GlobeController {
 
         let idle = CACurrentMediaTime() - lastInteraction
         let isOverview = zoom.value <= GlobeTuning.autoRotateMaxZoom
-        if !reduceMotion && selected == nil && isOverview && idle > GlobeTuning.autoRotateDelay {
+        isAutoRotating = !reduceMotion && selected == nil && isOverview && idle > GlobeTuning.autoRotateDelay
+        if isAutoRotating {
             // Ease into a slow spin instead of starting abruptly.
             yaw.velocity += (GlobeTuning.autoRotateSpeed - yaw.velocity) * min(1, dt * 0.6)
         } else {

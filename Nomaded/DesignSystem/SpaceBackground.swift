@@ -5,8 +5,9 @@ struct SpaceBackground: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        // The drift is slow, so 30 fps is plenty and leaves the GPU to the globe.
-        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { timeline in
+        // The drift moves a soft gradient a few points a second: 15 fps looks the same as
+        // 120, and it keeps going while the globe rests, so it should cost next to nothing.
+        TimelineView(.animation(minimumInterval: 1.0 / 15, paused: reduceMotion)) { timeline in
             Nebula(time: timeline.date.timeIntervalSinceReferenceDate)
         }
         .overlay { Starfield() }
