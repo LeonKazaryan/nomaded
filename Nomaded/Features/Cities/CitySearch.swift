@@ -10,7 +10,8 @@ import Observation
 /// name in the app's language. A city Maps finds that the bundled list has ("Алматы" for
 /// Almaty) shows once, as the list's; one Maps can't place in a country doesn't show.
 /// Either the whole world, or strictly one country: the "+ City" button in a country's card.
-/// There, an empty field already lists the country's cities, capital first, then by size.
+/// There, an empty field already lists the country's cities, capital first, then by size,
+/// a page at a time as the list scrolls.
 @Observable @MainActor
 final class CitySearch: NSObject {
     struct Result: Identifiable {
@@ -53,15 +54,34 @@ final class CitySearch: NSObject {
             problem = nil
             let trimmed = query.trimmingCharacters(in: .whitespaces)
             completer.queryFragment = trimmed
+            listLimit = Self.page
             if trimmed.isEmpty {
-                known = country.map { catalog.cities(in: $0) } ?? []
+                known = country.map { catalog.cities(in: $0, limit: listLimit) } ?? []
                 fromMaps = []
             } else {
-                known = catalog.search(trimmed, in: country)
+                known = catalog.search(trimmed, in: country, limit: country == nil ? 10 : 20)
             }
             merge()
         }
     }
+
+    /// The empty field's list of a country's cities has more to show.
+    var canShowMore: Bool {
+        guard let country, query.trimmingCharacters(in: .whitespaces).isEmpty else { return false }
+        return known.count < catalog.cityCount(in: country)
+    }
+
+    /// The next page of the country's list, as its end scrolls into view.
+    func showMore() {
+        guard canShowMore, let country else { return }
+        listLimit += Self.page
+        known = catalog.cities(in: country, limit: listLimit)
+        merge()
+    }
+
+    /// Cities in a page of the country's list.
+    private static let page = 100
+    @ObservationIgnored private var listLimit = page
 
     /// The country searched in, if any.
     private let country: String?
@@ -197,6 +217,8 @@ final class CitySearch: NSObject {
             else { continue }
             places.append((hit, place, code))
         }
+        // The list knows every town of note; past a few, what only Maps adds is villages.
+        places = Array(places.prefix(cities.isEmpty ? 10 : 4))
 
         // Two of one name in one country say which region.
         let titles = cities.map { ($0.name(in: languages), $0.countryCode) } + places.map { ($0.place.name, $0.code) }
@@ -209,7 +231,7 @@ final class CitySearch: NSObject {
             return Result(
                 id: "known\u{1F}\(index)\u{1F}\(city.name)",
                 title: title,
-                subtitle: Self.subtitle(city.countryCode, region: isTwin(title, city.countryCode) ? city.region : nil, population: city.population),
+                subtitle: Self.subtitle(city.countryCode, region: isTwin(title, city.countryCode) ? city.region(in: languages) : nil, population: city.population),
                 isCapital: city.isCapital,
                 source: .known(city)
             )

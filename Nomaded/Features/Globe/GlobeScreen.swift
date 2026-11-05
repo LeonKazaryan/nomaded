@@ -288,7 +288,8 @@ struct GlobeScreen: View {
             }
         }
         .task {
-            // About a megabyte to decode; search uses it too, so it's ready before anyone types.
+            // A few megabytes to decompress, off the main thread; search uses it too, so it's
+            // ready before anyone types.
             await refreshCityCatalog()
         }
         .onChange(of: controller.isReady) { _, isReady in

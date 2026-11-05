@@ -47,7 +47,7 @@ xcodebuild -project Nomaded.xcodeproj -scheme Nomaded \
 - Параметры ощущений (трение, пружины, высоты, зум) — только в `GlobeEngine/GlobeTuning.swift`.
 - Иконка (`AppIcon.appiconset`) рисуется кодом в `Tools/AppIcon` (команда в его README), руками PNG не правим.
 - Скриншоты для App Store снимает `Tools/Screenshots` (сцены — те же DEBUG-аргументы). Тексты карточки — `docs/09-store-listing.md`, страницы поддержки и конфиденциальности — `site/`. Если фича меняет, что приложение хранит или куда ходит в сеть, обнови `site/privacy.html` и `site/ru/privacy.html`.
-- `Resources/Geo/world.nmgeo`, `countries.json` и `cities.json` руками не редактируются. Их перегенерирует `Tools/GeoPipeline` (команда в его README), после этого прогоняются тесты.
+- `Resources/Geo/world.nmgeo`, `countries.json` и `cities.nmcity` руками не редактируются. Их перегенерирует `Tools/GeoPipeline` (команда в его README), после этого прогоняются тесты. `Domain/CityKey.swift` и `Domain/CityTable.swift` компилирует и пайплайн: меняешь их — перегенерируй города.
 - Проверка в симуляторе без касаний — DEBUG launch-аргументы (`GlobeScreen.applyDebugLaunchArguments`):
   ```bash
   xcrun simctl launch "iPhone 16 Pro" com.leonkazaryan.nomaded \

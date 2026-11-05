@@ -21,9 +21,26 @@ struct CompletionPlace: Equatable, Sendable {
             head = String(head[..<dash.lowerBound])
         }
         let rest = titleParts + Self.parts(of: subtitle)
-        name = head.trimmingCharacters(in: .whitespaces)
+        name = Self.withoutKind(head.trimmingCharacters(in: .whitespaces))
         country = rest.last
         region = rest.dropLast().last ?? shortRegion.flatMap { $0.isEmpty ? nil : $0 }
+    }
+
+    /// Russian Maps put the kind of place first: "село Боровое", "посёлок Боровое". The
+    /// name is the rest.
+    private static let kinds = [
+        "посёлок городского типа", "поселок городского типа", "рабочий посёлок", "рабочий поселок",
+        "село", "деревня", "посёлок", "поселок", "пгт", "хутор", "станица", "аул", "город", "местечко",
+    ]
+
+    private static func withoutKind(_ name: String) -> String {
+        for kind in kinds {
+            guard name.count > kind.count + 1,
+                  name.lowercased().hasPrefix(kind + " ")
+            else { continue }
+            return String(name.dropFirst(kind.count + 1))
+        }
+        return name
     }
 
     private static func parts(of text: String) -> [String] {

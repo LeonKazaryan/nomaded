@@ -66,13 +66,43 @@ struct CityLabelLayoutTests {
         CityLabel(id: UUID(), name: name, point: CGPoint(x: x, y: y), isHighlighted: highlighted)
     }
 
-    @Test func overlappingNamesKeepTheFirst() {
+    @Test func crowdedNamesMoveAside() {
         let screen = CGRect(x: 0, y: 0, width: 402, height: 874)
         let rome = label("Rome", 200, 400, highlighted: true)
         let tivoli = label("Tivoli", 215, 405)
         let naples = label("Naples", 260, 520)
 
-        #expect(CityLabelLayout.place([rome, tivoli, naples], in: screen).map(\.name) == ["Rome", "Naples"])
+        let placed = CityLabelLayout.place([rome, tivoli, naples], in: screen)
+        #expect(placed.map(\.name) == ["Rome", "Tivoli", "Naples"])
+        // Rome keeps the spot above; Tivoli, a moment's drive away, goes under its dot.
+        #expect(placed.map(\.placement) == [.above, .below, .above])
+    }
+
+    @Test func dotsOnOneSpotShareAName() {
+        let screen = CGRect(x: 0, y: 0, width: 402, height: 874)
+        let rome = label("Rome", 200, 400)
+        let vatican = label("Vatican City", 196, 402)
+        let placed = CityLabelLayout.place([rome, vatican], in: screen)
+        #expect(placed.map(\.name) == ["Rome · Vatican City"])
+        #expect(placed.first?.id == rome.id)
+
+        let more = CityLabelLayout.place([rome, vatican, label("Ostia", 203, 397, highlighted: true)], in: screen)
+        #expect(more.map(\.name) == ["Rome +2"])
+        #expect(more.first?.isHighlighted == true)
+    }
+
+    @Test func namesNeverCoverEachOtherOrADot() {
+        let screen = CGRect(x: 0, y: 0, width: 402, height: 874)
+        // A crowded region: a grid of towns 20 points apart.
+        let towns = (0..<16).map { label("Town \($0)", 140 + CGFloat($0 % 4) * 20, 380 + CGFloat($0 / 4) * 20) }
+        let placed = CityLabelLayout.place(towns, in: screen)
+        let boxes = placed.map { CityLabelLayout.box(for: $0.name, at: $0.point, isCapital: $0.isCapital, placement: $0.placement) }
+        #expect(placed.first?.name == "Town 0")
+        #expect(placed.count < towns.count)
+        for (i, box) in boxes.enumerated() {
+            #expect(!boxes.dropFirst(i + 1).contains { $0.intersects(box) })
+            #expect(!towns.contains { $0.id != placed[i].id && box.contains($0.point) })
+        }
     }
 
     @Test func offScreenNamesAreDropped() {

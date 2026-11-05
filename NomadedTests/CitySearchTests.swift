@@ -10,6 +10,9 @@ struct CompletionPlaceTests {
         ("Almora", "Uttarakhand, India", "Almora", "Uttarakhand", "India"),
         ("Olmaliq, Uzbekistan", "", "Olmaliq", nil, "Uzbekistan"),
         ("Almere", "Netherlands", "Almere", nil, "Netherlands"),
+        ("Село Боровое", "Новосибирская область, Россия", "Боровое", "Новосибирская область", "Россия"),
+        ("посёлок городского типа Боровский", "Тюменская область, Россия", "Боровский", "Тюменская область", "Россия"),
+        ("Селомка", "Россия", "Селомка", nil, "Россия"),
     ] as [(String, String, String, String?, String)])
     func takesMapsWordingApart(title: String, subtitle: String, name: String, region: String?, country: String) {
         let place = CompletionPlace(title: title, subtitle: subtitle)

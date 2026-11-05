@@ -24,7 +24,7 @@
 | Subtitle, Russian (30) | `Посещённые страны на глобусе` |
 | Primary Category | Travel |
 | Secondary Category | Lifestyle |
-| Content Rights | **Yes**, contains third-party content, and **I have the necessary rights**: контуры стран — Natural Earth (public domain), поиск мест — Apple MapKit |
+| Content Rights | **Yes**, contains third-party content, and **I have the necessary rights**: контуры стран — Natural Earth (public domain), города — GeoNames (CC BY 4.0, источник указан в приложении), поиск мест — Apple MapKit |
 | Age Rating | на все вопросы анкеты **None** / **No** → 4+ |
 
 Если имя «Nomaded: Travel Map» окажется занято, подойдёт `Nomaded: Travel Globe`. Слова из названия и подзаголовка App Store уже ищет, поэтому в ключевых словах они не повторяются.
@@ -70,7 +70,7 @@ Earn medals at 10, 25, 50, 100, 150 and all 195 countries, and for every new con
 
 MADE WITH CARE
 • 195 countries, plus territories you can mark too
-• Works offline, with over 7,000 cities built in
+• Works offline, with over 80,000 cities and resorts built in
 • VoiceOver, Dynamic Type and Reduce Motion
 • English and Russian
 
@@ -122,7 +122,7 @@ Nomaded — твой паспорт путешественника на живо
 
 СДЕЛАНО С ЛЮБОВЬЮ
 • 195 стран и территории, которые тоже можно отмечать
-• Работает без интернета, больше 7 000 городов встроено
+• Работает без интернета, встроено больше 80 000 городов и курортов
 • VoiceOver, крупный шрифт и «Уменьшение движения»
 • Русский и английский языки
 

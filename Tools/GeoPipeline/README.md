@@ -29,21 +29,30 @@ swift run -c release --package-path Tools/GeoPipeline GeoPipeline \
 
 Результат воспроизводим: два запуска на одних данных дают побайтно одинаковый файл. Всё, что зависит от порядка (перевороты рёбер, склейка озёр), идёт в отсортированном порядке, а не в порядке обхода словаря, который в Swift меняется от запуска к запуску.
 
-Справочник городов для поиска собирается из второго файла Natural Earth:
+Справочник городов для поиска собирается из [GeoNames](https://www.geonames.org) (CC BY 4.0: в приложении под результатами поиска стоит «Данные о городах: GeoNames»). Нужны четыре файла в одной папке, алфавитные имена весят 800 МБ в распакованном виде:
 
 ```bash
-curl -L -o "$TMPDIR/places.geojson" \
-  https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_10m_populated_places.geojson
+mkdir -p "$TMPDIR/geonames" && cd "$TMPDIR/geonames"
+curl -LO https://download.geonames.org/export/dump/cities1000.zip && unzip -o cities1000.zip
+curl -LO https://download.geonames.org/export/dump/alternateNamesV2.zip && unzip -o alternateNamesV2.zip
+curl -LO https://download.geonames.org/export/dump/admin1CodesASCII.txt
+curl -LO https://download.geonames.org/export/dump/countryInfo.txt
+cd -
 
 swift run -c release --package-path Tools/GeoPipeline GeoPipeline \
   "$TMPDIR/ne_usa.geojson" Nomaded/Resources/Geo/world.nmgeo \
   --lakes "$TMPDIR/lakes.geojson" --rivers "$TMPDIR/rivers.geojson" \
   --admin1 "$TMPDIR/admin1.geojson" --pov-ind "$TMPDIR/ne_ind.geojson" \
   --catalog Nomaded/Resources/Geo/countries.json \
-  --places "$TMPDIR/places.geojson" --cities Nomaded/Resources/Geo/cities.json
+  --geonames "$TMPDIR/geonames" --cities Nomaded/Resources/Geo/cities.nmcity
 ```
 
-`--cities` (`CityCatalogBuilder.swift`): ~7 300 городов с населением, координатами, столицей (`ADM0CAP`, без «alt» вроде Гааги) и названиями en/ru. Города, переименованные после выхода данных Natural Earth (Нур-Султан → Астана, советское «Алма-Ата» → «Алматы»), правит `CityCatalogBuilder.renames`, старое название остаётся в поиске. Дубли Natural Earth (одно имя, один регион, ближе 15 км: два Актау, два Денпасара) склеиваются в один город, больший. Города-близнецы через границу штата (Канзас-Сити) остаются двумя. Места без ISO-кода (Косово, Северный Кипр, Сомалиленд) приписаны стране, в которой их показывает глобус.
+`--cities` (`CityCatalogBuilder.swift`): ~82 000 мест, файл 3,6 МБ.
+- **Какие места:** все от 5 000 жителей, все столицы и места поменьше, которые знает мир. Известность — сколько языков называют место (`famousNames`, от 8): у Цахкадзора на 1 100 жителей 34 названия, у деревни того же размера 2–3. Так попадают курорты: Боровое, Джермук, Позитано, Куршевель. Не берутся районы городов (`PPLX`), исторические, заброшенные и разрушенные поселения.
+- **Названия:** английское (предпочтительное у GeoNames, иначе основное), русское, если у GeoNames есть настоящее. Машинную транслитерацию не делаем: она пишет «Бордеаукс» и «Лаке Плацид», так что место без русского названия остаётся латиницей. Для поиска хранятся все русские и английские названия, включая старые (Нур-Султан, Ленинакан, Алма-Ата), и названия на языках самой страны («Roma», «München»). Сокращения короче четырёх букв не хранятся.
+- **Дубли:** одно название, один регион, ближе 15 км — одно место, остаётся большее. Разные города с одним именем (три Актау в Казахстане, Канзас-Сити через границу штата) остаются разными.
+- **Страна:** спорная земля отдаётся владельцу в виде по умолчанию, как на глобусе (Крым — Украине). Места, которые GeoNames пишет под кодом, которого нет на глобусе (Реюньон, Шпицберген), получают страну по контурам глобуса.
+- **Формат** (`Nomaded/Domain/CityTable.swift`): записи фиксированной длины, тексты и отсортированный индекс ключей названий, сжато LZFSE. Приложение не разбирает файл, а читает на месте: открытие — одна распаковка (~15 мс), поиск — двоичный поиск по ключам. Ключ (`Nomaded/Domain/CityKey.swift`) сводит написания и алфавиты: «Шымкент» = «Shymkent», «Боровое» = «Borovoe». Оба файла лежат в приложении, а пайплайн компилирует их же через символические ссылки в `Sources/GeoPipeline`, поэтому ключи в файле и ключ запроса не расходятся.
 
 `--catalog` пишет справочник для статистики: континент, регион ООН, «одна из 195» и площадь каждой страны (`CountryCatalog.swift`).
 

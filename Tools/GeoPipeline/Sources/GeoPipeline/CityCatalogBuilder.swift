@@ -1,128 +1,189 @@
 import Foundation
 
-/// One line of the app's `cities.json`: a city search can find instantly, offline, ranked by
-/// size, with its capital status.
-struct CityEntry: Encodable {
-    /// English name.
-    let name: String
-    let nameRu: String?
-    /// Native and plain-Latin spellings worth matching ("Roma", "Sao Paulo").
-    let aliases: [String]
-    /// First-level region, to tell same-named cities in one country apart.
-    let region: String?
-    let code: String
-    let lat: Double
-    let lon: Double
-    let population: Int
-    var capital: Bool
-}
-
-/// Natural Earth's populated places (~7,300) → the app's city list.
+/// GeoNames (geonames.org, CC BY 4.0) → the app's city list, `cities.nmcity` (`CityTable`).
+///
+/// Which places: every town of 5,000 people or more, smaller ones the world knows by name,
+/// and every capital. Fame is how many languages name a place: Tsaghkadzor, a ski resort of
+/// 1,100 people, has 34 names, a village of the same size two or three. Names: English, and
+/// Russian where GeoNames has a real one; the rest keep their own in Latin letters.
 enum CityCatalogBuilder {
-    /// Places Natural Earth leaves without an ISO code, given the country the globe shows
-    /// them in.
-    static let codeFallbacks = ["KOS": "XK", "CYN": "CY", "SOL": "SO"]
-    /// Cities renamed since Natural Earth's data; the old names still find them.
-    static let renames: [String: (name: String, nameRu: String)] = [
-        "Nur-Sultan": ("Astana", "Астана"),
-        // Natural Earth has the Soviet "Алма-Ата"; Kazakhstan and Apple Maps say "Алматы".
-        "Almaty": ("Almaty", "Алматы"),
-    ]
-    /// Natural Earth lists a few cities twice, a few kilometres apart (two Aktau, two
-    /// Denpasar): closer than this, with one name and one region, they're one city.
-    static let duplicateKm = 15.0
-    /// Not cities: research stations, ruins.
-    static let skippedClasses: Set<String> = ["Scientific station", "Meteorological Station", "Historic place"]
+    /// The GeoNames dump files, as downloaded (see the README).
+    struct Source {
+        let cities: URL
+        let alternateNames: URL
+        let regions: URL
+        let countries: URL
 
-    /// - Parameter owner: The country disputed land belongs to in the default worldview:
-    ///   Natural Earth files Crimea's cities under Russia, the default globe shows Ukraine.
-    static func entries(_ url: URL, countries: Set<String>, owner: (GeoPoint) -> String? = { _ in nil }) throws -> [CityEntry] {
-        guard
-            let root = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any],
-            let features = root["features"] as? [[String: Any]]
-        else { throw PipelineError.malformed("populated places") }
-
-        let entries = features.compactMap { feature -> CityEntry? in
-            guard let p = feature["properties"] as? [String: Any],
-                  var name = (p["NAME_EN"] as? String) ?? (p["NAME"] as? String),
-                  let lat = (p["LATITUDE"] as? NSNumber)?.doubleValue,
-                  let lon = (p["LONGITUDE"] as? NSNumber)?.doubleValue,
-                  !skippedClasses.contains(p["FEATURECLA"] as? String ?? "")
-            else { return nil }
-            var code = p["ISO_A2"] as? String ?? "-99"
-            if code == "-99" { code = codeFallbacks[p["ADM0_A3"] as? String ?? ""] ?? code }
-            code = owner(GeoPoint(lon, lat)) ?? code
-            guard countries.contains(code) else { return nil }
-
-            // NAMEALT is left out: many of its entries are cut off mid-word ("Ciudad de M").
-            var aliases: [String] = []
-            for key in ["NAME", "NAMEASCII"] {
-                if let value = p[key] as? String { aliases.append(value) }
-            }
-            var nameRu = p["NAME_RU"] as? String
-            if let rename = renames[name] {
-                aliases += [name, nameRu].compactMap { $0 }
-                (name, nameRu) = (rename.name, rename.nameRu)
-            }
-            aliases = Array(Set(aliases.filter { !$0.isEmpty && $0 != name && $0 != nameRu })).sorted()
-
-            return CityEntry(
-                name: name,
-                nameRu: nameRu,
-                aliases: aliases,
-                region: p["ADM1NAME"] as? String,
-                code: code,
-                lat: (lat * 10_000).rounded() / 10_000,
-                lon: (lon * 10_000).rounded() / 10_000,
-                population: (p["POP_MAX"] as? NSNumber)?.intValue ?? 0,
-                // "Admin-0 capital alt" (The Hague) is the seat of government, not the capital.
-                capital: (p["ADM0CAP"] as? NSNumber)?.intValue == 1
-            )
+        init(folder: URL) {
+            cities = folder.appending(path: "cities1000.txt")
+            alternateNames = folder.appending(path: "alternateNamesV2.txt")
+            regions = folder.appending(path: "admin1CodesASCII.txt")
+            countries = folder.appending(path: "countryInfo.txt")
         }
-        .sorted { ($0.population, $1.name) > ($1.population, $0.name) }
-        return withoutDuplicates(entries)
     }
 
-    /// Keeps the bigger of two entries for one city. Twin cities across a border keep both:
-    /// Kansas City, Missouri and Kansas City, Kansas are two cities.
-    static func withoutDuplicates(_ entries: [CityEntry]) -> [CityEntry] {
-        var kept: [CityEntry] = []
-        var byCountry: [String: [Int]] = [:]
-        for entry in entries {
-            let twin = byCountry[entry.code, default: []].first { index in
-                let other = kept[index]
-                return other.name == entry.name
-                    && distanceKm(other.lat, other.lon, entry.lat, entry.lon) < duplicateKm
-                    && editDistance(fold(other.region ?? ""), fold(entry.region ?? "")) <= 2
-            }
-            if let twin {
-                // Natural Earth's typos aside ("Kasssrine"), a capital stays one.
-                kept[twin].capital = kept[twin].capital || entry.capital
+    /// Towns and cities; not "sections of populated places" (city districts), abandoned,
+    /// destroyed or historical ones.
+    static let featureCodes: Set<String> = ["PPL", "PPLA", "PPLA2", "PPLA3", "PPLA4", "PPLA5", "PPLC", "PPLG", "PPLL", "PPLS", "PPLF", "PPLR", "STLMT"]
+    static let minimumPopulation = 5_000
+    /// Smaller places come in with at least this many names in other languages.
+    static let famousNames = 8
+    /// One name, one region, closer than this: one city listed twice.
+    static let duplicateKm = 15.0
+    /// Capitals GeoNames doesn't mark as such, by country: geonameid.
+    static let unmarkedCapitals = ["IL": 281_184]
+
+    private struct Place {
+        let id: Int
+        let name: String
+        let asciiName: String
+        let latitude: Double
+        let longitude: Double
+        let countryCode: String
+        let region: String
+        let population: Int
+        let isCapital: Bool
+        let fame: Int
+    }
+
+    private struct Name {
+        let text: String
+        let isPreferred: Bool
+        let isColloquial: Bool
+        let isHistoric: Bool
+        var isCurrent: Bool { !isColloquial && !isHistoric }
+    }
+
+    /// - Parameters:
+    ///   - countries: The codes the globe has; a city goes on one of them or nowhere.
+    ///   - owner: Who disputed land belongs to in the default worldview, over GeoNames' say.
+    ///   - countryAt: The globe's country at a point, for places GeoNames files under a code
+    ///     the globe draws as part of another (Réunion: France).
+    static func rows(_ source: Source, countries: Set<String>, owner: (GeoPoint) -> String?, countryAt: (GeoPoint) -> String?) throws -> [CityTable.Row] {
+        let languages = try countryLanguages(source.countries)
+        let regions = try regionNames(source.regions)
+
+        var places: [Place] = []
+        try forEachLine(source.cities) { fields in
+            guard fields.count >= 15, featureCodes.contains(fields[7]) else { return }
+            let id = Int(fields[0]) ?? 0
+            let population = Int(fields[14]) ?? 0
+            let isCapital = fields[7] == "PPLC" || unmarkedCapitals[fields[8]] == id
+            let fame = Set(fields[3].split(separator: ",")).count
+            guard isCapital || population >= minimumPopulation || fame >= famousNames else { return }
+            places.append(Place(
+                id: id, name: fields[1], asciiName: fields[2],
+                latitude: Double(fields[4]) ?? 0, longitude: Double(fields[5]) ?? 0,
+                countryCode: fields[8], region: fields[8] + "." + fields[10],
+                population: population, isCapital: isCapital, fame: fame
+            ))
+        }
+
+        // Every name of those places and their regions in English, Russian and the
+        // country's own languages: the one file with all of them is 800 MB, so it's
+        // streamed and only these are kept.
+        var wanted: [Int: Set<String>] = [:]
+        for place in places { wanted[place.id] = languages[place.countryCode, default: []].union(["en", "ru"]) }
+        for region in regions.values { wanted[region.id, default: []].formUnion(["en", "ru"]) }
+        var names: [Int: [String: [Name]]] = [:]
+        try forEachLine(source.alternateNames, keepingID: { wanted[$0] != nil }) { fields in
+            guard fields.count >= 8, let id = Int(fields[1]), let languages = wanted[id], languages.contains(fields[2]) else { return }
+            names[id, default: [:]][fields[2], default: []].append(Name(
+                text: fields[3], isPreferred: fields[4] == "1", isColloquial: fields[6] == "1", isHistoric: fields[7] == "1"
+            ))
+        }
+
+        func english(_ id: Int, fallback: String) -> String {
+            names[id]?["en"]?.first { $0.isPreferred && $0.isCurrent }?.text ?? fallback
+        }
+        func russian(_ id: Int) -> String? {
+            let current = names[id]?["ru"]?.filter(\.isCurrent) ?? []
+            return (current.first(where: \.isPreferred) ?? current.first)?.text
+        }
+
+        var rows: [(row: CityTable.Row, key: String, region: String)] = []
+        var kept: [String: [Int]] = [:]
+        for place in places.sorted(by: { ($0.population, $1.id) > ($1.population, $0.id) }) {
+            let point = GeoPoint(place.longitude, place.latitude)
+            guard let code = owner(point) ?? (countries.contains(place.countryCode) ? place.countryCode : countryAt(point)),
+                  countries.contains(code)
+            else { continue }
+            let name = english(place.id, fallback: place.name)
+            let key = CityKey.key(name)
+            // GeoNames lists a few towns twice: an older entry next to the current one.
+            if let twin = kept[code, default: []].first(where: { index in
+                rows[index].key == key && rows[index].region == place.region
+                    && distanceKm(rows[index].row.latitude, rows[index].row.longitude, place.latitude, place.longitude) < duplicateKm
+            }) {
+                rows[twin].row.isCapital = rows[twin].row.isCapital || place.isCapital
                 continue
             }
-            byCountry[entry.code, default: []].append(kept.count)
-            kept.append(entry)
-        }
-        return kept
-    }
-
-    private static func fold(_ text: String) -> String {
-        text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
-    }
-
-    private static func editDistance(_ a: String, _ b: String) -> Int {
-        let a = Array(a), b = Array(b)
-        var row = Array(0...b.count)
-        for i in 1...max(a.count, 1) where !a.isEmpty {
-            var previous = row[0]
-            row[0] = i
-            for j in stride(from: 1, through: b.count, by: 1) {
-                let current = row[j]
-                row[j] = min(row[j] + 1, row[j - 1] + 1, previous + (a[i - 1] == b[j - 1] ? 0 : 1))
-                previous = current
+            let nameRu = russian(place.id)
+            var aliases = Set([place.name, place.asciiName])
+            for (_, list) in names[place.id] ?? [:] { aliases.formUnion(list.map(\.text)) }
+            aliases.subtract([name, nameRu ?? ""])
+            let region = regions[place.region].map {
+                CityTable.Region(name: english($0.id, fallback: $0.name), nameRu: russian($0.id))
             }
+            kept[code, default: []].append(rows.count)
+            rows.append((CityTable.Row(
+                name: name, nameRu: nameRu,
+                // Not abbreviations ("Bur", "A"): typing a few letters shouldn't bring up a
+                // town by a nickname. Real short names (Ufa) are the name itself.
+                aliases: aliases.filter { $0.count <= 60 && CityKey.key($0).count >= 4 }.sorted(),
+                region: region, countryCode: code,
+                latitude: (place.latitude * 10_000).rounded() / 10_000,
+                longitude: (place.longitude * 10_000).rounded() / 10_000,
+                population: place.population, isCapital: place.isCapital, fame: place.fame
+            ), key, place.region))
         }
-        return row[b.count]
+        return rows.map(\.row)
+    }
+
+    /// Each country's own languages, as GeoNames codes them ("it", "de"): their names are
+    /// worth finding a city by ("Roma", "München").
+    private static func countryLanguages(_ url: URL) throws -> [String: Set<String>] {
+        var languages: [String: Set<String>] = [:]
+        try forEachLine(url) { fields in
+            guard fields.count > 15, !fields[0].hasPrefix("#") else { return }
+            let codes = fields[15].split(separator: ",").prefix(2).map { String($0.split(separator: "-")[0]) }
+            languages[fields[0]] = Set(codes)
+        }
+        return languages
+    }
+
+    /// First-level regions by "country.code": their name and geonameid.
+    private static func regionNames(_ url: URL) throws -> [String: (name: String, id: Int)] {
+        var regions: [String: (name: String, id: Int)] = [:]
+        try forEachLine(url) { fields in
+            guard fields.count >= 4, let id = Int(fields[3]) else { return }
+            regions[fields[0]] = (fields[1], id)
+        }
+        return regions
+    }
+
+    /// The tab-separated fields of every line, read line by line: the alternate names are
+    /// too big to load whole. `keepingID` looks at the second field, a geonameid, first,
+    /// so most of those 800 MB never become strings.
+    private static func forEachLine(_ url: URL, keepingID: ((Int) -> Bool)? = nil, _ body: ([String]) throws -> Void) throws {
+        guard let file = fopen(url.path, "r") else { throw PipelineError.malformed("can't open \(url.path)") }
+        defer { fclose(file) }
+        var line: UnsafeMutablePointer<CChar>?
+        var capacity = 0
+        defer { free(line) }
+        while true {
+            let length = getline(&line, &capacity, file)
+            guard length > 0, let line else { break }
+            let bytes = UnsafeRawBufferPointer(start: line, count: line[length - 1] == 10 ? length - 1 : length)
+            if let keepingID {
+                var id = 0, tabs = 0
+                for byte in bytes {
+                    if byte == 9 { tabs += 1; if tabs == 2 { break } } else if tabs == 1 { id = id * 10 + Int(byte) - 48 }
+                }
+                guard keepingID(id) else { continue }
+            }
+            try body(bytes.split(separator: 9, omittingEmptySubsequences: false).map { String(decoding: $0, as: UTF8.self) })
+        }
     }
 
     private static func distanceKm(_ lat1: Double, _ lon1: Double, _ lat2: Double, _ lon2: Double) -> Double {
@@ -131,12 +192,5 @@ enum CityCatalogBuilder {
         let dLon = (lon2 - lon1) * radians
         let h = sin(dLat / 2) * sin(dLat / 2) + cos(lat1 * radians) * cos(lat2 * radians) * sin(dLon / 2) * sin(dLon / 2)
         return 2 * 6371.0088 * asin(min(1, h.squareRoot()))
-    }
-
-    static func encode(_ entries: [CityEntry]) throws -> Data {
-        let encoder = JSONEncoder()
-        // One line: it's large, and nobody reads it by hand.
-        encoder.outputFormatting = [.sortedKeys]
-        return try encoder.encode(entries)
     }
 }

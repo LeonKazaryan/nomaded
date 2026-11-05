@@ -162,7 +162,8 @@ struct CityCatalogTests {
 
     @Test func biggerCityWinsAmongEqualMatches() {
         #expect(catalog.search("London").map(\.countryCode) == ["GB", "CA", "US"])
-        #expect(catalog.search("лон").map(\.countryCode) == ["GB", "CA", "US"])
+        // Typed in Cyrillic, Latin names start with it too: Londrina.
+        #expect(catalog.search("лон").map(\.countryCode) == ["GB", "BR", "CA", "US"])
     }
 
     @Test func wholeNameBeatsStartBeatsLaterWord() {
@@ -210,7 +211,7 @@ struct CityCatalogTests {
     @Test func bundledCountryListsLeadWithTheirCapital() throws {
         let bundled = try CityCatalog.loadBundled()
         #expect(bundled.cities(in: "IT").prefix(3).map(\.name) == ["Rome", "Milan", "Naples"])
-        #expect(bundled.cities(in: "US").first?.name == "Washington")
+        #expect(bundled.cities(in: "US").first?.name == "Washington D.C.")
         #expect(bundled.cities(in: "RU").count == 50)
         #expect(bundled.cities(in: "VA").map(\.name) == ["Vatican City"])
         // Renamed back in 2022; the old name still finds it.
@@ -241,7 +242,9 @@ struct CityCatalogTests {
 
     @Test func bundledListHasEachCityOnce() throws {
         let bundled = try CityCatalog.loadBundled()
-        #expect(bundled.cities(named: "Aktau", in: "KZ").count == 1)
+        // Three towns are called Aktau; the port on the Caspian is one of them, once.
+        #expect(bundled.cities(named: "Aktau", in: "KZ").first?.population ?? 0 > 100_000)
+        #expect(bundled.cities(named: "Aktau", in: "KZ").filter { $0.population > 100_000 }.count == 1)
         #expect(bundled.cities(named: "Denpasar", in: "ID").count == 1)
         // Twin cities across a state line stay two.
         #expect(bundled.cities(named: "Kansas City", in: "US").count == 2)
@@ -258,10 +261,10 @@ struct CityCatalogTests {
 
     @Test func bundledListHasTheCapitals() throws {
         let bundled = try CityCatalog.loadBundled()
-        #expect(bundled.cities.count > 7_000)
+        #expect(bundled.count > 75_000)
         let london = try #require(bundled.search("London").first)
         #expect(london.countryCode == "GB" && london.isCapital)
         #expect(bundled.search("Москва").first?.countryCode == "RU")
-        #expect(bundled.cities.filter(\.isCapital).count >= 195)
+        #expect(bundled.capitalCities.count >= 195)
     }
 }

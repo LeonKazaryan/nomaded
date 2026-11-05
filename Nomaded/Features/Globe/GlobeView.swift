@@ -84,7 +84,7 @@ private struct GlobeSurface: UIViewRepresentable {
     }
 }
 
-/// City names over their dots. The engine places them every frame and springs each one in
+/// City names by their dots. The engine places them every frame and springs each one in
 /// and out (`CityLabel.appearance`); this only draws, with no animation of its own, so a
 /// name never slides from anywhere but its dot. Its own view, so a moving name redraws
 /// just these labels.
@@ -95,16 +95,29 @@ private struct CityNames: View {
     var body: some View {
         ZStack {
             ForEach(controller.cityLabels) { label in
+                let side = Self.side(label.placement)
                 CityName(name: label.name, isHighlighted: label.isHighlighted, isCapital: label.isCapital)
-                    // Grows out of the dot just below it.
-                    .scaleEffect(reduceMotion ? 1 : 0.5 + 0.5 * label.appearance, anchor: .bottom)
+                    // Grows out of the dot it sits next to.
+                    .scaleEffect(reduceMotion ? 1 : 0.5 + 0.5 * label.appearance, anchor: side.anchor)
                     .opacity(min(1, max(0, label.appearance)))
-                    .position(x: label.point.x, y: label.point.y - 21)
+                    // A point-sized frame at the edge nearest the dot; the name hangs off it.
+                    .frame(width: 0, height: 0, alignment: side.alignment)
+                    .position(x: label.point.x + side.offset.width, y: label.point.y + side.offset.height)
             }
         }
         .transaction { $0.animation = nil }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+
+    /// Where a name attaches to its dot: the gap matches `CityLabelLayout.box`.
+    private static func side(_ placement: CityLabel.Placement) -> (alignment: Alignment, anchor: UnitPoint, offset: CGSize) {
+        switch placement {
+        case .above: (.bottom, .bottom, CGSize(width: 0, height: -8))
+        case .below: (.top, .top, CGSize(width: 0, height: 8))
+        case .right: (.leading, .leading, CGSize(width: 10, height: 0))
+        case .left: (.trailing, .trailing, CGSize(width: -10, height: 0))
+        }
     }
 }
 

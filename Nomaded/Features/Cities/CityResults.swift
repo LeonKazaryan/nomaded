@@ -9,6 +9,7 @@ struct CityResults: View {
     let onPick: (CitySearch.Result) -> Void
 
     @ScaledMetric(relativeTo: .body) private var rowHeight = 58
+    @ScaledMetric(relativeTo: .footnote) private var creditHeight = 32
 
     var body: some View {
         Group {
@@ -56,12 +57,23 @@ struct CityResults: View {
                     .buttonStyle(.pressable)
                     .disabled(search.resolving != nil)
                 }
+                if search.canShowMore {
+                    // The next page loads as this comes into view, before the list runs out.
+                    ProgressView()
+                        .frame(maxWidth: .infinity, minHeight: rowHeight)
+                        .onAppear { search.showMore() }
+                }
+                // GeoNames' licence (CC BY) asks for the credit.
+                Text("City data: GeoNames")
+                    .font(Typography.caption)
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity, minHeight: creditHeight)
             }
             .padding(.vertical, 6)
         }
         .scrollDismissesKeyboard(.interactively)
         .scrollBounceBehavior(.basedOnSize)
-        .frame(maxHeight: CGFloat(search.results.count) * rowHeight + 12)
+        .frame(maxHeight: CGFloat(search.results.count) * rowHeight + creditHeight + 12)
         .glassCard(cornerRadius: 24)
     }
 

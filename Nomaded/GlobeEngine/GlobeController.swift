@@ -593,8 +593,9 @@ final class GlobeController {
 
     /// Names for the cities in view, most important first: the highlighted one, then the
     /// selected country's, then names already showing (so two close names don't flicker
-    /// back and forth), then the newest. Shown from `cityLabelZoom` on. Each pops up out of
-    /// its dot on a spring and sinks back into it when it goes.
+    /// back and forth), then the newest. Shown from `cityLabelZoom` on; dots on one spot
+    /// share a name, crowded ones move aside (`CityLabelLayout`). Each pops up out of its
+    /// dot on a spring and sinks back into it when it goes, or into the shared name.
     private func updateCityLabels(_ dt: Double) {
         let showsAll = zoom.value >= GlobeTuning.cityLabelZoom
         var candidates: [(label: CityLabel, rank: Int)] = []
@@ -611,7 +612,7 @@ final class GlobeController {
         }
         let ordered = candidates.sorted { $0.rank < $1.rank }.map(\.label)
         let placed = CityLabelLayout.place(ordered, in: CGRect(origin: .zero, size: camera.viewportSize))
-        let placedIDs = Set(placed.map(\.id))
+        let placedByID = Dictionary(uniqueKeysWithValues: placed.map { ($0.id, $0) })
 
         for label in placed where labelAppearance[label.id] == nil {
             labelAppearance[label.id] = SpringValue(0)
@@ -620,7 +621,7 @@ final class GlobeController {
         let citiesByID = Dictionary(uniqueKeysWithValues: cities.map { ($0.id, $0) })
         var labels: [CityLabel] = []
         for (id, var appearance) in labelAppearance {
-            appearance.target = placedIDs.contains(id) ? 1 : 0
+            appearance.target = placedByID[id] != nil ? 1 : 0
             if reduceMotion { appearance.snap() } else { appearance.step(dt, GlobeTuning.cityLabelSpring) }
             // Gone once it has sunk back in, or once its dot went over the horizon.
             guard appearance.target > 0 || appearance.value > 0.01,
@@ -630,8 +631,12 @@ final class GlobeController {
                 continue
             }
             labelAppearance[id] = appearance
-            var label = candidatesByID[id]
-                ?? CityLabel(id: id, name: city.name, point: point, isHighlighted: false, isCapital: city.isCapital)
+            // A name on its way out keeps the side it was on.
+            var label = placedByID[id] ?? candidatesByID[id].map { candidate in
+                var leaving = candidate
+                leaving.placement = cityLabels.first { $0.id == id }?.placement ?? .above
+                return leaving
+            } ?? CityLabel(id: id, name: city.name, point: point, isHighlighted: false, isCapital: city.isCapital)
             label.appearance = appearance.value
             labels.append(label)
         }

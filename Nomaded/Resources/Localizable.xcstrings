@@ -494,6 +494,16 @@
         }
       }
     },
+    "City data: GeoNames" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Данные о городах: GeoNames"
+          }
+        }
+      }
+    },
     "Clear" : {
       "localizations" : {
         "ru" : {

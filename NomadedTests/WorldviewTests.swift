@@ -102,7 +102,10 @@ struct WorldviewTests {
         let russia = try await WorldGeometry.loadBundled(.russia)
         let relabeled = bundled.relabeled { russia.owner(at: $0) }
         #expect(relabeled.cities(named: "Simferopol", in: "RU").count == 1)
-        #expect(relabeled.cities(named: "Donetsk", in: "RU").count == 1)
+        // Russia has a Donetsk of its own, in the Rostov region; Ukraine's joins it.
+        #expect(relabeled.cities(named: "Donetsk", in: "RU").count == 2)
+        #expect(relabeled.cities(named: "Donetsk", in: "UA").isEmpty)
+        #expect(bundled.cities(named: "Donetsk", in: "UA").count == 1)
         #expect(relabeled.cities(named: "Kyiv", in: "UA").count == 1)
         #expect(relabeled.cities(in: "RU", limit: .max).contains { $0.name == "Sevastopol" })
 
