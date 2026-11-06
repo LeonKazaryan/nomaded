@@ -140,7 +140,7 @@ Nomaded — твой паспорт путешественника на живо
 
 ## Скриншоты
 
-Готовые лежат в `Tools/Screenshots/output/en` и `output/ru`: 6 штук, 1320×2868 (iPhone 6,9″), без прозрачности. Перегенерировать: `Tools/Screenshots/README.md`. В App Store Connect: версия → **Previews and Screenshots** → **iPhone 6.9″ Display**, перетащить по порядку номеров. Меньшие размеры Apple сделает сама.
+Готовые лежат в `Tools/Screenshots/output/en` и `output/ru`: 6 штук, 1206×2622 (iPhone 6,3″), без прозрачности. Перегенерировать: `Tools/Screenshots/README.md`. В App Store Connect: версия → **Видео для предпросмотра приложения и снимки экрана** → **iPhone с Dynamic Island (средний дисплей)**, перетащить по порядку номеров. Скриншоты 6,9″ (1320×2868) туда не принимаются. Меньшие размеры Apple сделает сама.
 
 | № | Экран | English | Русский |
 |---|---|---|---|

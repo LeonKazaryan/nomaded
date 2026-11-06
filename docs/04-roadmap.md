@@ -92,11 +92,11 @@
 - [x] Версия 1.0 (сборка 1); Release собирается, отладочного кода в нём нет
 - [x] Xcode 26.3, сборка на iOS 26 SDK: собирается без warnings, тесты проходят на iOS 18.6 и 26.3, экраны на iOS 26 в порядке
 - [ ] **Leon:** проверить на iPhone с iOS 26, собранном из Xcode 26.3 (флаги, глобус, отметка, статистика)
-- [x] Apple Developer Program (2026-11-04)
+- [x] Apple Developer Program (куплен 2026-11-04, подтверждён 2026-11-06)
 - [x] Privacy policy + support URL: `site/` на GitHub Pages, EN + RU
-  - [ ] **Leon:** включить Pages (Settings → Pages → Source: GitHub Actions)
+  - [x] Pages включены, страницы открываются (проверено 2026-11-06)
 - [x] Тексты карточки, ответы на анкеты, заметки для ревью и TestFlight: [`09-store-listing.md`](09-store-listing.md)
-- [x] Скриншоты 6,9″ EN + RU с подписями (`Tools/Screenshots`)
+- [x] Скриншоты 6,3″ EN + RU с подписями (`Tools/Screenshots`)
 - [ ] **Leon:** App Store Connect — создать приложение, заполнить по `09-store-listing.md`, загрузить скриншоты
 - [ ] Видео-превью (необязательно для 1.0)
 - [ ] TestFlight с друзьями, сбор фидбэка

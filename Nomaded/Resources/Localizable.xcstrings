@@ -67,12 +67,6 @@
         "ru" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld город удалится вместе с ней."
-                }
-              },
               "few" : {
                 "stringUnit" : {
                   "state" : "translated",
@@ -83,6 +77,12 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld городов удалятся вместе с ней."
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld город удалится вместе с ней."
                 }
               },
               "other" : {
@@ -171,12 +171,6 @@
         "ru" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld страна!"
-                }
-              },
               "few" : {
                 "stringUnit" : {
                   "state" : "translated",
@@ -187,6 +181,12 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld стран!"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld страна!"
                 }
               },
               "other" : {
@@ -223,12 +223,6 @@
         "ru" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Здесь ещё %lld страна"
-                }
-              },
               "few" : {
                 "stringUnit" : {
                   "state" : "translated",
@@ -239,6 +233,12 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "Здесь ещё %lld стран"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Здесь ещё %lld страна"
                 }
               },
               "other" : {
@@ -295,12 +295,6 @@
         "ru" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "+%lld территория"
-                }
-              },
               "few" : {
                 "stringUnit" : {
                   "state" : "translated",
@@ -311,6 +305,12 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "+%lld территорий"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "+%lld территория"
                 }
               },
               "other" : {
@@ -565,6 +565,7 @@
       }
     },
     "Countries visited" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ru" : {
           "stringUnit" : {
@@ -955,6 +956,7 @@
       }
     },
     "of %lld" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ru" : {
           "stringUnit" : {
@@ -987,12 +989,6 @@
         "ru" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "из %lld страны"
-                }
-              },
               "few" : {
                 "stringUnit" : {
                   "state" : "translated",
@@ -1003,6 +999,12 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "из %lld стран"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "из %lld страны"
                 }
               },
               "other" : {

@@ -1,12 +1,15 @@
 import AppKit
 
 // Turns the raw captures from capture.sh into App Store screenshots: the app's night sky, a
-// caption on top, the screen below in a slim bezel. 1320×2868 (iPhone 6.9″), RGB without alpha:
-// App Store Connect rejects screenshots with transparency.
+// caption on top, the screen below in a slim bezel. 1206×2622 (iPhone 6.3″, the size App Store
+// Connect asks for), RGB without alpha: it rejects screenshots with transparency.
 //
 //   swift Tools/Screenshots/compose.swift Tools/Screenshots/output
 
+/// The layout is drawn in these units (iPhone 6.9″) and scaled down to `output`: nearly the same
+/// shape, so nothing visibly stretches.
 let canvas = CGSize(width: 1320, height: 2868)
+let output = CGSize(width: 1206, height: 2622)
 /// The screen's share of the width; the rest is margin, and the caption sits above.
 let screenScale = 0.8
 let screenTop = 520.0
@@ -47,10 +50,11 @@ func roundedFont(size: CGFloat, weight: NSFont.Weight) -> NSFont {
 
 func compose(screen: CGImage, caption: String) -> CGImage {
     let context = CGContext(
-        data: nil, width: Int(canvas.width), height: Int(canvas.height), bitsPerComponent: 8, bytesPerRow: 0,
+        data: nil, width: Int(output.width), height: Int(output.height), bitsPerComponent: 8, bytesPerRow: 0,
         space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
     )!
-    // Top-left origin, like the screenshots themselves.
+    // Canvas units, top-left origin, like the screenshots themselves.
+    context.scaleBy(x: output.width / canvas.width, y: output.height / canvas.height)
     context.translateBy(x: 0, y: canvas.height)
     context.scaleBy(x: 1, y: -1)
 
