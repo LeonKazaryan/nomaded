@@ -108,6 +108,10 @@ enum GlobeTuning {
     static let cityRippleDuration = 1.1
     /// A name popping up out of its dot as it comes into view, and sinking back as it goes.
     static let cityLabelSpring = SpringParameters(response: 0.32, dampingRatio: 0.62)
+    /// Near the horizon, where the globe squeezes dots together, names sink back into them:
+    /// once a dot faces the camera less squarely than the lower bound (1 head-on, 0 at the
+    /// horizon). One comes back above the upper bound, so it doesn't blink at the edge.
+    static let cityLabelHorizon = 0.2...0.3
 
     // MARK: Power
 

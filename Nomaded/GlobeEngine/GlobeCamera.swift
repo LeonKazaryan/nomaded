@@ -74,6 +74,12 @@ struct GlobeCamera: Equatable, Sendable {
         simd_dot(point, SIMD3(0, 0, distance) - point) > 0
     }
 
+    /// How squarely a point on the globe faces the camera: 1 head-on, 0 at the horizon,
+    /// below 0 behind it.
+    func facing(worldPoint point: SIMD3<Double>) -> Double {
+        simd_dot(simd_normalize(point), simd_normalize(SIMD3(0, 0, distance) - point))
+    }
+
     /// Clip planes hugging the visible half of the globe. Lifted land stays well under 0.2
     /// radii above it, and tight planes keep land and ocean apart in the depth buffer even
     /// when the camera is far away.
