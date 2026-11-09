@@ -162,14 +162,41 @@ Nomaded — твой паспорт путешественника на живо
 
 ### Notes (4000)
 
+Ответ на запрос ревью «2.1 Information Needed» (2026-11-07): пункты идут по номерам из письма Apple. Текст вставляется в Notes, а видео прикладывается к ответу на письмо Apple (кнопка «Прикрепить файл»).
+
 ```
-Nomaded needs no account, and all data stays on the device.
+1. SCREEN RECORDING
+Attached to my reply to this review in App Review messages. Recorded on an iPhone 16 Pro Max with the latest iOS. It starts with launching the app from the Home Screen and shows the typical flow: onboarding, marking a country, adding cities, search, the visited list, Statistics with medals, and removing a country.
+Nomaded has no accounts, no user-generated content and no paid content or in-app purchases, so there are no such flows to show.
 
-To try it: tap any country on the globe and press "Mark as visited". On the country card, "+ City" adds a city. The chart button in the top left corner opens Statistics, the magnifier in the top right opens search.
+2. PURPOSE AND AUDIENCE
+Nomaded is a travel map for people who travel and want to remember where they have been. It replaces paper scratch maps and spreadsheets: you mark the countries and cities you have visited on an interactive 3D globe, see your progress (countries visited, share of each continent and of the world's land) and earn medals at 10, 25, 50, 100, 150 and 195 countries and for every new continent. It gives a private, offline record of your travels that is fun to fill in.
 
-City search uses a built-in list of cities first and MapKit (MKLocalSearchCompleter) for everything else.
+3. HOW TO USE
+No login, setup or sample files are needed.
+- First launch: a short onboarding. Tap "Get started", pick a few countries (or "Skip"), then "Let's go!".
+- Globe: drag to spin, pinch to zoom. Tap a country to open its card, then tap "Mark as visited".
+- Cities: on a country's card, tap "+ City" and pick a city from the list or search for one.
+- Search: the magnifier button (top right) finds any country and flies to it.
+- Visited list: tap the "N countries" counter at the top.
+- Statistics and medals: the chart button (top left).
+- To remove a country, tap it and tap the checkmark button on its card.
 
-Borders of disputed territories are drawn according to the law of the App Store storefront (read with StoreKit's Storefront). No user data is used or sent for this.
+4. EXTERNAL SERVICES
+- Apple MapKit (MKLocalSearchCompleter): city search for places that are not in the built-in list. This is the only network request the app makes.
+- StoreKit Storefront: reads the App Store country code to pick the border view (see 5). No purchases.
+- Built into the app and used offline: country shapes from Natural Earth and a city list from GeoNames.
+There are no own servers, accounts, analytics, ads, payment or AI services. All user data stays on the device.
+
+5. REGIONAL DIFFERENCES
+All features are the same in every region. The only difference is how disputed borders are drawn. The border view is chosen by the App Store storefront so that the map follows local law:
+- Russia: Crimea, Sevastopol and the Donetsk, Luhansk, Zaporizhzhia and Kherson regions are shown as part of Russia.
+- India: all of Jammu and Kashmir and Ladakh, including Gilgit-Baltistan, Azad Kashmir and Aksai Chin, are shown as part of India.
+- All other storefronts: the default Natural Earth borders.
+The app is not offered in China mainland. Country names come from iOS in the user's language. The app is available in English and Russian.
+
+6. REGULATION AND THIRD-PARTY MATERIAL
+The app is not in a regulated industry. Third-party material: Natural Earth map data (public domain, naturalearthdata.com) and GeoNames city data (CC BY 4.0, geonames.org, credited in the app under city search results and on the support page). There is no other protected material.
 ```
 
 ## TestFlight — Test Information
