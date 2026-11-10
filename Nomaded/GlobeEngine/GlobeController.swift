@@ -87,6 +87,9 @@ final class GlobeController {
     /// Countries a landing city will mark. Already visited in the store, but they stay
     /// plain on the globe until the city touches down, so the fill has something to do.
     @ObservationIgnored private var awaitingMark: Set<String> = []
+    /// Countries marked on another device, each with the seconds left before it fills in.
+    /// Visited already; `awaitingMark` keeps them plain until their turn. Soonest first.
+    @ObservationIgnored private var arrivals: [(code: String, wait: Double)] = []
     /// Where the user last touched a country, so marking it fills from under their finger.
     @ObservationIgnored private var lastTouch: (code: String, coordinate: GeoCoordinate)?
     @ObservationIgnored private var ring: Ring?
@@ -284,7 +287,7 @@ final class GlobeController {
 
     private var isMoving: Bool {
         if isDragging || isPinching || isFocusing || flight != nil || ring != nil || !animating.isEmpty
-            || !zoom.isSettled || !centerOffset.isSettled || !centerShift.isSettled {
+            || !arrivals.isEmpty || !zoom.isSettled || !centerOffset.isSettled || !centerShift.isSettled {
             return true
         }
         // Coasting after a flick, or springing back inside the tilt limit, faster than the eye
@@ -390,6 +393,34 @@ final class GlobeController {
         let changed = visited.symmetricDifference(codes)
         visited = codes
         changed.forEach(retarget)
+    }
+
+    /// Countries marked on another device: they fill in one after another, west to east
+    /// across the side in view and on round the back, each with a quiet wave from its
+    /// middle, so a world coming back from iCloud sweeps in instead of popping on. Works
+    /// before or after `setVisited` has them. Reduce Motion: they fade in as `setVisited`
+    /// has them, all at once.
+    func fillIn(_ codes: Set<String>, after delay: Double = 0) {
+        guard !reduceMotion, isReady else { return }
+        wake()
+        let center = GlobeOrientation(yaw: yaw.value, pitch: pitch.value).centerCoordinate.longitude
+        let order = codes
+            .filter { !awaitingMark.contains($0) }
+            .compactMap { code in
+                nodes[code].map { node in
+                    // 0 at the left edge of the side in view, 180 at the right, on to 360 behind.
+                    let angle = (node.shape.label.longitude - center + 90).truncatingRemainder(dividingBy: 360)
+                    return (code: code, angle: angle < 0 ? angle + 360 : angle)
+                }
+            }
+            .sorted { $0.angle < $1.angle }
+        let gap = min(GlobeTuning.arrivalGap, GlobeTuning.arrivalSweep / Double(max(order.count, 1)))
+        for (index, country) in order.enumerated() {
+            awaitingMark.insert(country.code)
+            arrivals.append((country.code, delay + Double(index) * gap))
+            retarget(country.code)
+        }
+        arrivals.sort { $0.wait < $1.wait }
     }
 
     /// "Mark as visited": the color spreads across the country from `origin` (by default
@@ -872,10 +903,26 @@ final class GlobeController {
         stepRotation(dt)
         stepFlight()
         stepZoom(dt)
+        stepArrivals(dt)
         stepCountries(dt)
         stepCities(dt)
         stepRing(dt)
         recoverIfNonFinite()
+    }
+
+    /// Starts the fill of each country from another device whose turn has come. One
+    /// unmarked meanwhile just stays plain.
+    private func stepArrivals(_ dt: Double) {
+        guard !arrivals.isEmpty else { return }
+        for index in arrivals.indices { arrivals[index].wait -= dt }
+        while let next = arrivals.first, next.wait <= 0 {
+            arrivals.removeFirst()
+            guard awaitingMark.remove(next.code) != nil else { continue }
+            if visited.contains(next.code), let middle = nodes[next.code]?.shape.label {
+                celebrate(next.code, from: middle, quietly: true)
+            }
+            retarget(next.code)
+        }
     }
 
     // MARK: - Celebration ring

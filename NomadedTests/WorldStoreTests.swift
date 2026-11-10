@@ -8,7 +8,7 @@ struct WorldStoreTests {
     private let container: ModelContainer
 
     init() throws {
-        container = try WorldStore.makeContainer(ModelConfiguration(isStoredInMemoryOnly: true))
+        container = try WorldStore.makeContainer(.scratch)
     }
 
     private var visitCount: Int {
@@ -101,11 +101,11 @@ struct WorldStoreTests {
         let file = folder.appending(path: "visits.store")
 
         do {
-            let old = try ModelContainer(for: Visit.self, configurations: ModelConfiguration(url: file))
+            let old = try ModelContainer(for: Visit.self, configurations: .unsynced(at: file))
             old.mainContext.insert(Visit(countryCode: "JP"))
             try old.mainContext.save()
         }
-        let store = WorldStore(container: try WorldStore.makeContainer(ModelConfiguration(url: file)))
+        let store = WorldStore(container: try WorldStore.makeContainer(.unsynced(at: file)))
         #expect(store.visitedCodes == ["JP"])
         #expect(store.cities.isEmpty)
 
@@ -154,17 +154,16 @@ struct WorldStoreTests {
         #expect(store.milestones[.continent(.africa)] != nil)
     }
 
-    /// Medals earned before unmarking took them back are cleaned up at launch.
-    @Test func leftoverMilestonesGoAtLaunch() throws {
+    /// A medal can sync in before the countries that earn it. It stays: taken back here, it
+    /// would be taken back on every device.
+    @Test func aMedalAheadOfItsCountriesStays() throws {
         let context = container.mainContext
         context.insert(Visit(countryCode: "FR"))
-        context.insert(EarnedMilestone(.continent(.europe)))
         context.insert(EarnedMilestone(.continent(.antarctica)))
-        context.insert(EarnedMilestone(.countries(10)))
         try context.save()
 
         let store = WorldStore(container: container, catalog: Self.catalog)
-        #expect(Array(store.milestones.keys) == [.continent(.europe)])
+        #expect(store.milestones[.continent(.antarctica)] != nil)
     }
 
     @Test func tenCountriesAndATerritoryContinent() {
@@ -200,12 +199,12 @@ struct WorldStoreTests {
         let file = folder.appending(path: "visits.store")
 
         do {
-            let store = WorldStore(container: try WorldStore.makeContainer(ModelConfiguration(url: file)))
+            let store = WorldStore(container: try WorldStore.makeContainer(.unsynced(at: file)))
             store.markVisited("PT")
             store.markVisited("ES")
             store.unmarkVisited("ES")
         }
-        let relaunched = WorldStore(container: try WorldStore.makeContainer(ModelConfiguration(url: file)))
+        let relaunched = WorldStore(container: try WorldStore.makeContainer(.unsynced(at: file)))
         #expect(relaunched.visitedCodes == ["PT"])
     }
 }

@@ -48,6 +48,9 @@ struct GlobeScreen: View {
     /// When the jump out of hyperspace began, on first launch.
     @State private var warpStart: Date?
     @State private var picks = 0
+    /// "Welcome back": the user's world just came back from iCloud.
+    @State private var isShowingRestored = false
+    @State private var restores = 0
 
     /// The one split every counter on this screen uses.
     private var visitedPlaces: VisitedPlaces {
@@ -104,6 +107,14 @@ struct GlobeScreen: View {
                             onSearch: { setSearching(true) }
                         )
                         .transition(.opacity)
+                    }
+
+                    if isShowingRestored, !isSearching, !isShowingStats, !isShowingVisited, addingCityTo == nil {
+                        RestoredBanner(onDismiss: hideRestored)
+                            .frame(maxWidth: Metrics.panelWidth)
+                            .padding(.top, 12)
+                            // Drops out of the counter it's filling, as the list does.
+                            .transition(reduceMotion ? .opacity : .scale(scale: 0.5, anchor: .top).combined(with: .opacity))
                     }
 
                     if isShowingVisited {
@@ -248,6 +259,7 @@ struct GlobeScreen: View {
         .sensoryFeedback(Haptics.markVisited, trigger: worldviewSwitches)
         #endif
         .sensoryFeedback(Haptics.select, trigger: picks)
+        .sensoryFeedback(Haptics.restored, trigger: restores)
         .onAppear {
             startOnboardingIfNeeded()
             controller.onCountryTap = { code in
@@ -278,6 +290,15 @@ struct GlobeScreen: View {
         }
         .onChange(of: world.visitedCodes, initial: true) { _, codes in
             controller.setVisited(codes)
+        }
+        .onChange(of: world.lastSync) { _, change in
+            if let change { syncArrived(change) }
+        }
+        .task(id: restores) {
+            guard restores > 0 else { return }
+            // Long enough to read while the countries sweep in.
+            do { try await Task.sleep(for: .seconds(5)) } catch { return }
+            hideRestored()
         }
         .onChange(of: world.cities, initial: true) { _, cities in
             updateCityMarkers()
@@ -406,6 +427,27 @@ struct GlobeScreen: View {
             onboarding = nil
             warpStart = nil
         }
+    }
+
+    // MARK: - iCloud
+
+    /// The user's other devices marked or unmarked something, and iCloud brought it here:
+    /// the globe shows it happening. A world arriving on an empty globe, or during the
+    /// introduction, is a restore (a new device, or the app installed again): the
+    /// introduction makes way, and a banner says where it all came from.
+    private func syncArrived(_ change: SyncedChange) {
+        let isRestore = !change.marked.isEmpty && (change.isRestore || onboarding != nil)
+        if isRestore, onboarding != nil { finishOnboarding() }
+        change.unmarked.forEach { controller.drain($0) }
+        controller.fillIn(change.marked, after: isRestore ? GlobeTuning.restoreFillDelay : 0)
+        guard isRestore else { return }
+        restores += 1
+        announce("Welcome back. Your countries and cities are back from iCloud.")
+        withAnimation(Motion.bouncy) { isShowingRestored = true }
+    }
+
+    private func hideRestored() {
+        withAnimation(Motion.smooth) { isShowingRestored = false }
     }
 
     private var isGlobeBehind: Bool {
@@ -639,8 +681,9 @@ struct GlobeScreen: View {
     /// picking those countries, and finishes),
     /// `-NomadedDebugMark IT` flies to a country and marks it, celebration and all
     /// (`-NomadedDebugUnmarkAfter YES` unmarks it 3 s later), `-NomadedDebugMilestone countries.25`
-    /// shows a milestone's celebration. These runs
-    /// use an empty in-memory store (see `NomadedApp`), so they never touch countries marked by hand.
+    /// shows a milestone's celebration, `-NomadedDebugSyncMark IT,FR` has those countries
+    /// arrive from "another device" 3 s in (with `-NomadedDebugOnboarding YES`: a restore).
+    /// These runs use an empty in-memory store (see `NomadedApp`), so they never touch countries marked by hand.
     private func applyDebugLaunchArguments() {
         let defaults = UserDefaults.standard
         if let list = defaults.string(forKey: "NomadedDebugVisited") {
@@ -674,6 +717,12 @@ struct GlobeScreen: View {
         let showsStats = defaults.bool(forKey: "NomadedDebugStats")
         if let picks = defaults.string(forKey: "NomadedDebugOnboardingPicks"), onboarding != nil {
             walkThroughOnboarding(picking: picks.split(separator: ",").map(String.init))
+        }
+        if let synced = defaults.string(forKey: "NomadedDebugSyncMark") {
+            Task {
+                try? await Task.sleep(for: .seconds(3))
+                world.simulateSync(marking: synced.split(separator: ",").map(String.init))
+            }
         }
         guard !taps.isEmpty || fly != nil || switchesTo != nil || resets || search != nil || showsList || showsStats || focusesCity
                 || addsCityTo != nil || landsCity != nil || marks != nil || debugMilestone != nil

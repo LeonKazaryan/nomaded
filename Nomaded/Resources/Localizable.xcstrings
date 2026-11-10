@@ -725,6 +725,16 @@
         }
       }
     },
+    "Hides this message" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Скрывает это сообщение"
+          }
+        }
+      }
+    },
     "Land" : {
       "localizations" : {
         "ru" : {
@@ -1358,6 +1368,26 @@
         }
       }
     },
+    "Welcome back" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "С возвращением"
+          }
+        }
+      }
+    },
+    "Welcome back. Your countries and cities are back from iCloud." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "С возвращением. Ваши страны и города вернулись из iCloud."
+          }
+        }
+      }
+    },
     "Western Africa" : {
       "localizations" : {
         "ru" : {
@@ -1404,6 +1434,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Весь мир"
+          }
+        }
+      }
+    },
+    "Your countries and cities are back from iCloud" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Твои страны и города вернулись из iCloud"
           }
         }
       }

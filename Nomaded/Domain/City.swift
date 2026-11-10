@@ -71,6 +71,10 @@ enum CityMath {
         return km < samePlaceKm || (sameName && km < sameNameKm)
     }
 
+    static func isSamePlace(_ city: CityPin, _ other: CityPin) -> Bool {
+        isSamePlace(city, CityDraft(name: other.name, region: other.region, countryCode: other.countryCode, latitude: other.latitude, longitude: other.longitude))
+    }
+
     /// Great-circle distance (haversine), in kilometres.
     static func distanceKm(_ lat1: Double, _ lon1: Double, _ lat2: Double, _ lon2: Double) -> Double {
         let radians = Double.pi / 180

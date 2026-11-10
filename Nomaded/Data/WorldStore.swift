@@ -1,12 +1,17 @@
+import CoreData
 import Foundation
 import Observation
 import SwiftData
 import os
 
-/// The user's visited countries and cities, saved on the device. Every screen marks and
-/// unmarks through this one store, so the globe, search and stats never disagree.
+/// The user's visited countries and cities, saved on the device and mirrored to their private
+/// iCloud database (ADR-018). Every screen marks and unmarks through this one store, so the
+/// globe, search and stats never disagree.
 @Observable @MainActor
 final class WorldStore {
+    /// The iCloud container the store syncs through.
+    nonisolated static let cloudContainer = "iCloud.com.leonkazaryan.nomaded"
+
     private(set) var visitedCodes: Set<String> = []
     /// When each visited country was first marked: the date on its passport stamp.
     private(set) var firstVisits: [String: Date] = [:]
@@ -14,30 +19,54 @@ final class WorldStore {
     private(set) var cities: [CityPin] = []
     /// Milestones reached, and when. Unmarking takes back the ones no longer reached.
     private(set) var milestones: [Milestone: Date] = [:]
+    /// The last change synced in from the user's other devices that marked or unmarked
+    /// something. `nil` until one comes.
+    private(set) var lastSync: SyncedChange?
 
     /// Held so it outlives `context`: SwiftData crashes if a container goes away while its
     /// context is still in use.
     @ObservationIgnored private let container: ModelContainer
     @ObservationIgnored private var context: ModelContext { container.mainContext }
     @ObservationIgnored private let catalog: CountryCatalog
+    @ObservationIgnored private var remoteChanges: (any NSObjectProtocol)?
+    @ObservationIgnored private var syncEvents: (any NSObjectProtocol)?
+    @ObservationIgnored private var pendingMerge: Task<Void, Never>?
 
-    private static let log = Logger(subsystem: "com.leonkazaryan.nomaded", category: "WorldStore")
+    nonisolated private static let log = Logger(subsystem: "com.leonkazaryan.nomaded", category: "WorldStore")
 
     init(container: ModelContainer, catalog: CountryCatalog = .bundled) {
         self.container = container
         self.catalog = catalog
-        reload()
-        // Medals left over from before unmarking took them back go…
-        revokeMilestones(visited: visitedCodes)
-        if context.hasChanges { save() }
-        // …and whatever was reached before milestones existed counts quietly: no flood of
-        // celebrations for 90 countries marked last month.
+        // Copies of one mark may have come in from another device while the app was closed.
+        if removeCopies() { save() } else { reload() }
+        // Whatever was reached before milestones existed, or on another device, counts
+        // quietly: no flood of celebrations for 90 countries marked last month.
         earnMilestones()
+        // iCloud writes what the other devices changed straight into the store, then says so.
+        remoteChanges = NotificationCenter.default.addObserver(
+            forName: .NSPersistentStoreRemoteChange, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.scheduleMerge() }
+        }
+        // Every setup, import and export iCloud finishes goes in the log: the place to look
+        // when a device doesn't get its marks.
+        syncEvents = NotificationCenter.default.addObserver(
+            forName: NSPersistentCloudKitContainer.eventChangedNotification, object: nil, queue: nil
+        ) { note in
+            guard let event = note.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey] as? NSPersistentCloudKitContainer.Event,
+                  event.endDate != nil
+            else { return }
+            if let error = event.error {
+                Self.log.error("iCloud \(event.type.name) failed: \(error)")
+            } else {
+                Self.log.info("iCloud \(event.type.name) done")
+            }
+        }
     }
 
-    /// A container for every model the store saves. The default configuration is the app's
-    /// store on disk.
-    static func makeContainer(_ configuration: ModelConfiguration = ModelConfiguration()) throws -> ModelContainer {
+    /// A container for every model the store saves: `.synced` for the app, `.scratch` or
+    /// `.unsynced(at:)` for everything else.
+    static func makeContainer(_ configuration: ModelConfiguration) throws -> ModelContainer {
         try ModelContainer(for: Visit.self, VisitedCity.self, EarnedMilestone.self, configurations: configuration)
     }
 
@@ -121,12 +150,13 @@ final class WorldStore {
         }
     }
 
-    /// Everything marked, every city and medal, gone: a fresh start.
+    /// Everything marked, every city and medal, gone: a fresh start, on every device.
     func resetAll() {
         do {
-            try context.delete(model: Visit.self)
-            try context.delete(model: VisitedCity.self)
-            try context.delete(model: EarnedMilestone.self)
+            // Object by object, like every other delete here, so each one syncs.
+            try context.fetch(FetchDescriptor<Visit>()).forEach { context.delete($0) }
+            try context.fetch(FetchDescriptor<VisitedCity>()).forEach { context.delete($0) }
+            try context.fetch(FetchDescriptor<EarnedMilestone>()).forEach { context.delete($0) }
         } catch {
             Self.log.error("Reset failed: \(error)")
         }
@@ -144,7 +174,9 @@ final class WorldStore {
         return MilestoneRules.celebrationOrder(new)
     }
 
-    /// Deletes the earned milestones `visited` no longer reaches. Doesn't save.
+    /// Deletes the earned milestones `visited` no longer reaches. Doesn't save. Only an unmark
+    /// made here takes medals back: a sync caught halfway (the medal in, the countries that
+    /// earn it not yet) mustn't take back, on every device, a medal the user still holds.
     private func revokeMilestones(visited: Set<String>) {
         let reached = MilestoneRules.reached(visited: visited, catalog: catalog)
         do {
@@ -168,28 +200,149 @@ final class WorldStore {
         reload()
     }
 
+    /// Reads everything again. Sets only what changed: syncing reloads often, and every set
+    /// redraws the screens that read it.
     private func reload() {
         do {
             let visits = try context.fetch(FetchDescriptor<Visit>())
-            visitedCodes = Set(visits.map(\.countryCode))
-            firstVisits = Dictionary(visits.map { ($0.countryCode, $0.createdAt) }, uniquingKeysWith: min)
-            let cities = try context.fetch(FetchDescriptor<VisitedCity>(sortBy: [SortDescriptor(\.createdAt)]))
-            self.cities = cities.map(\.pin)
+            let visitedCodes = Set(visits.map(\.countryCode))
+            let firstVisits = Dictionary(visits.map { ($0.countryCode, $0.createdAt) }, uniquingKeysWith: min)
+            let cities = try context.fetch(FetchDescriptor<VisitedCity>(sortBy: [SortDescriptor(\.createdAt)])).map(\.pin)
             let earned = try context.fetch(FetchDescriptor<EarnedMilestone>())
-            milestones = Dictionary(
+            let milestones = Dictionary(
                 earned.compactMap { record in Milestone(id: record.id).map { ($0, record.earnedAt) } },
                 uniquingKeysWith: min
             )
+            if visitedCodes != self.visitedCodes { self.visitedCodes = visitedCodes }
+            if firstVisits != self.firstVisits { self.firstVisits = firstVisits }
+            if cities != self.cities { self.cities = cities }
+            if milestones != self.milestones { self.milestones = milestones }
         } catch {
             Self.log.error("Fetch failed: \(error)")
         }
     }
 
+    // MARK: - iCloud
+
+    /// An import comes in batches, each with its own notice: a moment's wait takes them
+    /// together. Every save made here sends one too; merging after it finds nothing new.
+    private func scheduleMerge() {
+        guard pendingMerge == nil else { return }
+        pendingMerge = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(0.3))
+            self?.pendingMerge = nil
+            self?.mergeSyncedChanges()
+        }
+    }
+
+    /// Takes in what iCloud brought from the user's other devices: copies of one mark made on
+    /// two devices become one, and places marked elsewhere count toward milestones quietly,
+    /// like anything marked before this device could celebrate it.
+    func mergeSyncedChanges() {
+        let before = visitedCodes
+        if removeCopies() { save() } else { reload() }
+        let marked = visitedCodes.subtracting(before)
+        let unmarked = before.subtracting(visitedCodes)
+        guard !marked.isEmpty || !unmarked.isEmpty else { return }
+        if !marked.isEmpty { earnMilestones() }
+        lastSync = SyncedChange(marked: marked, unmarked: unmarked, isRestore: before.isEmpty, serial: (lastSync?.serial ?? 0) + 1)
+    }
+
+    /// Deletes the records that repeat older ones (`SyncMerge`). Doesn't save; returns
+    /// whether it deleted anything.
+    private func removeCopies() -> Bool {
+        do {
+            let visits = SyncMerge.copies(
+                in: try context.fetch(FetchDescriptor<Visit>()),
+                age: { SyncMerge.Age(made: $0.createdAt, id: $0.id.uuidString) },
+                isSame: { $0.countryCode == $1.countryCode && $0.startDate == $1.startDate && $0.endDate == $1.endDate && $0.note == $1.note }
+            )
+            let cities = SyncMerge.copies(
+                in: try context.fetch(FetchDescriptor<VisitedCity>()),
+                age: { SyncMerge.Age(made: $0.createdAt, id: $0.id.uuidString) },
+                isSame: { CityMath.isSamePlace($0.pin, $1.pin) }
+            )
+            let medals = SyncMerge.copies(
+                in: try context.fetch(FetchDescriptor<EarnedMilestone>()),
+                age: { SyncMerge.Age(made: $0.earnedAt, id: $0.id) },
+                isSame: { $0.id == $1.id }
+            )
+            visits.forEach { context.delete($0) }
+            cities.forEach { context.delete($0) }
+            medals.forEach { context.delete($0) }
+            return !visits.isEmpty || !cities.isEmpty || !medals.isEmpty
+        } catch {
+            Self.log.error("Merging copies failed: \(error)")
+            return false
+        }
+    }
+
     #if DEBUG
+    /// Countries marked on "another device": saved by a context of their own, the way iCloud
+    /// writes, then merged as a sync is. `-NomadedDebugSyncMark`.
+    func simulateSync(marking codes: [String]) {
+        let otherDevice = ModelContext(container)
+        codes.forEach { otherDevice.insert(Visit(countryCode: $0)) }
+        do {
+            try otherDevice.save()
+        } catch {
+            Self.log.error("Simulated sync failed: \(error)")
+        }
+        mergeSyncedChanges()
+    }
+
     /// An empty store in memory, for previews.
     static func scratch() -> WorldStore {
         // A failure here is a programming error in the schema, not something to recover from.
-        WorldStore(container: try! makeContainer(ModelConfiguration(isStoredInMemoryOnly: true)))
+        WorldStore(container: try! makeContainer(.scratch))
     }
     #endif
+}
+
+/// What the user's other devices changed, as it arrived: for the globe to show it happening.
+struct SyncedChange: Equatable {
+    /// Countries marked elsewhere…
+    let marked: Set<String>
+    /// …and unmarked elsewhere.
+    let unmarked: Set<String>
+    /// Nothing was marked here before: a new device, or a reinstall, getting its world back.
+    let isRestore: Bool
+    /// Tells two changes with the same countries apart.
+    let serial: Int
+}
+
+private extension NSPersistentCloudKitContainer.EventType {
+    var name: String {
+        switch self {
+        case .setup: "setup"
+        case .import: "import"
+        case .export: "export"
+        @unknown default: "event \(rawValue)"
+        }
+    }
+}
+
+extension ModelConfiguration {
+    /// The app's store on disk, mirrored to the user's private iCloud database: their world
+    /// is the same on every device and outlives the app being deleted.
+    static var synced: ModelConfiguration {
+        ModelConfiguration(cloudKitDatabase: .private(WorldStore.cloudContainer))
+    }
+
+    /// In memory, never synced: previews, tests, scripted debug runs. With iCloud in the
+    /// entitlements SwiftData syncs any store not told otherwise, and test marks would land
+    /// in the user's iCloud.
+    static var scratch: ModelConfiguration {
+        ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+    }
+
+    /// The same store on disk without iCloud, for when sync can't be set up.
+    static var unsynced: ModelConfiguration {
+        ModelConfiguration(cloudKitDatabase: .none)
+    }
+
+    /// A store in a file of its own, never synced: tests that relaunch the app.
+    static func unsynced(at url: URL) -> ModelConfiguration {
+        ModelConfiguration(url: url, cloudKitDatabase: .none)
+    }
 }

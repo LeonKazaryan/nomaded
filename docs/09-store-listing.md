@@ -278,3 +278,29 @@ Nomaded теперь сделан и для iPad. Глобус занимает 
 
 Ещё исправлено: глобус мог пропасть, пока выбираешь страны в начале, а сохранённые города теперь называются правильно.
 ```
+
+## Версия 1.2 — iCloud-синхронизация (ADR-018)
+
+Перед загрузкой: схема CloudKit выложена в Production (CloudKit Console → контейнер `iCloud.com.leonkazaryan.nomaded` → Deploy Schema Changes), сборка 4 проверена в TestFlight на iPhone и iPad с одним Apple ID. App Privacy не меняется: данные лежат в личном iCloud пользователя, разработчик их не получает («Data Not Collected»). Политика конфиденциальности на сайте уже говорит про iCloud.
+
+### App Review Notes 1.2 (добавить в начало старых)
+
+```
+Version 1.2 syncs the user's marked countries, cities and medals through their own private iCloud database (CloudKit), so an iPhone and an iPad show the same world and it comes back after reinstalling. There is still no account and no server of ours; we can't access the data. Without iCloud the app works on the device as before.
+```
+
+### What's New — English (4000)
+
+```
+Your world now follows you. With iCloud, the countries, cities and medals you mark show up on all your iPhones and iPads, and come back if you reinstall the app or get a new device. Marked something on your iPhone? Open your iPad and watch it fill in.
+
+No account needed: everything stays in your own iCloud.
+```
+
+### Что нового — Russian (4000)
+
+```
+Твой мир теперь всегда с тобой. Через iCloud отмеченные страны, города и медали появляются на всех твоих iPhone и iPad и возвращаются после переустановки или на новом устройстве. Отметил страну на iPhone — открой iPad и смотри, как она заливается цветом.
+
+Без аккаунтов: всё хранится в твоём личном iCloud.
+```

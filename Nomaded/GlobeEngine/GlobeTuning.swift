@@ -70,6 +70,15 @@ enum GlobeTuning {
     /// A quiet mark (picking countries while onboarding) jumps this much of a full one.
     static let quietKickScale = 0.5
 
+    // MARK: Syncing
+
+    /// Countries marked on another device fill in one after another, this far apart (s)…
+    static let arrivalGap = 0.08
+    /// …and all of them within this long, however many come at once.
+    static let arrivalSweep = 1.6
+    /// A world restored from iCloud starts filling in once the introduction has faded.
+    static let restoreFillDelay = 0.45
+
     // MARK: First launch
 
     /// The globe flies in from deep space: it starts this small…

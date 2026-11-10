@@ -145,7 +145,7 @@ struct WorldviewStoreTests {
     private let container: ModelContainer
 
     init() throws {
-        container = try WorldStore.makeContainer(ModelConfiguration(isStoredInMemoryOnly: true))
+        container = try WorldStore.makeContainer(.scratch)
     }
 
     /// Saved when the globe still filed Crimea under Russia: the city moves to the country
