@@ -73,11 +73,12 @@ Earn medals at 10, 25, 50, 100, 150 and all 195 countries, and for every new con
 MADE WITH CARE
 • 195 countries, plus territories you can mark too
 • Works offline, with over 80,000 cities and resorts built in
+• iPhone and iPad, in any orientation on iPad
 • VoiceOver, Dynamic Type and Reduce Motion
 • English and Russian
 
 PRIVATE BY DESIGN
-No account, no ads, no tracking. Your travels stay on your iPhone.
+No account, no ads, no tracking. Your travels stay on your device.
 ```
 
 ### Keywords (100)
@@ -125,11 +126,12 @@ Nomaded — твой паспорт путешественника на живо
 СДЕЛАНО С ЛЮБОВЬЮ
 • 195 стран и территории, которые тоже можно отмечать
 • Работает без интернета, встроено больше 80 000 городов и курортов
+• iPhone и iPad, на iPad — в любой ориентации
 • VoiceOver, крупный шрифт и «Уменьшение движения»
 • Русский и английский языки
 
 ПРИВАТНОСТЬ ПО УМОЛЧАНИЮ
-Без аккаунта, рекламы и отслеживания. Твои путешествия остаются на твоём iPhone.
+Без аккаунта, рекламы и отслеживания. Твои путешествия остаются на твоём устройстве.
 ```
 
 ### Keywords (100)
@@ -152,6 +154,8 @@ Nomaded — твой паспорт путешественника на живо
 | 4 | Города | Add the cities you’ve been to | Добавляй города, где ты был |
 | 5 | Медаль | Collect medals as you go | Собирай медали за новые страны |
 | 6 | Континент | Every continent, country by country | Каждый континент — по странам |
+
+**iPad (с версии 1.1):** `Tools/Screenshots/output/ipad/en` и `output/ipad/ru`, те же 6 сцен и подписи, 2064×2752 (iPad 13″), в App Store Connect — раздел **iPad Pro 13″ (M4) / iPad 13″**. Снимаются на симуляторе iPad Pro 13-inch (M4) iOS 18.6, повёрнутом вертикально: `Tools/Screenshots/capture.sh ipad`, потом `swift Tools/Screenshots/compose.swift Tools/Screenshots/output/ipad ipad`.
 
 Видео-превью (App Preview) для 1.0 необязательно. Если делать, то записью экрана с iPhone, 15–30 секунд: вращение глобуса → тап по стране → отметка с конфетти → город → статистика.
 
@@ -225,4 +229,34 @@ Mark and unmark a few countries, add some cities, and open Statistics. Tell me i
 
 ```
 Отметь и сними несколько стран, добавь пару городов, открой статистику. Напиши, если что-то тормозит, выглядит странно или трудно найти. Чтобы отправить отзыв, сделай скриншот в приложении и нажми «Отправить отзыв о бета-версии».
+```
+
+## Версия 1.1 — iPad и русская страница
+
+Сборка 1.1 (2) поддерживает iPad (ADR-017). Новая версия заодно открывает поля, которые у вышедшей 1.0 заблокированы: русский язык карточки и Privacy Policy URL.
+
+1. **Xcode:** Product → Archive → Distribute App → App Store Connect. Версия 1.1, сборка 2 уже стоят в проекте.
+2. **Распространение → «+» у «Приложение для iOS»** → версия `1.1`.
+3. **Скриншоты:** iPhone 6,3″ переедут из 1.0 сами. В разделе iPad 13″ загрузить `Tools/Screenshots/output/ipad/en` по порядку номеров.
+4. **Описание** (English): вставить новое из раздела «Version 1.0 — English» выше, в нём строка про iPad и «stay on your device».
+5. **«Что нового»** (English) — ниже.
+6. **Русский язык:** справа вверху «английский (США)» → **«Добавить локализацию» → русский**. С выбранным русским заполнить из «Version 1.0 — Russian»: промотекст, описание, ключевые слова, «Что нового»; Support URL и Marketing URL `https://leonkazaryan.github.io/nomaded/ru/`; скриншоты iPhone 6,3″ из `output/ru` и iPad 13″ из `output/ipad/ru`.
+7. **Информация о приложении** → язык «русский»: название `Nomaded: карта путешествий`, подзаголовок `Посещённые страны на глобусе`.
+8. **Конфиденциальность приложения:** Privacy Policy URL `https://leonkazaryan.github.io/nomaded/privacy.html` (без точки в конце!), для русского языка `https://leonkazaryan.github.io/nomaded/ru/privacy.html`.
+9. Выбрать сборку 2 → **Добавить для проверки**. Ревью проверит приложение и на iPad.
+
+### What's New — English (4000)
+
+```
+Nomaded is now made for iPad. The globe fills the big screen in portrait and landscape, Statistics spread three continents across, and a trackpad or mouse spins and zooms the planet.
+
+Also: saved cities show their proper names, and a few smaller fixes.
+```
+
+### Что нового — Russian (4000)
+
+```
+Nomaded теперь сделан и для iPad. Глобус занимает весь большой экран в любой ориентации, статистика раскладывает континенты в три колонки, а трекпадом или мышью можно крутить и приближать планету.
+
+Ещё: сохранённые города называются правильно, и несколько мелких исправлений.
 ```

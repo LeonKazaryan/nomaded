@@ -70,25 +70,25 @@
               "few" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld города удалятся вместе с ней."
+                  "value" : "%lld города удалятся вместе со страной."
                 }
               },
               "many" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld городов удалятся вместе с ней."
+                  "value" : "%lld городов удалятся вместе со страной."
                 }
               },
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld город удалится вместе с ней."
+                  "value" : "%lld город удалится вместе со страной."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld города удалятся вместе с ней."
+                  "value" : "%lld города удалятся вместе со страной."
                 }
               }
             }
@@ -1063,7 +1063,7 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Убрать %@ из посещённых?"
+            "value" : "%@: убрать из посещённых?"
           }
         }
       }

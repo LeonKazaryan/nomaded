@@ -52,6 +52,7 @@ struct CitySearchPanel: View {
                     .fixedSize()
                     .frame(minHeight: 44)
                     .buttonStyle(.pressable)
+                    .keyboardShortcut(.cancelAction)
             }
             // Bars stop growing at the largest regular size.
             .dynamicTypeSize(...DynamicTypeSize.xxxLarge)

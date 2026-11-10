@@ -29,6 +29,8 @@ struct StatisticsScreen: View {
     @Namespace private var hero
     @ScaledMetric(relativeTo: .body) private var detailMapHeight = 230
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// An iPad (or a wide enough window on one): three continents a row, cards side by side.
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.countryCatalog) private var catalog
     #if DEBUG
     @Environment(\.developerTools) private var developer
@@ -102,7 +104,7 @@ struct StatisticsScreen: View {
                 allDiscoveredNote: "The whole continent is discovered!"
             ) {
                 ContinentMap(outlines: maps?.outlines[continent] ?? [], visited: visited, delay: reduceMotion ? 0 : 0.35)
-                    .frame(height: detailMapHeight)
+                    .frame(height: detailMapHeight * (isWide ? 1.4 : 1))
                     .frame(maxWidth: .infinity)
                     .matchedGeometryEffect(id: continent, in: hero)
                     .padding(16)
@@ -131,10 +133,13 @@ struct StatisticsScreen: View {
                     emptyHint
                         .cascade(4, appeared: appeared)
                 } else {
-                    RegionsCard(regions: stats.regions, baseDelay: delay(of: 5))
-                        .cascade(4, appeared: appeared)
-                    FactsCard(stats: stats)
-                        .cascade(5, appeared: appeared)
+                    // Side by side when there's the width: the regions run long, the facts don't.
+                    (isWide ? AnyLayout(HStackLayout(alignment: .top, spacing: 16)) : AnyLayout(VStackLayout(spacing: 16))) {
+                        RegionsCard(regions: stats.regions, baseDelay: delay(of: 5))
+                            .cascade(4, appeared: appeared)
+                        FactsCard(stats: stats)
+                            .cascade(5, appeared: appeared)
+                    }
                 }
                 #if DEBUG
                 if let developer {
@@ -143,6 +148,7 @@ struct StatisticsScreen: View {
                 }
                 #endif
             }
+            .centered(maxWidth: Metrics.pageWidth)
             .padding(.horizontal, 16)
             .padding(.bottom, 24)
             // Stretches a little while pulled, like a sheet that's about to let go.
@@ -201,8 +207,11 @@ struct StatisticsScreen: View {
                     .glass(Circle())
                     // Turns as you pull, a hint that letting go will close.
                     .rotationEffect(.degrees(Double(min(pull, Self.closeDistance)) / Double(Self.closeDistance) * 90))
+                    .contentShape(.hoverEffect, Circle())
             }
             .buttonStyle(.pressable)
+            // Esc closes the list on top first.
+            .keyboardShortcut(openDetail == nil ? .cancelAction : nil)
             .accessibilityLabel("Close")
         }
         .padding(.top, 8)
@@ -214,7 +223,7 @@ struct StatisticsScreen: View {
                 Text("\(stats.visitedContinents) of \(stats.continents.count)")
             }
             let tiles = stats.continents.filter { $0.continent != .antarctica }
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: isWide ? 3 : 2), spacing: 12) {
                 ForEach(Array(tiles.enumerated()), id: \.element.id) { index, progress in
                     tile(progress, index: index)
                 }
@@ -269,6 +278,8 @@ struct StatisticsScreen: View {
             .padding(20)
             .glassCard(cornerRadius: 24)
     }
+
+    private var isWide: Bool { sizeClass == .regular }
 
     /// When a card's own animations start: after it has slid in.
     private func delay(of index: Int) -> Double {

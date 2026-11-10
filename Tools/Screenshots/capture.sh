@@ -1,15 +1,23 @@
 #!/bin/bash
-# App Store screenshots, 6.9" (1320×2868): the app's own scenes, driven by the DEBUG launch
-# arguments, on the iPhone 16 Pro Max simulator. iOS 18.6 on purpose: the Xcode 26.3 simulator
-# for iOS 26 draws flags as "?". Raw shots go to output/raw/<language>/, compose.swift then
-# adds the captions. See README.md.
+# App Store screenshots: the app's own scenes, driven by the DEBUG launch arguments, on the
+# iPhone 16 Pro Max simulator (6.9", 1320×2868), or with `ipad` on the iPad Pro 13-inch
+# (2064×2752, held upright). iOS 18.6 on purpose: the Xcode 26.3 simulator for iOS 26 draws
+# flags as "?". Raw shots go to output/raw/<language>/ (output/ipad/raw/… for the iPad),
+# compose.swift then adds the captions. See README.md.
+#
+#   Tools/Screenshots/capture.sh [ipad]
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-DEVICE="iPhone 16 Pro Max"
 OS="18.6"
 BUNDLE=com.leonkazaryan.nomaded
-OUT=Tools/Screenshots/output/raw
+if [ "${1:-}" = ipad ]; then
+    DEVICE="iPad Pro 13-inch (M4)"
+    OUT=Tools/Screenshots/output/ipad/raw
+else
+    DEVICE="iPhone 16 Pro Max"
+    OUT=Tools/Screenshots/output/raw
+fi
 BUILD="${TMPDIR:-/tmp}/nomaded-screenshots"
 
 # A traveler with 34 countries on six continents; Japan is left for the marking scene.
@@ -32,7 +40,8 @@ xcrun simctl bootstatus "$UDID" -b >/dev/null
 xcrun simctl install "$UDID" "$BUILD/Build/Products/Debug-iphonesimulator/Nomaded.app"
 # 9:41, full battery and bars, like Apple's own screenshots.
 xcrun simctl status_bar "$UDID" override --time "9:41" --dataNetwork wifi --wifiMode active \
-    --wifiBars 3 --cellularMode active --cellularBars 4 --operatorName "" --batteryState charged --batteryLevel 100
+    --wifiBars 3 --cellularMode active --cellularBars 4 --operatorName "" --batteryState charged --batteryLevel 100 \
+    || true # a Wi-Fi iPad has no cellular bars to set
 
 launch() {
     xcrun simctl launch --terminate-running-process "$UDID" "$BUNDLE" "${COMMON[@]}" "$@" >/dev/null

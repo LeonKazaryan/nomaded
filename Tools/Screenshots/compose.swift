@@ -1,21 +1,26 @@
 import AppKit
 
 // Turns the raw captures from capture.sh into App Store screenshots: the app's night sky, a
-// caption on top, the screen below in a slim bezel. 1206×2622 (iPhone 6.3″, the size App Store
-// Connect asks for), RGB without alpha: it rejects screenshots with transparency.
+// caption on top, the screen below in a slim bezel. RGB without alpha: App Store Connect rejects
+// screenshots with transparency. iPhone: 1206×2622 (6.3″, the size App Store Connect asks for);
+// iPad: 2064×2752 (13″).
 //
 //   swift Tools/Screenshots/compose.swift Tools/Screenshots/output
+//   swift Tools/Screenshots/compose.swift Tools/Screenshots/output/ipad ipad
 
-/// The layout is drawn in these units (iPhone 6.9″) and scaled down to `output`: nearly the same
-/// shape, so nothing visibly stretches.
-let canvas = CGSize(width: 1320, height: 2868)
-let output = CGSize(width: 1206, height: 2622)
+let isIPad = CommandLine.arguments.count > 2 && CommandLine.arguments[2] == "ipad"
+/// The layout is drawn in these units and scaled down to `output`: the iPhone's in 6.9″ units,
+/// nearly the same shape, so nothing visibly stretches.
+let canvas = isIPad ? CGSize(width: 2064, height: 2752) : CGSize(width: 1320, height: 2868)
+let output = isIPad ? CGSize(width: 2064, height: 2752) : CGSize(width: 1206, height: 2622)
 /// The screen's share of the width; the rest is margin, and the caption sits above.
-let screenScale = 0.8
-let screenTop = 520.0
-/// iPhone 16 Pro Max's display corner, in pixels at full size.
-let screenCorner = 165.0
-let bezel = 16.0
+let screenScale = isIPad ? 0.78 : 0.8
+let screenTop = isIPad ? 500.0 : 520.0
+/// The display's corner (iPhone 16 Pro Max, iPad Pro), in pixels at full size.
+let screenCorner = isIPad ? 74.0 : 165.0
+let bezel = isIPad ? 26.0 : 16.0
+/// The caption's largest size; long captions shrink until they fit two lines.
+let captionSize: CGFloat = isIPad ? 124 : 104
 
 /// In App Store order: the first three show up in search results.
 let scenes = ["globe", "mark", "statistics", "cities", "medal", "continent"]
@@ -62,8 +67,8 @@ func compose(screen: CGImage, caption: String) -> CGImage {
     let sky = CGGradient(colorsSpace: nil, colors: [night, night, nebula] as CFArray, locations: [0, 0.35, 1])!
     context.drawLinearGradient(sky, start: .zero, end: CGPoint(x: 0, y: canvas.height), options: [])
     let glow = CGGradient(colorsSpace: nil, colors: [accent.copy(alpha: 0.45)!, accent.copy(alpha: 0)!] as CFArray, locations: [0, 1])!
-    let glowCenter = CGPoint(x: canvas.width / 2, y: screenTop + 700)
-    context.drawRadialGradient(glow, startCenter: glowCenter, startRadius: 0, endCenter: glowCenter, endRadius: 1100, options: [])
+    let glowCenter = CGPoint(x: canvas.width / 2, y: screenTop + canvas.width * 0.53)
+    context.drawRadialGradient(glow, startCenter: glowCenter, startRadius: 0, endCenter: glowCenter, endRadius: canvas.width * 0.83, options: [])
 
     // Caption: SF Pro Rounded, as in the app. Captions break lines by hand, so no word is left alone
     // on the second; a long one shrinks until it fits two lines.
@@ -72,7 +77,7 @@ func compose(screen: CGImage, caption: String) -> CGImage {
     paragraph.alignment = .center
     paragraph.lineHeightMultiple = 0.95
     let box = CGRect(x: 90, y: 0, width: canvas.width - 180, height: screenTop - 40)
-    var size: CGFloat = 104
+    var size = captionSize
     var text: NSAttributedString
     var bounds: CGRect
     repeat {
@@ -83,7 +88,7 @@ func compose(screen: CGImage, caption: String) -> CGImage {
         ])
         bounds = text.boundingRect(with: CGSize(width: box.width, height: .greatestFiniteMagnitude), options: [.usesLineFragmentOrigin, .usesFontLeading])
         size -= 4
-    } while bounds.height > size * 2.6 && size > 60
+    } while bounds.height > size * 2.6 && size > captionSize * 0.58
     text.draw(with: CGRect(x: box.minX, y: box.midY - bounds.height / 2 + 30, width: box.width, height: bounds.height), options: [.usesLineFragmentOrigin, .usesFontLeading])
     NSGraphicsContext.current = nil
 
@@ -117,8 +122,8 @@ func compose(screen: CGImage, caption: String) -> CGImage {
 }
 
 let arguments = CommandLine.arguments
-guard arguments.count == 2 else {
-    print("usage: swift compose.swift <output folder with raw/en and raw/ru>")
+guard arguments.count == 2 || (arguments.count == 3 && isIPad) else {
+    print("usage: swift compose.swift <output folder with raw/en and raw/ru> [ipad]")
     exit(1)
 }
 let root = URL(fileURLWithPath: arguments[1])

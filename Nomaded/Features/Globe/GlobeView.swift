@@ -76,11 +76,68 @@ private struct GlobeSurface: UIViewRepresentable {
             controller?.renderFrame(deltaTime: deltaTime, in: layer) ?? .none
         }
         controller.onWake = { [weak view] in view?.wake() }
+        context.coordinator.attach(to: view)
         return view
     }
 
     func updateUIView(_ view: GlobeMetalView, context: Context) {
         view.isPaused = isPaused
+    }
+
+    func makeCoordinator() -> PointerScroll {
+        PointerScroll(controller: controller)
+    }
+}
+
+/// An iPad's trackpad and mouse. Two fingers scrolling on a trackpad spin the globe the way a
+/// drag does, coasting on when they lift; a mouse wheel zooms toward the pointer, like a
+/// pinch there. Touches never reach these recognizers: fingers belong to the SwiftUI gestures.
+@MainActor
+final class PointerScroll: NSObject {
+    private let controller: GlobeController
+    /// Wheel travel, in points, that doubles or halves the zoom.
+    private static let wheelPointsPerDoubling = 160.0
+
+    init(controller: GlobeController) {
+        self.controller = controller
+    }
+
+    func attach(to view: UIView) {
+        let spin = UIPanGestureRecognizer(target: self, action: #selector(spin(_:)))
+        spin.allowedScrollTypesMask = .continuous
+        spin.allowedTouchTypes = []
+        view.addGestureRecognizer(spin)
+
+        let zoom = UIPanGestureRecognizer(target: self, action: #selector(zoom(_:)))
+        zoom.allowedScrollTypesMask = .discrete
+        zoom.allowedTouchTypes = []
+        view.addGestureRecognizer(zoom)
+    }
+
+    @objc private func spin(_ recognizer: UIPanGestureRecognizer) {
+        let translation = recognizer.translation(in: recognizer.view)
+        switch recognizer.state {
+        case .began, .changed:
+            controller.dragChanged(translation: CGSize(width: translation.x, height: translation.y))
+        case .ended:
+            let velocity = recognizer.velocity(in: recognizer.view)
+            controller.dragEnded(velocity: CGSize(width: velocity.x, height: velocity.y))
+        default:
+            controller.touchesEnded()
+        }
+    }
+
+    @objc private func zoom(_ recognizer: UIPanGestureRecognizer) {
+        switch recognizer.state {
+        case .began, .changed:
+            let travel = Double(recognizer.translation(in: recognizer.view).y)
+            controller.pinchChanged(
+                magnification: pow(2, travel / Self.wheelPointsPerDoubling),
+                anchor: recognizer.location(in: recognizer.view)
+            )
+        default:
+            controller.pinchEnded()
+        }
     }
 }
 

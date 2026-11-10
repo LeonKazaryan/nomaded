@@ -37,7 +37,11 @@ struct MilestoneCelebration: View {
     @State private var thuds = 0
     @State private var successes = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @ScaledMetric(relativeTo: .largeTitle) private var medalSize = 172
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @ScaledMetric(relativeTo: .largeTitle) private var baseMedalSize = 172
+
+    /// A bigger coin on an iPad's bigger stage.
+    private var medalSize: Double { baseMedalSize * (sizeClass == .regular ? 1.35 : 1) }
 
     /// Each half-turn's tick, softer as the coin slows.
     private static let tickTimes = [0.2, 0.37, 0.6, 0.95]
@@ -71,7 +75,7 @@ struct MilestoneCelebration: View {
                     .position(medalCenter)
 
                 words
-                    .frame(maxWidth: proxy.size.width - 48)
+                    .frame(maxWidth: min(proxy.size.width - 48, Metrics.panelWidth))
                     .position(x: proxy.size.width / 2, y: medalCenter.y + medalSize * 0.5 + 110)
 
                 Text("Tap to continue")
@@ -202,7 +206,7 @@ struct MilestoneCelebration: View {
                     elapsed += 0.05
                     thuds += 1
                     let colors = [MilestoneMedal.metal(for: event.milestone).light, .white, Palette.capital] + Palette.candy
-                    bursts = [-130.0, 0, 130].map { dx in
+                    bursts = [-0.75, 0, 0.75].map { $0 * medalSize }.map { dx in
                         ConfettiBurst(origin: CGPoint(x: center.x + dx, y: center.y), colors: colors)
                     }
                     withAnimation(Motion.bouncy) { wordsShown = true }

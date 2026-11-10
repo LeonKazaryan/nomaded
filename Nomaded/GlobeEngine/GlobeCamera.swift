@@ -13,10 +13,13 @@ struct GlobeCamera: Equatable, Sendable {
     var distance: Double
     /// How far above the view's middle the globe sits, in points: room for a panel below it.
     var centerOffset = 0.0
+    /// How far right of the view's middle the globe sits, in points: room for a panel beside
+    /// it, on an iPad held sideways.
+    var centerShift = 0.0
 
     /// The globe's center on screen.
     var center: CGPoint {
-        CGPoint(x: viewportSize.width / 2, y: viewportSize.height / 2 - centerOffset)
+        CGPoint(x: viewportSize.width / 2 + centerShift, y: viewportSize.height / 2 - centerOffset)
     }
 
     var focalLength: Double {
@@ -96,13 +99,15 @@ struct GlobeCamera: Equatable, Sendable {
         let a = far / (near - far)
         let b = near * far / (near - far)
         // `centerOffset` slides the picture up: clip y gains ty·w, with w = distance − z.
+        // `centerShift` slides it right the same way.
         let ty = 2 * centerOffset / Double(viewportSize.height)
+        let tx = 2 * centerShift / Double(viewportSize.width)
         // A perspective projection times a view matrix that moves the world by -distance in z.
         return simd_float4x4(columns: (
             SIMD4(Float(f / aspect), 0, 0, 0),
             SIMD4(0, Float(f), 0, 0),
-            SIMD4(0, Float(-ty), Float(a), -1),
-            SIMD4(0, Float(ty * distance), Float(b - distance * a), Float(distance))
+            SIMD4(Float(-tx), Float(-ty), Float(a), -1),
+            SIMD4(Float(tx * distance), Float(ty * distance), Float(b - distance * a), Float(distance))
         ))
     }
 }

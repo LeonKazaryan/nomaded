@@ -1,9 +1,11 @@
 import SwiftUI
 
-/// Everything tappable squishes a little under the finger.
+/// Everything tappable squishes a little under the finger, and lights up under an iPad's
+/// pointer (in the label's `.hoverEffect` content shape, if it sets one).
 struct PressableButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
+            .hoverEffect()
             .scaleEffect(configuration.isPressed ? 0.95 : 1)
             .animation(Motion.press, value: configuration.isPressed)
     }
@@ -29,6 +31,8 @@ struct CapsuleButtonStyle: ButtonStyle {
             .frame(maxWidth: .infinity, minHeight: 54)
             .background(background, in: Capsule())
             .contentShape(Capsule())
+            .contentShape(.hoverEffect, Capsule())
+            .hoverEffect()
             .scaleEffect(configuration.isPressed ? 0.95 : 1)
             .animation(Motion.press, value: configuration.isPressed)
     }

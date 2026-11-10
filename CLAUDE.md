@@ -26,6 +26,7 @@ xcodebuild -project Nomaded.xcodeproj -scheme Nomaded \
 ```
 
 - `OS=18.6` обязателен: без него Xcode 26 ищет iPhone 16 Pro на iOS 26, а там такого симулятора нет. Вид на iOS 26 — `name=iPhone 17 Pro`.
+- iPad (ADR-017): `name=iPad Pro 13-inch (M4),OS=18.6`, на iPadOS 26 — `name=iPad Pro 13-inch (M5)`. Любую раскладку проверяй и в портрете, и в альбомной ориентации (Simulator → Device → Orientation).
 - Сборка без ошибок и без новых warnings.
 - Анимации и ощущения проверить не можешь: скажи Leon, что именно посмотреть на iPhone.
 

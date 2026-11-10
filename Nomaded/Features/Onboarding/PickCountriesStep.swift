@@ -5,7 +5,9 @@ import SwiftUI
 /// it in; the globe itself takes taps too. Fast enough to tick off thirty countries in a minute.
 struct PickCountriesStep: View {
     let controller: GlobeController
-    /// The globe fits between the title and the panel.
+    /// An iPad held sideways: the title and the panel make a column left of the globe.
+    let sideBySide: Bool
+    /// The globe fits between the title and the panel (or right of them).
     @Binding var globeRoom: GlobeRoom
     let onToggle: (String) -> Void
     let onDone: () -> Void
@@ -27,22 +29,37 @@ struct PickCountriesStep: View {
 
     var body: some View {
         GeometryReader { proxy in
-            VStack(spacing: 0) {
-                if !isSearchFocused {
-                    header
-                        .opacity(appeared ? 1 : 0)
-                        .offset(y: appeared || reduceMotion ? 0 : -20)
-                        .onScreenEdge(.bottom) { globeRoom.top = $0 }
-                        .transition(.opacity)
+            Group {
+                if sideBySide {
+                    // The panel runs the column's height; the keyboard shortens the column,
+                    // and the globe beside it moves up with it.
+                    SideColumn(globeRoom: $globeRoom) {
+                        VStack(spacing: 0) {
+                            if !isSearchFocused {
+                                appearingHeader
+                            }
+                            panel
+                                .frame(maxHeight: .infinity)
+                                .modifier(PanelEntrance(appeared: appeared, distance: proxy.size.height))
+                        }
+                    }
+                } else {
+                    VStack(spacing: 0) {
+                        if !isSearchFocused {
+                            appearingHeader
+                                .onScreenEdge(.bottom) { globeRoom.top = $0 }
+                        }
+                        Spacer(minLength: 0)
+                        panel
+                            .frame(height: panelHeight(in: proxy.size.height))
+                            .modifier(PanelEntrance(appeared: appeared, distance: proxy.size.height * Self.panelShare))
+                            .onScreenEdge(.top) { globeRoom.bottom = $0 }
+                    }
+                    .frame(maxWidth: Metrics.panelWidth)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 16)
                 }
-                Spacer(minLength: 0)
-                panel
-                    .frame(height: panelHeight(in: proxy.size.height))
-                    .offset(y: appeared || reduceMotion ? 0 : proxy.size.height * Self.panelShare)
-                    .opacity(appeared ? 1 : 0)
-                    .onScreenEdge(.top) { globeRoom.bottom = $0 }
             }
-            .padding(.horizontal, 16)
             .animation(reduceMotion ? Motion.smooth : Motion.snappy, value: isSearchFocused)
         }
         .onAppear {
@@ -56,12 +73,19 @@ struct PickCountriesStep: View {
         }
         .onChange(of: isSearchFocused) { _, isFocused in
             // The globe shrinks to the strip above the panel; the title gives it the room.
-            if isFocused { globeRoom.top = nil }
+            if isFocused, !sideBySide { globeRoom.top = nil }
         }
         .onChange(of: controller.isReady, initial: true) { _, isReady in
             // The countries come with the globe.
             if isReady, index == nil { index = CountrySearchIndex(codes: controller.countryCodes) }
         }
+    }
+
+    private var appearingHeader: some View {
+        header
+            .opacity(appeared ? 1 : 0)
+            .offset(y: appeared || reduceMotion ? 0 : -20)
+            .transition(.opacity)
     }
 
     private var header: some View {
@@ -164,6 +188,19 @@ struct PickCountriesStep: View {
             .animation(Motion.bouncy, value: count)
         }
         .buttonStyle(.capsule(.accent))
+    }
+}
+
+/// The panel rising into place from below the screen.
+private struct PanelEntrance: ViewModifier {
+    let appeared: Bool
+    let distance: Double
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            .offset(y: appeared || reduceMotion ? 0 : distance)
+            .opacity(appeared ? 1 : 0)
     }
 }
 

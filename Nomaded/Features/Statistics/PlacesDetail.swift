@@ -77,6 +77,7 @@ struct PlacesDetail<Hero: View>: View {
                     )
                 }
             }
+            .centered(maxWidth: Metrics.readableWidth)
             .padding(.horizontal, 16)
             .padding(.bottom, 24)
         }
@@ -94,8 +95,10 @@ struct PlacesDetail<Hero: View>: View {
                     .glass(Circle())
                     // Turns to point down as you pull, a hint that letting go goes back.
                     .rotationEffect(.degrees(-90 * Double(min(pull, 90)) / 90))
+                    .contentShape(.hoverEffect, Circle())
             }
             .buttonStyle(.pressable)
+            .keyboardShortcut(.cancelAction)
             .accessibilityLabel("Back")
 
             VStack(alignment: .leading, spacing: 4) {

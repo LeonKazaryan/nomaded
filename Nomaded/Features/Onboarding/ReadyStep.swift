@@ -5,7 +5,9 @@ import SwiftUI
 /// over to the globe.
 struct ReadyStep: View {
     let controller: GlobeController
-    /// The globe stays above the summary.
+    /// An iPad held sideways: the summary stands left of the globe instead of under it.
+    let sideBySide: Bool
+    /// The globe stays above (or beside) the summary.
     @Binding var globeRoom: GlobeRoom
     let onFinish: () -> Void
 
@@ -17,8 +19,25 @@ struct ReadyStep: View {
     @ScaledMetric(relativeTo: .largeTitle) private var ringSize = 108
 
     var body: some View {
+        Group {
+            if sideBySide {
+                SideColumn(globeRoom: $globeRoom) { content }
+            } else {
+                content
+                    .frame(maxWidth: Metrics.panelWidth)
+                    .onScreenEdge(.top) { globeRoom.bottom = $0 }
+                    .frame(maxHeight: .infinity, alignment: .bottom)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
+            }
+        }
+        .sensoryFeedback(Haptics.markVisited, trigger: cheers)
+        .onAppear(perform: play)
+    }
+
+    private var content: some View {
         let stats = StatsCalculator.stats(visited: world.visitedCodes, catalog: .bundled)
-        VStack(spacing: 14) {
+        return VStack(spacing: 14) {
             Text("Your world")
                 .font(Typography.largeTitle)
                 .cascade(0, appeared: appeared)
@@ -42,12 +61,6 @@ struct ReadyStep: View {
             .buttonStyle(.capsule(.accent))
             .cascade(3, appeared: appeared)
         }
-        .onScreenEdge(.top) { globeRoom.bottom = $0 }
-        .frame(maxHeight: .infinity, alignment: .bottom)
-        .padding(.horizontal, 16)
-        .padding(.bottom, 8)
-        .sensoryFeedback(Haptics.markVisited, trigger: cheers)
-        .onAppear(perform: play)
     }
 
     private func summary(_ stats: WorldStats) -> some View {

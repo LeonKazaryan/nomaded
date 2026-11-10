@@ -6,13 +6,16 @@ import SwiftUI
 struct WelcomeStep: View {
     /// The words wait for the globe: it starts flying in once it has loaded.
     let isGlobeReady: Bool
-    /// The globe stays above the words.
+    /// An iPad held sideways: the words stand left of the globe instead of under it.
+    let sideBySide: Bool
+    /// The globe stays above (or beside) the words.
     @Binding var globeRoom: GlobeRoom
     let onStart: () -> Void
 
     @State private var revealed = false
     @State private var letterTicks = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     private static let name = Array("Nomaded")
     /// The globe is still flying in until about here.
@@ -20,17 +23,28 @@ struct WelcomeStep: View {
     private static let letterStep = 0.07
 
     var body: some View {
+        Group {
+            if sideBySide {
+                SideColumn(globeRoom: $globeRoom) { words }
+            } else {
+                words
+                    .frame(maxWidth: Metrics.panelWidth)
+                    .onScreenEdge(.top) { globeRoom.bottom = $0 }
+                    .frame(maxHeight: .infinity, alignment: .bottom)
+                    .padding(.bottom, 24)
+            }
+        }
+        .sensoryFeedback(Haptics.letter, trigger: letterTicks)
+        .onChange(of: isGlobeReady, initial: true) { _, isReady in
+            if isReady { reveal() }
+        }
+    }
+
+    private var words: some View {
         VStack(spacing: 14) {
             wordmark
             promise
             startButton
-        }
-        .onScreenEdge(.top) { globeRoom.bottom = $0 }
-        .frame(maxHeight: .infinity, alignment: .bottom)
-        .padding(.bottom, 24)
-        .sensoryFeedback(Haptics.letter, trigger: letterTicks)
-        .onChange(of: isGlobeReady, initial: true) { _, isReady in
-            if isReady { reveal() }
         }
     }
 
@@ -40,7 +54,7 @@ struct WelcomeStep: View {
                 letterView(letter, index: index)
             }
         }
-        .font(.system(size: 54, weight: .heavy, design: .rounded))
+        .font(.system(size: sizeClass == .regular ? 72 : 54, weight: .heavy, design: .rounded))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(verbatim: "Nomaded"))
         .accessibilityAddTraits(.isHeader)

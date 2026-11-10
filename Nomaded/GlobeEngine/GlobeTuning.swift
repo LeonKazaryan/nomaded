@@ -1,9 +1,19 @@
+import CoreGraphics
+
 /// Everything that defines how the globe feels. Tune on a real iPhone, not the simulator.
 enum GlobeTuning {
     // MARK: Size and zoom
 
-    /// Globe diameter as a share of the screen width at zoom 1.
+    /// Globe diameter as a share of the screen width at zoom 1…
     static let baseDiameterRatio = 0.88
+    /// …or of its height, whichever is smaller: an iPad on its side (or a wide window) shows
+    /// the whole planet, with room for the bar above and the card below.
+    static let baseDiameterHeightRatio = 0.74
+
+    /// The globe's diameter at zoom 1 in a view this size, in points.
+    static func baseDiameter(in size: CGSize) -> Double {
+        min(Double(size.width) * baseDiameterRatio, Double(size.height) * baseDiameterHeightRatio)
+    }
     /// At 14 the screen shows about 300 km across: Luxembourg or Andorra fill a good part of it.
     static let zoomRange = 0.85...14.0
     /// Lifted countries rise less when zoomed in, so up close they don't tower over their
@@ -146,7 +156,7 @@ enum GlobeTuning {
     /// always, out to twice as far when the finger is on the sea or on that country.
     /// Further out on a neighbour's land (Rome's suburbs around the Vatican) the land wins.
     static let microStateDotTapRadius = 7.0
-    /// Share of the screen width a tapped country takes once the globe has turned to it:
+    /// Share of the screen's shorter side a tapped country takes once the globe has turned to it:
     /// up close a tap on Russia pulls back, from afar a tap on Belgium moves in.
     static let tapFitFraction = 0.6
     static let tapZoomSpring = SpringParameters(response: 0.8, dampingRatio: 1)
@@ -157,7 +167,7 @@ enum GlobeTuning {
     /// enough to see Crimea and Donbas change hands, wide enough to see both countries.
     static let worldviewZoom = 2.6
 
-    /// Share of the screen width the country takes when the flight lands.
+    /// Share of the screen's shorter side the country takes when the flight lands.
     static let flightFitFraction = 0.6
     /// Parts of a country farther than this from the middle of its biggest landmass
     /// (radians, ~26°) are ignored when framing it, unless that landmass is wider itself

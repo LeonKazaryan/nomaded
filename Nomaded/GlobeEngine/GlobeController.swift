@@ -92,6 +92,7 @@ final class GlobeController {
     @ObservationIgnored private var ring: Ring?
     /// Points the globe sits above the view's middle, springing as panels come and go.
     @ObservationIgnored private var centerOffset = SpringValue(0)
+    @ObservationIgnored private var centerShift = SpringValue(0)
     /// The zoom the globe comes to rest at when framed for a panel (1 = whole globe).
     @ObservationIgnored private var restingZoom = 1.0
     /// Each name on screen, including names on their way out.
@@ -283,7 +284,7 @@ final class GlobeController {
 
     private var isMoving: Bool {
         if isDragging || isPinching || isFocusing || flight != nil || ring != nil || !animating.isEmpty
-            || !zoom.isSettled || !centerOffset.isSettled {
+            || !zoom.isSettled || !centerOffset.isSettled || !centerShift.isSettled {
             return true
         }
         // Coasting after a flick, or springing back inside the tilt limit, faster than the eye
@@ -422,11 +423,12 @@ final class GlobeController {
         return screenPoint(onGlobe: start, lift: 1 + GlobeTuning.visitedLift)
     }
 
-    /// Slides the globe up by `offset` points and settles it at `zoom`, leaving room for a
-    /// panel underneath. `frame(offset: 0, zoom: 1)` puts it back.
-    func frame(offset: Double, zoom: Double) {
+    /// Slides the globe up by `offset` points (and right by `shift`) and settles it at `zoom`,
+    /// leaving room for a panel underneath (or beside it). `frame(offset: 0, zoom: 1)` puts it back.
+    func frame(offset: Double, zoom: Double, shift: Double = 0) {
         wake()
         centerOffset.target = offset
+        centerShift.target = shift
         restingZoom = zoom
         flight = nil
         // May go below the pinch range: a panel can leave little room.
@@ -434,6 +436,9 @@ final class GlobeController {
         zoomSpring = GlobeTuning.framingSpring
         if reduceMotion {
             centerOffset.snap()
+            centerShift.snap()
+            camera.centerOffset = centerOffset.value
+            camera.centerShift = centerShift.value
             self.zoom.snap()
             applyCamera()
         }
@@ -996,7 +1001,7 @@ final class GlobeController {
     /// Pulls back if the trip is long, swings over, then zooms in until the country fills
     /// `flightFitFraction` of the screen. Reduce Motion jumps straight there.
     private func fly(to shape: CountryShape) {
-        let target = framing(of: shape, widthFraction: GlobeTuning.flightFitFraction)
+        let target = framing(of: shape, fraction: GlobeTuning.flightFitFraction)
         fly(to: target.center, arrivalZoom: target.zoom)
     }
 
@@ -1008,7 +1013,7 @@ final class GlobeController {
     /// are critically damped, so Reduce Motion gets the same calm move.
     private func turn(to shape: CountryShape) {
         let start = GlobeOrientation(yaw: yaw.value, pitch: pitch.value).centerCoordinate
-        let target = framing(of: shape, widthFraction: GlobeTuning.tapFitFraction)
+        let target = framing(of: shape, fraction: GlobeTuning.tapFitFraction)
         let arrivalZoom = target.zoom
         focus(on: target.center, spring: GlobeTuning.focusSpring, atZoom: arrivalZoom)
         zoomSpring = GlobeTuning.tapZoomSpring
@@ -1023,12 +1028,12 @@ final class GlobeController {
     }
 
     /// Where to aim at the country, and the zoom at which it (without far-off parts) spans
-    /// `widthFraction` of the screen width; never below the whole globe.
-    private func framing(of shape: CountryShape, widthFraction: Double) -> (center: GeoCoordinate, zoom: Double) {
+    /// `fraction` of the screen's shorter side; never below the whole globe.
+    private func framing(of shape: CountryShape, fraction: Double) -> (center: GeoCoordinate, zoom: Double) {
         let limit = GlobeTuning.framingExtentLimit
         let framing = GeoMath.framing(of: shape.rings, limit: limit)
             ?? (shape.label, GeoMath.capRadius(around: shape.label, rings: shape.rings, limit: limit))
-        return (framing.center, max(1, zoom(fitting: framing.radius, widthFraction: widthFraction)))
+        return (framing.center, max(1, zoom(fitting: framing.radius, fraction: fraction)))
     }
 
     private func fly(to coordinate: GeoCoordinate, arrivalZoom: Double) {
@@ -1062,16 +1067,17 @@ final class GlobeController {
         self.flight = nil
     }
 
-    /// The zoom at which an angular radius around the screen center spans `widthFraction`
-    /// of the screen width, clamped to the zoom range.
-    private func zoom(fitting angle: Double, widthFraction: Double) -> Double {
-        let width = Double(camera.viewportSize.width)
+    /// The zoom at which an angular radius around the screen center spans `fraction` of the
+    /// screen's shorter side, clamped to the zoom range.
+    private func zoom(fitting angle: Double, fraction: Double) -> Double {
+        let size = camera.viewportSize
+        let side = Double(min(size.width, size.height))
         let range = GlobeTuning.zoomRange
-        guard width > 0, angle > 0 else { return range.upperBound }
-        let distance = camera.distance(fitting: angle, screenRadius: width * widthFraction / 2)
+        guard side > 0, angle > 0 else { return range.upperBound }
+        let distance = camera.distance(fitting: angle, screenRadius: side * fraction / 2)
         guard distance > 1 else { return range.upperBound }
         let silhouette = camera.focalLength / (distance * distance - 1).squareRoot()
-        let zoom = silhouette / (width * GlobeTuning.baseDiameterRatio / 2)
+        let zoom = silhouette / (GlobeTuning.baseDiameter(in: size) / 2)
         return min(range.upperBound, max(range.lowerBound, zoom))
     }
 
@@ -1080,6 +1086,10 @@ final class GlobeController {
         if !centerOffset.isSettled {
             centerOffset.step(dt, GlobeTuning.framingSpring)
             camera.centerOffset = centerOffset.value
+        }
+        if !centerShift.isSettled {
+            centerShift.step(dt, GlobeTuning.framingSpring)
+            camera.centerShift = centerShift.value
         }
         applyCamera()
         updateLiftScale()
@@ -1096,8 +1106,8 @@ final class GlobeController {
     }
 
     private func applyCamera() {
-        guard camera.viewportSize.width > 0 else { return }
-        let radius = Double(camera.viewportSize.width) * GlobeTuning.baseDiameterRatio / 2 * zoom.value
+        guard camera.viewportSize.width > 0, camera.viewportSize.height > 0 else { return }
+        let radius = GlobeTuning.baseDiameter(in: camera.viewportSize) / 2 * zoom.value
         let distance = GlobeCamera.distance(silhouetteRadius: radius, focalLength: camera.focalLength)
         if abs(distance - camera.distance) > 1e-6 { camera.distance = distance }
     }

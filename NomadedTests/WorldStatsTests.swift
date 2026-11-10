@@ -234,10 +234,23 @@ struct CityCatalogTests {
         #expect(catalog.city(named: "Алматы", in: "KZ", latitude: 43.24, longitude: 76.95)?.name == "Almaty")
         // Right on top of it, whatever it's called.
         #expect(catalog.city(named: "Medeu", in: "KZ", latitude: 43.275, longitude: 76.915)?.name == "Almaty")
+        // Its name wins over a district listed closer to where it was saved.
+        let withDistrict = CityCatalog([
+            Self.city("Almaty", ru: "Алматы", "KZ", pop: 1_209_000, lat: 43.27, lon: 76.91),
+            Self.city("Medeu District", "KZ", pop: 200_000, lat: 43.24, lon: 76.95),
+        ])
+        #expect(withDistrict.city(named: "Алматы", in: "KZ", latitude: 43.241, longitude: 76.951)?.name == "Almaty")
         // A town nearby isn't the city.
         #expect(catalog.city(named: "Boraldai", in: "KZ", latitude: 43.36, longitude: 76.86) == nil)
         #expect(catalog.cities(named: "Talgar", in: "KZ").count == 1)
         #expect(catalog.cities(named: "Talgar", in: "KG").isEmpty)
+    }
+
+    @Test func savedParisIsParis() throws {
+        let bundled = try CityCatalog.loadBundled()
+        // Maps puts Paris by the Hôtel de Ville, where the list also has an arrondissement.
+        #expect(bundled.city(named: "Paris", in: "FR", latitude: 48.8566, longitude: 2.3522)?.name == "Paris")
+        #expect(bundled.city(named: "Paris", in: "FR", latitude: 48.86, longitude: 2.35)?.name == "Paris")
     }
 
     @Test func bundledListHasEachCityOnce() throws {

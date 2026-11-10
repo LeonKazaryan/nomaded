@@ -148,8 +148,9 @@ struct CityCatalog: Sendable {
             .map(city)
     }
 
-    /// The bundled city a saved one is: one of its names nearby, or anything right on top
-    /// of it (see `CityMath`). Its name then follows the app's language.
+    /// The bundled city a saved one is: one of its names nearby, or else anything right on
+    /// top of it (see `CityMath`). Its name then follows the app's language. The name comes
+    /// first: Paris saved by the Hôtel de Ville is Paris, not the arrondissement listed there.
     func city(named name: String, in countryCode: String, latitude: Double, longitude: Double) -> KnownCity? {
         // Within a degree there's room for `sameNameKm` anywhere but the poles: a cheap test
         // before the real distance.
@@ -158,9 +159,11 @@ struct CityCatalog: Sendable {
         }
         guard !near.isEmpty else { return nil }
         let named = Set(indices(named: name))
-        return near
+        let candidates = near
             .map { (index: $0, km: CityMath.distanceKm(latitude, longitude, table.latitude($0), table.longitude($0))) }
-            .filter { $0.km < CityMath.samePlaceKm || ($0.km < CityMath.sameNameKm && named.contains($0.index)) }
+        let sameName = candidates.filter { $0.km < CityMath.sameNameKm && named.contains($0.index) }
+        let samePlace = candidates.filter { $0.km < CityMath.samePlaceKm }
+        return (sameName.isEmpty ? samePlace : sameName)
             .min { $0.km < $1.km }
             .map { city($0.index) }
     }

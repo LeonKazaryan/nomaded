@@ -16,6 +16,10 @@ struct CountryPeekCard: View {
     let visitedSince: Date?
     let stampInk: Color
     let stampSlams: Bool
+    /// Unmarking a country with cities asks first, in a dialog that comes out of the ✓ (a
+    /// popover on an iPad, a sheet from the bottom on an iPhone).
+    @Binding var isConfirmingUnmark: Bool
+    let onConfirmUnmark: () -> Void
     let onToggleVisited: () -> Void
     let onFindNext: () -> Void
     let onAddCity: () -> Void
@@ -59,8 +63,10 @@ struct CountryPeekCard: View {
                         .background(.white.opacity(0.12), in: Circle())
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
+                        .contentShape(.hoverEffect, Circle().inset(by: 7))
                 }
                 .buttonStyle(.pressable)
+                .keyboardShortcut(.cancelAction)
                 .accessibilityLabel("Close")
             }
 
@@ -83,6 +89,16 @@ struct CountryPeekCard: View {
                 .accessibilityLabel(isVisited ? "Visited" : "Mark as visited")
                 .accessibilityAddTraits(isVisited ? .isSelected : [])
                 .accessibilityHint(isVisited ? "Removes the country from your visited list" : "")
+                .confirmationDialog(
+                    Text("Remove \(name) from visited?"),
+                    isPresented: $isConfirmingUnmark,
+                    titleVisibility: .visible
+                ) {
+                    Button("Remove", role: .destructive, action: onConfirmUnmark)
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("\(cities.count) cities will be removed with it.")
+                }
 
                 if isVisited {
                     Button(action: onFindNext) {
@@ -159,6 +175,7 @@ private struct CityChips: View {
                             .overlay(Capsule().strokeBorder(Palette.accentLight.opacity(0.6), style: StrokeStyle(lineWidth: 1.5, dash: [4, 3])))
                             .padding(.vertical, 2)
                             .contentShape(Capsule())
+                            .contentShape(.hoverEffect, Capsule())
                     }
                     .buttonStyle(.pressable)
                     .accessibilityLabel("Add a city")
@@ -196,6 +213,7 @@ private struct CityChips: View {
             .background(isHighlighted ? AnyShapeStyle(Palette.accent) : AnyShapeStyle(.white.opacity(0.12)), in: Capsule())
             .padding(.vertical, 2)
             .contentShape(Capsule())
+            .contentShape(.hoverEffect, Capsule())
         }
         .buttonStyle(.pressable)
         .contextMenu {
@@ -220,11 +238,13 @@ private struct CityChips: View {
             CountryPeekCard(
                 code: "IT", isVisited: true, cities: [rome, florence], highlightedCity: rome.id,
                 visitedSince: .now, stampInk: Palette.candy[0], stampSlams: false,
+                isConfirmingUnmark: .constant(false), onConfirmUnmark: {},
                 onToggleVisited: {}, onFindNext: {}, onAddCity: {}, onSelectCity: { _ in }, onRemoveCity: { _ in }, onClose: {}
             )
             CountryPeekCard(
                 code: "KZ", isVisited: false, cities: [], highlightedCity: nil,
                 visitedSince: nil, stampInk: Palette.candy[3], stampSlams: false,
+                isConfirmingUnmark: .constant(false), onConfirmUnmark: {},
                 onToggleVisited: {}, onFindNext: {}, onAddCity: {}, onSelectCity: { _ in }, onRemoveCity: { _ in }, onClose: {}
             )
         }

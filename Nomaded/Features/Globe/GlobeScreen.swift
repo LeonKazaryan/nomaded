@@ -114,6 +114,7 @@ struct GlobeScreen: View {
                             ),
                             onPick: flyTo
                         )
+                            .frame(maxWidth: Metrics.panelWidth)
                             .padding(.top, 12)
                             // Drops out of the counter above it.
                             .transition(reduceMotion ? .opacity : .scale(scale: 0.5, anchor: .top).combined(with: .opacity))
@@ -131,6 +132,11 @@ struct GlobeScreen: View {
                             visitedSince: awaitingLanding == selected ? nil : world.firstVisits[selected],
                             stampInk: controller.visitedColor(of: selected).map(Color.init(components:)) ?? Palette.accentLight,
                             stampSlams: justMarked == selected,
+                            isConfirmingUnmark: Binding(
+                                get: { confirmingUnmark == selected },
+                                set: { if !$0 { confirmingUnmark = nil } }
+                            ),
+                            onConfirmUnmark: { unmark(selected) },
                             onToggleVisited: { toggleVisited(selected) },
                             onFindNext: { setSearching(true) },
                             onAddCity: { setAddingCity(selected) },
@@ -138,6 +144,7 @@ struct GlobeScreen: View {
                             onRemoveCity: removeCity,
                             onClose: { select(nil) }
                         )
+                        .frame(maxWidth: Metrics.panelWidth)
                         .id(selected)
                         .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
                     }
@@ -164,6 +171,7 @@ struct GlobeScreen: View {
                     onPickCity: addCity,
                     onCancel: { setSearching(false) }
                 )
+                .frame(maxWidth: Metrics.panelWidth)
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
                 .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
@@ -181,6 +189,7 @@ struct GlobeScreen: View {
                     onPick: addCity,
                     onCancel: { setAddingCity(nil) }
                 )
+                .frame(maxWidth: Metrics.panelWidth)
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
                 .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
@@ -239,17 +248,6 @@ struct GlobeScreen: View {
         .sensoryFeedback(Haptics.markVisited, trigger: worldviewSwitches)
         #endif
         .sensoryFeedback(Haptics.select, trigger: picks)
-        .confirmationDialog(
-            Text("Remove \(RegionDisplay.name(for: confirmingUnmark ?? "")) from visited?"),
-            isPresented: Binding(get: { confirmingUnmark != nil }, set: { if !$0 { confirmingUnmark = nil } }),
-            titleVisibility: .visible,
-            presenting: confirmingUnmark
-        ) { code in
-            Button("Remove", role: .destructive) { unmark(code) }
-            Button("Cancel", role: .cancel) {}
-        } message: { code in
-            Text("\(world.cities(in: code).count) cities will be removed with it.")
-        }
         .onAppear {
             startOnboardingIfNeeded()
             controller.onCountryTap = { code in
@@ -755,8 +753,11 @@ private struct TopBar: View {
             )
                 .frame(minHeight: 44)
                 .contentShape(Rectangle())
+                .contentShape(.hoverEffect, Capsule())
         }
         .buttonStyle(.pressable)
+        // On an iPad keyboard Esc folds the list away again.
+        .keyboardShortcut(isShowingVisited ? .cancelAction : nil)
         .accessibilityHint(isShowingVisited ? "Hides the list" : "Shows the countries you've visited")
         .frame(maxWidth: .infinity)
         .overlay(alignment: .leading) {
@@ -765,6 +766,7 @@ private struct TopBar: View {
         }
         .overlay(alignment: .trailing) {
             RoundButton(title: "Search countries", systemImage: "magnifyingglass", action: onSearch)
+                .keyboardShortcut("f", modifiers: .command)
                 .disabled(!isReady)
         }
         // A bar: it stops growing at the largest regular size, and a long press shows its
@@ -784,6 +786,7 @@ private struct RoundButton: View {
                 .font(Typography.headline)
                 .frame(width: 44, height: 44)
                 .glass(Circle())
+                .contentShape(.hoverEffect, Circle())
         }
         .buttonStyle(.pressable)
         .accessibilityLabel(title)

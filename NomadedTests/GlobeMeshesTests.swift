@@ -43,10 +43,11 @@ struct GlobeMeshesTests {
     /// countries they're aimed at.
     @Test(arguments: [CGPoint(x: 201, y: 437), CGPoint(x: 120, y: 300), CGPoint(x: 330, y: 610)])
     func projectionMatchesTheTapRay(_ point: CGPoint) throws {
-        // Also with the globe slid up over a panel.
-        for (distance, offset) in [(1.2, 0.0), (3.0, 0.0), (9.0, 0.0), (3.0, 160.0)] {
+        // Also with the globe slid up over a panel, or aside of one (an iPad held sideways).
+        for (distance, offset, shift) in [(1.2, 0.0, 0.0), (3.0, 0.0, 0.0), (9.0, 0.0, 0.0), (3.0, 160.0, 0.0), (3.0, 40.0, 120.0)] {
             var camera = GlobeCamera(viewportSize: CGSize(width: 402, height: 874), distance: distance)
             camera.centerOffset = offset
+            camera.centerShift = shift
             let ray = camera.ray(through: point)
             guard let hit = GeoMath.intersectUnitSphere(origin: ray.origin, direction: ray.direction) else { continue }
 
