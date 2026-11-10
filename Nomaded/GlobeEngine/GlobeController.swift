@@ -1287,6 +1287,27 @@ final class GlobeController {
         lastInteraction = CACurrentMediaTime()
     }
 
+    /// Draws the globe at rest into `texture`: every country already at its color and
+    /// height, facing `coordinate` at `zoom`, `offset` points below the middle. A story's
+    /// picture: one frame, no film to wait through.
+    func renderStill(facing coordinate: GeoCoordinate, zoom: Double, offset: Double, into texture: MTLTexture) {
+        let target = GlobeOrientation(facing: coordinate)
+        let limit = pitchLimit(atZoom: zoom)
+        flight = nil
+        isFocusing = false
+        yaw = SpringValue(target.yaw)
+        pitch = SpringValue(max(-limit, min(limit, target.pitch)))
+        restingZoom = zoom
+        self.zoom = SpringValue(zoom)
+        centerOffset = SpringValue(-offset)
+        camera.centerOffset = -offset
+        // Without motion every spring lands where it's going in a single step.
+        let moves = reduceMotion
+        reduceMotion = true
+        renderFilmFrame(deltaTime: 0, into: texture)
+        reduceMotion = moves
+    }
+
     /// Advances the film one frame and draws it into `texture` (see `GlobeRenderer.render`).
     func renderFilmFrame(deltaTime: TimeInterval, into texture: MTLTexture) {
         tick(deltaTime: deltaTime)

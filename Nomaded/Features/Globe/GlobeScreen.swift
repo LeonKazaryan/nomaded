@@ -720,7 +720,8 @@ struct GlobeScreen: View {
     /// (`-NomadedDebugUnmarkAfter YES` unmarks it 3 s later), `-NomadedDebugMilestone countries.25`
     /// shows a milestone's celebration, `-NomadedDebugSyncMark IT,FR` has those countries
     /// arrive from "another device" 3 s in (with `-NomadedDebugOnboarding YES`: a restore),
-    /// `-NomadedDebugShare YES` opens the statistics and the story to share.
+    /// `-NomadedDebugShare YES` opens the statistics and the story to share (`-NomadedDebugShareVideo YES`:
+    /// and switches it to the video).
     /// These runs use an empty in-memory store (see `NomadedApp`), so they never touch countries marked by hand.
     private func applyDebugLaunchArguments() {
         let defaults = UserDefaults.standard

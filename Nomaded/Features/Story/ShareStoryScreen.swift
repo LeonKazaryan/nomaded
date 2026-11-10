@@ -1,27 +1,28 @@
 import AVFoundation
 import SwiftUI
+import UniformTypeIdentifiers
 
-/// Sharing the user's world as a story (ADR-019). The film develops in a phone-shaped card
-/// frame by frame as it's made, then loops; underneath, video or picture and the share
-/// sheet: Instagram, Telegram, Photos, wherever.
+/// Sharing the user's world as a story (ADR-019). The picture is ready at once and shows
+/// first; the video is made only when asked for, over the picture with a progress bar, then
+/// loops. Either goes to the share sheet: Instagram, Telegram, Photos, wherever.
 struct ShareStoryScreen: View {
     let content: StoryContent
     let onClose: () -> Void
 
     private enum Format: Hashable {
-        case video
         case picture
+        case video
     }
 
-    @State private var format = Format.video
-    @State private var files: StoryFiles?
-    /// The film's latest frame while it's being made.
-    @State private var frame: CGImage?
-    /// The finished picture: the film's last frame.
-    @State private var still: CGImage?
-    @State private var progress = 0.0
-    @State private var failed = false
-    @State private var attempts = 0
+    @State private var format = Format.picture
+    @State private var picture: StoryPicture?
+    @State private var video: URL?
+    /// How far the video has come; `nil` while it isn't being made.
+    @State private var videoProgress: Double?
+    /// Bumped to make the video (again, after a failure). 0: not asked for yet.
+    @State private var videoRequests = 0
+    @State private var pictureFailed = false
+    @State private var videoFailed = false
     @State private var appeared = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -36,7 +37,7 @@ struct ShareStoryScreen: View {
                     .scaleEffect(appeared || reduceMotion ? 1 : 0.9)
                     .opacity(appeared ? 1 : 0)
                 PillPicker(
-                    options: [.init(id: Format.video, title: "Video"), .init(id: Format.picture, title: "Picture")],
+                    options: [.init(id: Format.picture, title: "Picture"), .init(id: Format.video, title: "Video")],
                     selection: $format
                 )
                 .frame(maxWidth: 300)
@@ -46,11 +47,15 @@ struct ShareStoryScreen: View {
             .padding(.bottom, 8)
             .frame(maxWidth: Metrics.panelWidth)
         }
-        .task(id: attempts) { await make() }
+        .task { await makePicture() }
+        .task(id: videoRequests) { await makeVideo() }
+        .onChange(of: format) { _, format in
+            if format == .video, video == nil, videoProgress == nil { videoRequests += 1 }
+        }
         .onAppear {
             withAnimation(reduceMotion ? Motion.smooth : Motion.bouncy) { appeared = true }
         }
-        .sensoryFeedback(Haptics.storyReady, trigger: files) { _, new in new != nil }
+        .sensoryFeedback(Haptics.storyReady, trigger: video) { _, new in new != nil }
     }
 
     private var header: some View {
@@ -78,19 +83,25 @@ struct ShareStoryScreen: View {
     private var card: some View {
         ZStack(alignment: .bottom) {
             SpaceStill(time: 0)
-            if let files, format == .video, !reduceMotion {
-                LoopingVideo(url: files.video)
-                    .transition(.opacity)
-            } else if let image = files == nil ? (reduceMotion ? nil : frame) : still {
-                Image(decorative: image, scale: 1)
+            if let picture {
+                Image(decorative: picture.image, scale: 1)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
+                    .transition(.opacity)
+            } else if !pictureFailed {
+                ProgressView()
+                    .tint(.white)
+                    .frame(maxHeight: .infinity)
             }
-            if failed {
+            if format == .video, let video {
+                LoopingVideo(url: video)
+                    .transition(.opacity)
+            }
+            if pictureFailed || (format == .video && videoFailed) {
                 failure
-            } else if files == nil {
-                ProgressBar(progress: progress)
-                    .padding(20)
+            } else if format == .video, let videoProgress {
+                making(videoProgress)
+                    .transition(.opacity)
             }
         }
         .aspectRatio(9 / 16, contentMode: .fit)
@@ -100,17 +111,39 @@ struct ShareStoryScreen: View {
                 .strokeBorder(.white.opacity(0.14), lineWidth: 1)
         }
         .shadow(color: .black.opacity(0.45), radius: 24, y: 12)
+        .animation(Motion.smooth, value: picture == nil)
+        .animation(Motion.smooth, value: video)
+        .animation(Motion.smooth, value: format)
         .accessibilityElement()
-        .accessibilityLabel(files == nil ? Text("Making the video…") : Text("Your story"))
+        .accessibilityLabel(format == .video && video == nil ? Text("Making the video…") : Text("Your story"))
+    }
+
+    /// Over the picture's lower part while the video is made: what's happening and how far.
+    private func making(_ progress: Double) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Making the video…")
+                .font(Typography.label)
+            ProgressBar(progress: progress)
+        }
+        .padding(16)
+        .glassCard(cornerRadius: 20)
+        .padding(14)
     }
 
     private var failure: some View {
         VStack(spacing: 12) {
-            Text("Couldn't make the video")
+            Text(pictureFailed ? "Couldn't make the picture" : "Couldn't make the video")
                 .font(Typography.headline)
-            Button("Try again") { attempts += 1 }
-                .buttonStyle(.capsule(.subtle))
-                .frame(maxWidth: 220)
+            Button("Try again") {
+                if pictureFailed {
+                    pictureFailed = false
+                    Task { await makePicture() }
+                } else {
+                    videoRequests += 1
+                }
+            }
+            .buttonStyle(.capsule(.subtle))
+            .frame(maxWidth: 220)
         }
         .padding(20)
         .frame(maxWidth: .infinity)
@@ -121,44 +154,77 @@ struct ShareStoryScreen: View {
 
     @ViewBuilder
     private var shareButton: some View {
-        if let files, let still {
-            ShareLink(
-                item: format == .video ? files.video : files.image,
-                preview: SharePreview("My world", image: Image(decorative: still, scale: 1))
-            ) {
+        if let picture, format == .picture {
+            ShareLink(item: StoryImageFile(url: picture.file), preview: preview(picture)) {
                 Label("Share", systemImage: "square.and.arrow.up")
             }
             .buttonStyle(.capsule(.accent))
-            .transition(.opacity)
+        } else if let picture, let video, format == .video {
+            ShareLink(item: StoryVideoFile(url: video), preview: preview(picture)) {
+                Label("Share", systemImage: "square.and.arrow.up")
+            }
+            .buttonStyle(.capsule(.accent))
         } else {
             Button {} label: {
-                Text(failed ? "Couldn't make the video" : "Making the video…")
+                Label("Share", systemImage: "square.and.arrow.up")
             }
             .buttonStyle(.capsule(.subtle))
             .disabled(true)
         }
     }
 
-    private func make() async {
-        files = nil
-        failed = false
-        progress = 0
+    private func preview(_ picture: StoryPicture) -> SharePreview<Image, Never> {
+        SharePreview("My world", image: Image(decorative: picture.image, scale: 1))
+    }
+
+    private func makePicture() async {
         do {
-            let made = try await StoryFilm.make(content) { progress, frame in
-                self.progress = progress
-                if let frame { self.frame = frame }
-            }
-            still = UIImage(contentsOfFile: made.image.path)?.cgImage
-            withAnimation(Motion.smooth) { files = made }
+            picture = try await StoryFilm.picture(content)
+            #if DEBUG
+            // `-NomadedDebugShareVideo YES` (with `-NomadedDebugShare YES`): on to the video.
+            if UserDefaults.standard.bool(forKey: "NomadedDebugShareVideo") { format = .video }
+            #endif
         } catch is CancellationError {
-            // Closed before it was done: nothing to show.
+            // Closed before it was done.
         } catch {
-            failed = true
+            pictureFailed = true
+        }
+    }
+
+    private func makeVideo() async {
+        guard videoRequests > 0, video == nil else { return }
+        videoFailed = false
+        videoProgress = 0
+        defer { videoProgress = nil }
+        do {
+            video = try await StoryFilm.video(content) { videoProgress = $0 }
+        } catch is CancellationError {
+            // Closed before it was done.
+        } catch {
+            videoFailed = true
         }
     }
 }
 
-/// A thin bar along the card's bottom while the film is made.
+/// The video as a movie, not a link to a file: apps like Instagram only take it that way.
+private struct StoryVideoFile: Transferable, Sendable {
+    let url: URL
+
+    static var transferRepresentation: some TransferRepresentation {
+        FileRepresentation(exportedContentType: .mpeg4Movie) { SentTransferredFile($0.url) }
+    }
+}
+
+/// The picture as an image, not a link to a file.
+private struct StoryImageFile: Transferable, Sendable {
+    let url: URL
+
+    static var transferRepresentation: some TransferRepresentation {
+        FileRepresentation(exportedContentType: .jpeg) { SentTransferredFile($0.url) }
+    }
+}
+
+/// A thin bar for how far the video has come.
 private struct ProgressBar: View {
     let progress: Double
 

@@ -564,6 +564,16 @@
         }
       }
     },
+    "Couldn't make the picture" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не получилось сделать картинку"
+          }
+        }
+      }
+    },
     "Couldn't make the video" : {
       "localizations" : {
         "ru" : {

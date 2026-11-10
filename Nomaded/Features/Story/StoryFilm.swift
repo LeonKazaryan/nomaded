@@ -13,15 +13,15 @@ struct StoryContent {
     let countries: Set<String>
     let stats: WorldStats
     let cities: [GlobeController.CityMarker]
-    /// The screen's outlines and borders, borrowed: the film needn't load them again.
+    /// The screen's outlines and borders, borrowed: the story needn't load them again.
     let world: WorldGeometry
     let worldview: Worldview
 }
 
-/// A finished story: the film, and its last frame as a picture.
-struct StoryFiles: Equatable {
-    let video: URL
-    let image: URL
+/// A story's picture: the file to share and the image to show.
+struct StoryPicture {
+    let file: URL
+    let image: CGImage
 }
 
 enum StoryFilmError: Error {
@@ -29,50 +29,70 @@ enum StoryFilmError: Error {
     case noVideo
 }
 
-/// Films the user's world for a story (ADR-019): a globe of its own, offscreen, plays
-/// `StoryPlan` frame by frame (out of hyperspace, across the places, each filling as it
-/// comes round) under the counter and over deep space, into a 1080×1920 video at 30 fps.
-/// The frames come as fast as the phone draws them, not in real time.
+/// Makes the user's world into a story (ADR-019), on a globe of its own drawn offscreen,
+/// under the numbers and over deep space, 1080×1920. The picture is a single frame, ready
+/// at once. The film plays `StoryPlan` frame by frame (out of hyperspace, across the places,
+/// each filling as it comes round) into a video at 30 fps: as fast as the phone draws, not in
+/// real time, and only when asked for.
 @MainActor
 enum StoryFilm {
     /// A frame in points. Drawn at 3×: 1080×1920, the size stories are made for.
     static let size = CGSize(width: 360, height: 640)
     static let scale = 3.0
     private static let pixels = (width: 1080, height: 1920)
-    /// Every this many frames, one goes to the screen while the rest are made. Each one
-    /// waits for the GPU, so not too often.
-    private static let previewEvery = 6
+    private static let folder = URL.temporaryDirectory.appending(path: "Story", directoryHint: .isDirectory)
+    private static let sRGB = CGColorSpace(name: CGColorSpace.sRGB)!
 
     private static let log = Logger(subsystem: "com.leonkazaryan.nomaded", category: "Story")
 
-    /// Makes the film and the picture. Every few frames `onFrame` hears the progress, 0…1,
-    /// with a small frame to show meanwhile. Cancelling the task stops it and keeps nothing.
-    static func make(_ content: StoryContent, onFrame: (Double, CGImage?) -> Void) async throws -> StoryFiles {
+    /// The picture: everything filled and every number in, the globe turned to where most
+    /// of the places are, so it shows as much color as it can. Starts a fresh story: the
+    /// last one's files go.
+    static func picture(_ content: StoryContent) async throws -> StoryPicture {
+        let started = CACurrentMediaTime()
+        try? FileManager.default.removeItem(at: folder)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let plan = StoryPlan(places: content.places)
+        let stage = try await Stage(content)
+        stage.globe.setVisited(Set(content.places.map(\.code)))
+        stage.globe.renderStill(
+            facing: GeoCoordinate(latitude: plan.focus.latitude, longitude: plan.focus.longitude),
+            zoom: GlobeTuning.filmZoom,
+            offset: StoryLayout.globeOffset,
+            into: stage.texture
+        )
+        let words = StoryHeadline.State(time: StoryPlan.duration, countries: content.countries.count, firstCounted: 0, lastCounted: -10)
+        let frame = stage.frame(
+            space: stage.backdrop,
+            shading: render(stage.shading, opaque: false),
+            headline: render(StoryHeadline(state: words, stats: content.stats, year: stage.year), in: StoryHeadline.frame),
+            brand: render(StoryBrand(progress: 1), in: StoryBrand.frame)
+        )
+        guard let image = stage.context.createCGImage(frame, from: frame.extent),
+              let data = UIImage(cgImage: image).jpegData(compressionQuality: 0.95)
+        else { throw StoryFilmError.noGlobe }
+        let file = folder.appending(path: "Nomaded.jpg")
+        try data.write(to: file)
+        log.notice("Story picture in \(CACurrentMediaTime() - started, format: .fixed(precision: 2)) s")
+        return StoryPicture(file: file, image: image)
+    }
+
+    /// The film. `onProgress` hears how far along it is, 0…1, every frame. Cancelling the
+    /// task stops it and keeps nothing.
+    static func video(_ content: StoryContent, onProgress: (Double) -> Void) async throws -> URL {
         let started = CACurrentMediaTime()
         let plan = StoryPlan(places: content.places)
-        let globe = GlobeController(style: .nomaded)
-        globe.setViewportSize(size)
-        await globe.load(content.world, worldview: content.worldview)
-        guard globe.isReady, let device = globe.device, let texture = makeTexture(device) else { throw StoryFilmError.noGlobe }
-        globe.setCities(content.cities)
-        globe.startFilm(
+        let stage = try await Stage(content)
+        stage.globe.startFilm(
             facing: GeoCoordinate(latitude: plan.latitude, longitude: plan.longitude(at: 0)),
             zoom: GlobeTuning.filmZoom,
             offset: StoryLayout.globeOffset
         )
-
-        let folder = URL.temporaryDirectory.appending(path: "Story", directoryHint: .isDirectory)
-        try? FileManager.default.removeItem(at: folder)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let files = StoryFiles(video: folder.appending(path: "Nomaded.mp4"), image: folder.appending(path: "Nomaded.jpg"))
-        let video = try VideoWriter(url: files.video, width: pixels.width, height: pixels.height, framesPerSecond: StoryPlan.framesPerSecond)
+        let file = folder.appending(path: "Nomaded.mp4")
+        try? FileManager.default.removeItem(at: file)
+        let video = try VideoWriter(url: file, width: pixels.width, height: pixels.height, framesPerSecond: StoryPlan.framesPerSecond)
 
-        let sRGB = CGColorSpace(name: CGColorSpace.sRGB)!
-        // Blending in sRGB, as SwiftUI and Core Animation do: in linear light the glow and
-        // the shading over the globe come out far stronger than on screen.
-        let context = CIContext(mtlDevice: device, options: [.workingColorSpace: sRGB])
-        let year = Calendar.current.component(.year, from: .now)
-        let backdrop = render(StoryBackdrop(), opaque: true)
         var shading: (layer: StoryShading, image: CIImage)?
         var headline: (state: StoryHeadline.State, image: CIImage)?
         var brand: (progress: Double, image: CIImage)?
@@ -88,12 +108,12 @@ enum StoryFilm {
         do {
             for frame in 0..<frames {
                 let time = Double(frame) * step
-                globe.aim(at: GeoCoordinate(latitude: plan.latitude, longitude: plan.longitude(at: time)))
+                stage.globe.aim(at: GeoCoordinate(latitude: plan.latitude, longitude: plan.longitude(at: time)))
 
                 // Places fill as the globe brings them round; whatever's left once the turn
                 // is over fills then. A crowd (Europe) comes a few a frame, never all at once.
                 if time >= StoryPlan.sweep.lowerBound {
-                    let due = time > StoryPlan.sweep.upperBound ? plan.places : plan.reached(atLongitude: globe.facingLongitude)
+                    let due = time > StoryPlan.sweep.upperBound ? plan.places : plan.reached(atLongitude: stage.globe.facingLongitude)
                     for place in due where queued.insert(place.code).inserted {
                         waiting.append(place)
                     }
@@ -101,8 +121,8 @@ enum StoryFilm {
                 let release = waiting.isEmpty ? 0 : max(1, waiting.count / 6)
                 for place in waiting.prefix(release) {
                     visited.insert(place.code)
-                    globe.setVisited(visited)
-                    globe.celebrate(place.code, quietly: true)
+                    stage.globe.setVisited(visited)
+                    stage.globe.celebrate(place.code, quietly: true)
                     if content.countries.contains(place.code) {
                         counted += 1
                         firstCounted = firstCounted ?? time
@@ -111,36 +131,27 @@ enum StoryFilm {
                 }
                 waiting.removeFirst(release)
 
-                globe.renderFilmFrame(deltaTime: step, into: texture)
-                guard let planet = CIImage(mtlTexture: texture, options: [.colorSpace: sRGB]) else { continue }
+                stage.globe.renderFilmFrame(deltaTime: step, into: stage.texture)
 
-                let layer = StoryShading(center: globe.camera.center, radius: globe.camera.silhouetteRadius)
-                if shading?.layer != layer {
-                    shading = (layer, render(layer, opaque: false))
+                // Each layer is drawn again only when it changes.
+                if shading?.layer != stage.shading {
+                    shading = (stage.shading, render(stage.shading, opaque: false))
                 }
                 let state = StoryHeadline.State(time: time, countries: counted, firstCounted: firstCounted, lastCounted: lastCounted)
                 if headline?.state != state {
-                    headline = (state, render(StoryHeadline(state: state, stats: content.stats, year: year), in: StoryHeadline.frame))
+                    headline = (state, render(StoryHeadline(state: state, stats: content.stats, year: stage.year), in: StoryHeadline.frame))
                 }
                 let progress = StoryTiming.reveal(StoryTiming.brand, at: time)
                 if progress > 0, brand?.progress != progress {
                     brand = (progress, render(StoryBrand(progress: progress), in: StoryBrand.frame))
                 }
-                let space = time < WarpField.duration ? render(StoryWarp(time: time), opaque: false).composited(over: backdrop) : backdrop
-                // Metal's rows run top down, Core Image's bottom up.
-                var image = planet.oriented(.downMirrored).composited(over: space)
-                for layer in [shading?.image, headline?.image, brand?.image].compactMap({ $0 }) {
-                    image = layer.composited(over: image)
-                }
-                let written = try await video.append(image, context: context, colorSpace: sRGB)
+                let space = time < WarpField.duration
+                    ? render(StoryWarp(time: time), opaque: false).composited(over: stage.backdrop)
+                    : stage.backdrop
+                let image = stage.frame(space: space, shading: shading?.image, headline: headline?.image, brand: brand?.image)
+                try await video.append(image, context: stage.context, colorSpace: sRGB)
 
-                // The preview comes from the frame just written: drawing the layers again
-                // would cost as much as the film itself.
-                if frame % previewEvery == 0 || frame == frames - 1 {
-                    let small = CIImage(cvPixelBuffer: written, options: [.colorSpace: sRGB])
-                        .transformed(by: CGAffineTransform(scaleX: 0.5, y: 0.5))
-                    onFrame(Double(frame + 1) / Double(frames), context.createCGImage(small, from: small.extent))
-                }
+                onProgress(Double(frame + 1) / Double(frames))
                 // Lets the screen draw between frames, and stops here if cancelled.
                 await Task.yield()
                 try Task.checkCancellation()
@@ -148,31 +159,11 @@ enum StoryFilm {
             try await video.finish()
         } catch {
             video.cancel()
-            try? FileManager.default.removeItem(at: folder)
+            try? FileManager.default.removeItem(at: file)
             throw error
         }
-
-        // The picture: everything filled and every number in, turned to where most of the
-        // places are. A second and a half more of film, never shown, lets the turn settle.
-        let focus = GeoCoordinate(latitude: plan.focus.latitude, longitude: plan.focus.longitude)
-        for _ in 0..<45 {
-            globe.aim(at: focus)
-            globe.renderFilmFrame(deltaTime: step, into: texture)
-        }
-        let state = StoryHeadline.State(time: StoryPlan.duration, countries: counted, firstCounted: 0, lastCounted: -10)
-        guard let planet = CIImage(mtlTexture: texture, options: [.colorSpace: sRGB]) else { throw StoryFilmError.noGlobe }
-        let finale = render(StoryBrand(progress: 1), in: StoryBrand.frame)
-            .composited(over: render(StoryHeadline(state: state, stats: content.stats, year: year), in: StoryHeadline.frame))
-            .composited(over: render(StoryShading(center: globe.camera.center, radius: globe.camera.silhouetteRadius), opaque: false))
-            .composited(over: planet.oriented(.downMirrored))
-            .composited(over: backdrop)
-        guard let picture = context.createCGImage(finale, from: finale.extent),
-              let data = UIImage(cgImage: picture).jpegData(compressionQuality: 0.95)
-        else { throw StoryFilmError.noVideo }
-        try data.write(to: files.image)
-        let elapsed = CACurrentMediaTime() - started
-        log.notice("Story made in \(elapsed, format: .fixed(precision: 1)) s: \(files.video.path)")
-        return files
+        log.notice("Story video in \(CACurrentMediaTime() - started, format: .fixed(precision: 1)) s")
+        return file
     }
 
     /// A SwiftUI layer as one frame's image, at the film's size.
@@ -195,13 +186,49 @@ enum StoryFilm {
         return CIImage(cgImage: image).transformed(by: CGAffineTransform(translationX: frame.minX * scale, y: bottom))
     }
 
-    private static func makeTexture(_ device: MTLDevice) -> MTLTexture? {
-        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: GlobeRenderer.pixelFormat, width: pixels.width, height: pixels.height, mipmapped: false
-        )
-        descriptor.usage = [.renderTarget, .shaderRead]
-        descriptor.storageMode = .private
-        return device.makeTexture(descriptor: descriptor)
+    /// The globe and what every frame is made with.
+    @MainActor
+    private struct Stage {
+        let globe: GlobeController
+        let texture: MTLTexture
+        let context: CIContext
+        let backdrop: CIImage
+        let year = Calendar.current.component(.year, from: .now)
+
+        init(_ content: StoryContent) async throws {
+            globe = GlobeController(style: .nomaded)
+            globe.setViewportSize(StoryFilm.size)
+            await globe.load(content.world, worldview: content.worldview)
+            guard globe.isReady, let device = globe.device else { throw StoryFilmError.noGlobe }
+            let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+                pixelFormat: GlobeRenderer.pixelFormat, width: StoryFilm.pixels.width, height: StoryFilm.pixels.height, mipmapped: false
+            )
+            descriptor.usage = [.renderTarget, .shaderRead]
+            descriptor.storageMode = .private
+            guard let texture = device.makeTexture(descriptor: descriptor) else { throw StoryFilmError.noGlobe }
+            self.texture = texture
+            // Blending in sRGB, as SwiftUI and Core Animation do: in linear light the glow
+            // and the shading over the globe come out far stronger than on screen.
+            context = CIContext(mtlDevice: device, options: [.workingColorSpace: StoryFilm.sRGB])
+            backdrop = StoryFilm.render(StoryBackdrop(), opaque: true)
+            globe.setCities(content.cities)
+        }
+
+        /// The globe's shading, where the globe is now.
+        var shading: StoryShading {
+            StoryShading(center: globe.camera.center, radius: globe.camera.silhouetteRadius)
+        }
+
+        /// The globe as last drawn, with the layers over and under it.
+        func frame(space: CIImage, shading: CIImage?, headline: CIImage?, brand: CIImage?) -> CIImage {
+            // Metal's rows run top down, Core Image's bottom up.
+            let planet = CIImage(mtlTexture: texture, options: [.colorSpace: StoryFilm.sRGB])?.oriented(.downMirrored) ?? CIImage.empty()
+            var image = planet.composited(over: space)
+            for layer in [shading, headline, brand].compactMap({ $0 }) {
+                image = layer.composited(over: image)
+            }
+            return image
+        }
     }
 }
 
@@ -216,6 +243,8 @@ private final class VideoWriter {
 
     init(url: URL, width: Int, height: Int, framesPerSecond: Int) throws {
         writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
+        // The index up front, as apps that post video expect it.
+        writer.shouldOptimizeForNetworkUse = true
         input = AVAssetWriterInput(mediaType: .video, outputSettings: [
             AVVideoCodecKey: AVVideoCodecType.h264,
             AVVideoWidthKey: width,
@@ -246,9 +275,7 @@ private final class VideoWriter {
         writer.startSession(atSourceTime: .zero)
     }
 
-    /// Writes the frame and returns it as written.
-    @discardableResult
-    func append(_ image: CIImage, context: CIContext, colorSpace: CGColorSpace) async throws -> CVPixelBuffer {
+    func append(_ image: CIImage, context: CIContext, colorSpace: CGColorSpace) async throws {
         guard let pool = adaptor.pixelBufferPool else { throw writer.error ?? StoryFilmError.noVideo }
         var buffer: CVPixelBuffer?
         CVPixelBufferPoolCreatePixelBuffer(nil, pool, &buffer)
@@ -261,7 +288,6 @@ private final class VideoWriter {
             throw writer.error ?? StoryFilmError.noVideo
         }
         frame += 1
-        return buffer
     }
 
     func finish() async throws {
