@@ -245,12 +245,30 @@ Mark and unmark a few countries, add some cities, and open Statistics. Tell me i
 8. **Конфиденциальность приложения:** Privacy Policy URL `https://leonkazaryan.github.io/nomaded/privacy.html` (без точки в конце!), для русского языка `https://leonkazaryan.github.io/nomaded/ru/privacy.html`.
 9. Выбрать сборку 2 → **Добавить для проверки**. Ревью проверит приложение и на iPad.
 
+### Promotional Text 1.1 (170, меняется в любой момент без ревью)
+
+English:
+```
+New: Nomaded on iPad. Spin the globe on the big screen, mark countries with confetti and a passport stamp, and see your travels in numbers.
+```
+
+Русский:
+```
+Новое: Nomaded на iPad. Крути глобус на большом экране, отмечай страны с конфетти и штампом в паспорте и смотри свои путешествия в цифрах.
+```
+
+### App Review Notes 1.1 (добавить в начало старых)
+
+```
+Version 1.1 adds native iPad support: all orientations, resizable windows on iPadOS 26, trackpad and keyboard (Cmd-F opens search, Esc closes). It also fixes a bug where the globe could go blank during onboarding. Nothing else changed: still no account, no data collection.
+```
+
 ### What's New — English (4000)
 
 ```
 Nomaded is now made for iPad. The globe fills the big screen in portrait and landscape, Statistics spread three continents across, and a trackpad or mouse spins and zooms the planet.
 
-Also: saved cities show their proper names, and a few smaller fixes.
+Also fixed: the globe could go blank while picking countries during setup, and saved cities now show their proper names.
 ```
 
 ### Что нового — Russian (4000)
@@ -258,5 +276,5 @@ Also: saved cities show their proper names, and a few smaller fixes.
 ```
 Nomaded теперь сделан и для iPad. Глобус занимает весь большой экран в любой ориентации, статистика раскладывает континенты в три колонки, а трекпадом или мышью можно крутить и приближать планету.
 
-Ещё: сохранённые города называются правильно, и несколько мелких исправлений.
+Ещё исправлено: глобус мог пропасть, пока выбираешь страны в начале, а сохранённые города теперь называются правильно.
 ```

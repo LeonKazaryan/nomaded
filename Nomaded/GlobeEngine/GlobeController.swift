@@ -868,14 +868,14 @@ final class GlobeController {
         #if DEBUG
         sampleFrameRate(deltaTime)
         #endif
-        // Clamp so a hitch doesn't fling the globe.
-        let dt = min(deltaTime, 1.0 / 15)
+        let dt = Self.physicsStep(deltaTime)
         stepRotation(dt)
         stepFlight()
         stepZoom(dt)
         stepCountries(dt)
         stepCities(dt)
         stepRing(dt)
+        recoverIfNonFinite()
     }
 
     // MARK: - Celebration ring
@@ -978,14 +978,47 @@ final class GlobeController {
     /// the turn waits for the zoom to pull back instead of smearing the map.
     private func limitFocusSpeed(from start: (yaw: Double, pitch: Double), _ dt: Double) {
         let step = SIMD2(yaw.value - start.yaw, pitch.value - start.pitch)
-        let moved = simd_length(step) * camera.pointsPerRadian
-        let allowed = GlobeTuning.maxFocusScreenSpeed * dt
-        guard moved > allowed else { return }
-        let scale = allowed / moved
+        let scale = Self.focusStepScale(moved: simd_length(step) * camera.pointsPerRadian, dt: dt)
+        guard scale < 1 else { return }
         yaw.value = start.yaw + step.x * scale
         pitch.value = start.pitch + step.y * scale
         yaw.velocity *= scale
         pitch.velocity *= scale
+    }
+
+    /// The share of this frame's turn the speed limit lets through, 0…1. A frame of no
+    /// time lets nothing through; a turn of nothing needs no limit. Never NaN: a NaN here
+    /// once spread to the whole rotation and the globe vanished until a relaunch.
+    nonisolated static func focusStepScale(moved: Double, dt: Double) -> Double {
+        let allowed = GlobeTuning.maxFocusScreenSpeed * max(0, dt)
+        guard moved > allowed else { return 1 }
+        return allowed / moved
+    }
+
+    /// The physics step for a frame: never negative (the display's clock can step back a
+    /// frame when its rate changes), never NaN, and clamped so a hitch doesn't fling the globe.
+    nonisolated static func physicsStep(_ deltaTime: TimeInterval) -> Double {
+        guard deltaTime.isFinite else { return 0 }
+        return min(max(deltaTime, 0), 1.0 / 15)
+    }
+
+    /// Nothing should ever make the rotation or zoom non-finite, but if something does, the
+    /// globe can't be drawn at all and stays blank until a relaunch. Start over instead,
+    /// facing the selected country (or the default view).
+    private func recoverIfNonFinite() {
+        let values = [yaw.value, pitch.value, yaw.velocity, pitch.velocity, zoom.value, zoom.velocity]
+        guard values.contains(where: { !$0.isFinite }) else { return }
+        Self.log.error("Globe state went non-finite; resetting the view")
+        let facing = GlobeOrientation(facing: selected.flatMap { nodes[$0]?.shape.label } ?? GeoCoordinate(latitude: 30, longitude: 15))
+        let limit = pitchLimit(atZoom: 1)
+        yaw = SpringValue(facing.yaw)
+        pitch = SpringValue(max(-limit, min(limit, facing.pitch)))
+        if !zoom.value.isFinite || !zoom.velocity.isFinite || !zoom.target.isFinite {
+            zoom = SpringValue(restingZoom.isFinite ? max(0.3, restingZoom) : 1)
+        }
+        isFocusing = false
+        flight = nil
+        applyCamera()
     }
 
     // MARK: - Flight

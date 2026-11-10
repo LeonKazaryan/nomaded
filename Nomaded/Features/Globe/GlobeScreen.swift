@@ -635,7 +635,8 @@ struct GlobeScreen: View {
     /// `-NomadedDebugLandCity "Genoa:IT:44.41:8.93"` adds one as if picked in search,
     /// `-NomadedDebugOnboarding YES` shows the first-launch introduction
     /// (`-NomadedDebugOnboardingStep pick` or `ready` jumps into it; `-NomadedDebugOnboardingQuery Ита`
-    /// types into the pick step's search),
+    /// types into the pick step's search; `-NomadedDebugOnboardingPicks IT,FR` goes through all of it,
+    /// picking those countries, and finishes),
     /// `-NomadedDebugMark IT` flies to a country and marks it, celebration and all
     /// (`-NomadedDebugUnmarkAfter YES` unmarks it 3 s later), `-NomadedDebugMilestone countries.25`
     /// shows a milestone's celebration. These runs
@@ -671,6 +672,9 @@ struct GlobeScreen: View {
         let search = defaults.string(forKey: "NomadedDebugSearch")
         let showsList = defaults.bool(forKey: "NomadedDebugVisitedList")
         let showsStats = defaults.bool(forKey: "NomadedDebugStats")
+        if let picks = defaults.string(forKey: "NomadedDebugOnboardingPicks"), onboarding != nil {
+            walkThroughOnboarding(picking: picks.split(separator: ",").map(String.init))
+        }
         guard !taps.isEmpty || fly != nil || switchesTo != nil || resets || search != nil || showsList || showsStats || focusesCity
                 || addsCityTo != nil || landsCity != nil || marks != nil || debugMilestone != nil
         else { return }
@@ -723,6 +727,23 @@ struct GlobeScreen: View {
                     if let first = searchIndex?.results(for: search).first { flyTo(first) }
                 }
             }
+        }
+    }
+
+    /// Goes through the first launch the way a person would: the welcome, a few countries
+    /// picked one by one, the summary, then "Let's go!".
+    private func walkThroughOnboarding(picking codes: [String]) {
+        Task {
+            try? await Task.sleep(for: .seconds(4))
+            withAnimation(Motion.bouncy) { onboarding = .pick }
+            for code in codes {
+                try? await Task.sleep(for: .seconds(1))
+                togglePick(code)
+            }
+            try? await Task.sleep(for: .seconds(2))
+            withAnimation(Motion.bouncy) { onboarding = .ready }
+            try? await Task.sleep(for: .seconds(3))
+            finishOnboarding()
         }
     }
 

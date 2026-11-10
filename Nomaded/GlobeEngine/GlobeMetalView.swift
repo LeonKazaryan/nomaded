@@ -110,9 +110,12 @@ final class GlobeMetalView: UIView {
             return
         }
         // Step to the time this frame will be on screen, so motion stays even when the
-        // rate changes between 60 and 120.
-        let deltaTime = lastTargetTimestamp.map { link.targetTimestamp - $0 } ?? link.duration
-        lastTargetTimestamp = link.targetTimestamp
+        // rate changes between 60 and 120. Changing rates (typing on the keyboard does it)
+        // can put the target a frame before the last one: that's no time passing, never
+        // time running backwards.
+        let target = link.targetTimestamp
+        let deltaTime = lastTargetTimestamp.map { max(0, target - $0) } ?? link.duration
+        lastTargetTimestamp = max(target, lastTargetTimestamp ?? target)
         let next = onFrame?(deltaTime, metalLayer) ?? .none
         guard next != demand else { return }
         demand = next
