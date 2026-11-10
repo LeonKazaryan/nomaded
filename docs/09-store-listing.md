@@ -14,11 +14,13 @@
 | Marketing URL (необязательно) | `https://leonkazaryan.github.io/nomaded/` | `https://leonkazaryan.github.io/nomaded/ru/` |
 | Privacy Policy URL | `https://leonkazaryan.github.io/nomaded/privacy.html` | `https://leonkazaryan.github.io/nomaded/ru/privacy.html` |
 
+⚠️ В 1.0 в Privacy Policy URL попала точка в конце (`…/privacy.html.`), и GitHub отдавал 404. App Store Connect меняет это поле только с новой версией, поэтому `site/404.html` убирает лишние точки, пробелы и слэши в конце адреса и открывает настоящую страницу. В 1.0.1 поправить ссылку: **Конфиденциальность приложения → Политика конфиденциальности (URL)**.
+
 ## App Information
 
 | Поле | Значение |
 |---|---|
-| Name, English (30) | `Nomaded: Travel Map` |
+| Name, English (30) | `Nomaded: Travel App` (так вышло в 1.0) |
 | Name, Russian (30) | `Nomaded: карта путешествий` |
 | Subtitle, English (30) | `Visited countries on a globe` |
 | Subtitle, Russian (30) | `Посещённые страны на глобусе` |
@@ -27,7 +29,7 @@
 | Content Rights | **Yes**, contains third-party content, and **I have the necessary rights**: контуры стран — Natural Earth (public domain), города — GeoNames (CC BY 4.0, источник указан в приложении), поиск мест — Apple MapKit |
 | Age Rating | на все вопросы анкеты **None** / **No** → 4+ |
 
-Если имя «Nomaded: Travel Map» окажется занято, подойдёт `Nomaded: Travel Globe`. Слова из названия и подзаголовка App Store уже ищет, поэтому в ключевых словах они не повторяются.
+Слова из названия и подзаголовка App Store уже ищет, поэтому в ключевых словах они не повторяются.
 
 ## Pricing and Availability
 

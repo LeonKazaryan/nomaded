@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Page Not Found · Nomaded</title>
+    <meta name="robots" content="noindex">
+    <script>
+        // The App Store listing of 1.0 links to "privacy.html." (a trailing dot pasted along with
+        // the URL), and App Store Connect only lets it change with a new version. Any link that
+        // ends in stray punctuation, spaces or slashes lands here: strip them and go to the page.
+        (function () {
+            var path;
+            try { path = decodeURIComponent(location.pathname); } catch (e) { return; }
+            var clean = path.replace(/[\s.,;:!?)\]>"'»/]+$/, "");
+            if (clean && clean !== path) {
+                location.replace(encodeURI(clean) + location.search + location.hash);
+            }
+        })();
+    </script>
+    <!-- Served for any missing path, so every link here is absolute. -->
+    <link rel="icon" href="/nomaded/icon.png">
+    <link rel="stylesheet" href="/nomaded/style.css">
+</head>
+<body>
+<main>
+    <header class="hero">
+        <a href="/nomaded/"><img src="/nomaded/icon.png" alt="Nomaded" width="112" height="112"></a>
+        <h1>Page not found</h1>
+        <p class="meta" lang="ru">Страница не найдена</p>
+    </header>
+
+    <section class="card summary">
+        <p><a href="/nomaded/">Support</a> · <a href="/nomaded/privacy.html">Privacy Policy</a></p>
+        <p lang="ru"><a href="/nomaded/ru/">Поддержка</a> · <a href="/nomaded/ru/privacy.html">Политика конфиденциальности</a></p>
+    </section>
+</main>
+</body>
+</html>
