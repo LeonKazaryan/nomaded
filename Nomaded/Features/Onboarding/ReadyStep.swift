@@ -24,7 +24,7 @@ struct ReadyStep: View {
                 SideColumn(globeRoom: $globeRoom) { content }
             } else {
                 content
-                    .frame(maxWidth: Metrics.panelWidth)
+                    .centered(maxWidth: Metrics.panelWidth)
                     .onScreenEdge(.top) { globeRoom.bottom = $0 }
                     .frame(maxHeight: .infinity, alignment: .bottom)
                     .padding(.horizontal, 16)

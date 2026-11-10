@@ -233,9 +233,9 @@ Mark and unmark a few countries, add some cities, and open Statistics. Tell me i
 
 ## Версия 1.1 — iPad и русская страница
 
-Сборка 1.1 (2) поддерживает iPad (ADR-017). Новая версия заодно открывает поля, которые у вышедшей 1.0 заблокированы: русский язык карточки и Privacy Policy URL.
+Сборка 1.1 (3) поддерживает iPad (ADR-017). Новая версия заодно открывает поля, которые у вышедшей 1.0 заблокированы: русский язык карточки и Privacy Policy URL.
 
-1. **Xcode:** Product → Archive → Distribute App → App Store Connect. Версия 1.1, сборка 2 уже стоят в проекте.
+1. **Xcode:** Product → Archive → Distribute App → App Store Connect. Версия 1.1, сборка 3 уже стоят в проекте (сборка 2 ушла в TestFlight с онбордингом, прижатым влево на iPad).
 2. **Распространение → «+» у «Приложение для iOS»** → версия `1.1`.
 3. **Скриншоты:** iPhone 6,3″ переедут из 1.0 сами. В разделе iPad 13″ загрузить `Tools/Screenshots/output/ipad/en` по порядку номеров.
 4. **Описание** (English): вставить новое из раздела «Version 1.0 — English» выше, в нём строка про iPad и «stay on your device».
@@ -243,7 +243,7 @@ Mark and unmark a few countries, add some cities, and open Statistics. Tell me i
 6. **Русский язык:** справа вверху «английский (США)» → **«Добавить локализацию» → русский**. С выбранным русским заполнить из «Version 1.0 — Russian»: промотекст, описание, ключевые слова, «Что нового»; Support URL и Marketing URL `https://leonkazaryan.github.io/nomaded/ru/`; скриншоты iPhone 6,3″ из `output/ru` и iPad 13″ из `output/ipad/ru`.
 7. **Информация о приложении** → язык «русский»: название `Nomaded: карта путешествий`, подзаголовок `Посещённые страны на глобусе`.
 8. **Конфиденциальность приложения:** Privacy Policy URL `https://leonkazaryan.github.io/nomaded/privacy.html` (без точки в конце!), для русского языка `https://leonkazaryan.github.io/nomaded/ru/privacy.html`.
-9. Выбрать сборку 2 → **Добавить для проверки**. Ревью проверит приложение и на iPad.
+9. Выбрать сборку 3 → **Добавить для проверки**. Ревью проверит приложение и на iPad.
 
 ### Promotional Text 1.1 (170, меняется в любой момент без ревью)
 

@@ -28,7 +28,7 @@ struct WelcomeStep: View {
                 SideColumn(globeRoom: $globeRoom) { words }
             } else {
                 words
-                    .frame(maxWidth: Metrics.panelWidth)
+                    .centered(maxWidth: Metrics.panelWidth)
                     .onScreenEdge(.top) { globeRoom.bottom = $0 }
                     .frame(maxHeight: .infinity, alignment: .bottom)
                     .padding(.bottom, 24)

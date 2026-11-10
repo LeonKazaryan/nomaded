@@ -55,8 +55,7 @@ struct PickCountriesStep: View {
                             .modifier(PanelEntrance(appeared: appeared, distance: proxy.size.height * Self.panelShare))
                             .onScreenEdge(.top) { globeRoom.bottom = $0 }
                     }
-                    .frame(maxWidth: Metrics.panelWidth)
-                    .frame(maxWidth: .infinity)
+                    .centered(maxWidth: Metrics.panelWidth)
                     .padding(.horizontal, 16)
                 }
             }
