@@ -163,31 +163,48 @@ final class GlobeController {
 
     /// Loads the countries and builds the scene once. Call from the view's `.task`.
     func load(_ worldview: Worldview) async {
-        guard !loadStarted, let renderer else { return }
+        guard !loadStarted, renderer != nil else { return }
         loadStarted = true
-        self.worldview = worldview
         do {
             let started = CACurrentMediaTime()
             let world = try await WorldGeometry.loadBundled(worldview)
-            let scene = await Self.buildScene(world)
-            try renderer.setScene(ocean: scene.ocean, land: scene.land)
-            setUpCountries(world, ranges: scene.ranges)
-            hitTester = GlobeHitTester(world: world)
-            self.world = world
-            isReady = true
-            playIntro()
-            wake()
-            let elapsed = Int((CACurrentMediaTime() - started) * 1000)
-            Self.log.info("Globe ready in \(elapsed) ms")
-
-            // Walls follow a moment later, while the intro is still flying in.
-            let walls = await Self.buildWalls(world)
-            try renderer.setWalls(walls.mesh, ranges: walls.ranges)
-            try renderer.setRivers(await Self.buildRivers(world))
-            wake()
+            try await build(world, worldview: worldview, started: started)
         } catch {
             Self.log.error("Globe failed to load: \(error)")
         }
+    }
+
+    /// Builds the scene from outlines another globe loaded already: a film's globe borrows
+    /// the screen's. Returns with walls and rivers in place.
+    func load(_ world: WorldGeometry, worldview: Worldview) async {
+        guard !loadStarted, renderer != nil else { return }
+        loadStarted = true
+        do {
+            try await build(world, worldview: worldview, started: CACurrentMediaTime())
+        } catch {
+            Self.log.error("Globe failed to build: \(error)")
+        }
+    }
+
+    private func build(_ world: WorldGeometry, worldview: Worldview, started: CFTimeInterval) async throws {
+        guard let renderer else { return }
+        self.worldview = worldview
+        let scene = await Self.buildScene(world)
+        try renderer.setScene(ocean: scene.ocean, land: scene.land)
+        setUpCountries(world, ranges: scene.ranges)
+        hitTester = GlobeHitTester(world: world)
+        self.world = world
+        isReady = true
+        playIntro()
+        wake()
+        let elapsed = Int((CACurrentMediaTime() - started) * 1000)
+        Self.log.info("Globe ready in \(elapsed) ms")
+
+        // Walls follow a moment later, while the intro is still flying in.
+        let walls = await Self.buildWalls(world)
+        try renderer.setWalls(walls.mesh, ranges: walls.ranges)
+        try renderer.setRivers(await Self.buildRivers(world))
+        wake()
     }
 
     /// Redraws the borders for another worldview. The globe turns to where they change, the
@@ -1237,6 +1254,44 @@ final class GlobeController {
             piece.wave.w = -1
         }
         renderer.pieces[node.index] = piece
+    }
+
+    // MARK: - Film
+
+    /// The longitude the globe faces, unwrapped: it keeps going past ±180 as the globe turns.
+    /// A film checks it to fill each place as it comes round.
+    var facingLongitude: Double { -yaw.value * 180 / .pi }
+
+    /// Sets up a film, drawn frame by frame with `renderFilmFrame`: the globe flies in from
+    /// deep space, unwinding `filmArrivalSpin` the way it idly spins, to face `coordinate`
+    /// at `zoom`, `offset` points below the middle.
+    func startFilm(facing coordinate: GeoCoordinate, zoom: Double, offset: Double) {
+        let target = GlobeOrientation(facing: coordinate)
+        flight = nil
+        yaw = SpringValue(target.yaw - GlobeTuning.filmArrivalSpin)
+        pitch = SpringValue(0)
+        restingZoom = zoom
+        self.zoom = SpringValue(GlobeTuning.arrivalStartZoom)
+        self.zoom.target = zoom
+        zoomSpring = GlobeTuning.filmArrivalSpring
+        centerOffset = SpringValue(-offset)
+        camera.centerOffset = -offset
+        aim(at: coordinate)
+        applyCamera()
+    }
+
+    /// Follows a point that moves every frame, a step behind on a spring.
+    func aim(at coordinate: GeoCoordinate) {
+        focus(on: coordinate, spring: GlobeTuning.filmAimSpring)
+        // No idle spin: the film turns the globe itself.
+        lastInteraction = CACurrentMediaTime()
+    }
+
+    /// Advances the film one frame and draws it into `texture` (see `GlobeRenderer.render`).
+    func renderFilmFrame(deltaTime: TimeInterval, into texture: MTLTexture) {
+        tick(deltaTime: deltaTime)
+        renderer?.riverStyle = riverStyle
+        renderer?.render(into: texture, rotation: GlobeOrientation(yaw: yaw.value, pitch: pitch.value).renderQuaternion, camera: camera)
     }
 
     // MARK: - Intro

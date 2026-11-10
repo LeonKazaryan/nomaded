@@ -21,6 +21,8 @@ struct StatisticsScreen: View {
     let earned: [Milestone: Date]
     /// A place picked in one of the lists: the screen closes and the globe flies there.
     let onPick: (String) -> Void
+    /// Opens the story to share. `nil` with nothing to share yet.
+    let onShare: (() -> Void)?
     let onClose: () -> Void
 
     @State private var appeared = false
@@ -200,6 +202,20 @@ struct StatisticsScreen: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
             Spacer()
+            if let onShare {
+                Button(action: onShare) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(Typography.headline)
+                        // The arrow sits high in its symbol; this centers it in the circle.
+                        .offset(y: -1)
+                        .frame(width: 44, height: 44)
+                        .glass(Circle())
+                        .contentShape(.hoverEffect, Circle())
+                }
+                .buttonStyle(.pressable)
+                .accessibilityLabel("Share")
+                .accessibilityHint("Makes a video of your globe for stories")
+            }
             Button(action: onClose) {
                 Image(systemName: "xmark")
                     .font(Typography.headline)
@@ -524,6 +540,7 @@ private struct Cascade: ViewModifier {
             maps: nil,
             earned: [.countries(10): .now, .continent(.europe): .now],
             onPick: { _ in },
+            onShare: {},
             onClose: {}
         )
     }

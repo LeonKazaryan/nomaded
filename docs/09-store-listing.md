@@ -279,7 +279,7 @@ Nomaded теперь сделан и для iPad. Глобус занимает 
 Ещё исправлено: глобус мог пропасть, пока выбираешь страны в начале, а сохранённые города теперь называются правильно.
 ```
 
-## Версия 1.2 — iCloud-синхронизация (ADR-018)
+## Версия 1.2 — iCloud и сторис (ADR-018, ADR-019)
 
 Перед загрузкой: схема CloudKit выложена в Production (CloudKit Console → контейнер `iCloud.com.leonkazaryan.nomaded` → Deploy Schema Changes), сборка 4 проверена в TestFlight на iPhone и iPad с одним Apple ID. App Privacy не меняется: данные лежат в личном iCloud пользователя, разработчик их не получает («Data Not Collected»). Политика конфиденциальности на сайте уже говорит про iCloud.
 
@@ -287,20 +287,22 @@ Nomaded теперь сделан и для iPad. Глобус занимает 
 
 ```
 Version 1.2 syncs the user's marked countries, cities and medals through their own private iCloud database (CloudKit), so an iPhone and an iPad show the same world and it comes back after reinstalling. There is still no account and no server of ours; we can't access the data. Without iCloud the app works on the device as before.
+
+It also adds sharing a story: Statistics → the share button makes an 8-second video (and a picture) of the user's globe on the device and opens the system share sheet. The only new permission is adding to Photos (NSPhotoLibraryAddUsageDescription), requested by iOS when the user picks Save in the share sheet. The app never reads the photo library.
 ```
 
 ### What's New — English (4000)
 
 ```
-Your world now follows you. With iCloud, the countries, cities and medals you mark show up on all your iPhones and iPads, and come back if you reinstall the app or get a new device. Marked something on your iPhone? Open your iPad and watch it fill in.
+Show off your world. Statistics now has a share button: Nomaded films your globe flying in from deep space and lighting up every country you've been to, with your numbers on top. Post the video or a picture to your stories in a tap.
 
-No account needed: everything stays in your own iCloud.
+Your world also follows you now. With iCloud, the countries, cities and medals you mark show up on all your iPhones and iPads, and come back if you reinstall the app or get a new device. No account needed: everything stays in your own iCloud.
 ```
 
 ### Что нового — Russian (4000)
 
 ```
-Твой мир теперь всегда с тобой. Через iCloud отмеченные страны, города и медали появляются на всех твоих iPhone и iPad и возвращаются после переустановки или на новом устройстве. Отметил страну на iPhone — открой iPad и смотри, как она заливается цветом.
+Похвастайся своим миром. В статистике появилась кнопка «Поделиться»: Nomaded снимает, как твой глобус прилетает из космоса и загорается странами, где ты был, а сверху — твои цифры. Видео или картинка — в сторис в одно касание.
 
-Без аккаунтов: всё хранится в твоём личном iCloud.
+А ещё твой мир теперь всегда с тобой. Через iCloud отмеченные страны, города и медали появляются на всех твоих iPhone и iPad и возвращаются после переустановки или на новом устройстве. Без аккаунтов: всё хранится в твоём личном iCloud.
 ```

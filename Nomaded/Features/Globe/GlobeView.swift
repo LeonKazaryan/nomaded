@@ -210,7 +210,7 @@ private struct CityName: View {
 ///
 /// A screen-sized canvas rather than circle views: zoomed in, the globe is many times
 /// bigger than the screen, and full-size shapes would need huge offscreen layers.
-private struct GlobeShading: View {
+struct GlobeShading: View {
     let radius: Double
     /// Where the globe sits in the view: not the middle while a panel is below it.
     let center: CGPoint

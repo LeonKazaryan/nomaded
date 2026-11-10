@@ -51,6 +51,8 @@ struct GlobeScreen: View {
     /// "Welcome back": the user's world just came back from iCloud.
     @State private var isShowingRestored = false
     @State private var restores = 0
+    /// The story being shared, over the statistics.
+    @State private var story: StoryContent?
 
     /// The one split every counter on this screen uses.
     private var visitedPlaces: VisitedPlaces {
@@ -206,25 +208,7 @@ struct GlobeScreen: View {
                 .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
             }
 
-            if isShowingStats {
-                StatisticsScreen(
-                    stats: StatsCalculator.stats(visited: world.visitedCodes, catalog: places, cities: world.cities.count),
-                    visited: world.visitedCodes,
-                    maps: continentMaps,
-                    earned: world.milestones,
-                    onPick: flyTo,
-                    onClose: { setShowingStats(false) }
-                )
-                #if DEBUG
-                .developerZone(
-                    worldview: controller.worldview,
-                    storefront: WorldviewSource.lastStorefront,
-                    onWorldview: forceWorldview,
-                    onReset: resetProgress
-                )
-                #endif
-                .transition(.opacity)
-            }
+            statistics
 
             if onboarding != nil {
                 OnboardingFlow(
@@ -463,7 +447,11 @@ struct GlobeScreen: View {
     }
 
     private func updateCityMarkers() {
-        controller.setCities(world.cities.map(shownName).map { city in
+        controller.setCities(cityMarkers)
+    }
+
+    private var cityMarkers: [GlobeController.CityMarker] {
+        world.cities.map(shownName).map { city in
             GlobeController.CityMarker(
                 id: city.id,
                 name: city.name,
@@ -471,7 +459,56 @@ struct GlobeScreen: View {
                 coordinate: GeoCoordinate(latitude: city.latitude, longitude: city.longitude),
                 isCapital: cityCatalog?.isCapital(city) ?? false
             )
-        })
+        }
+    }
+
+    // MARK: - Statistics and story
+
+    /// The statistics, and the story to share over them.
+    @ViewBuilder
+    private var statistics: some View {
+        if isShowingStats {
+            StatisticsScreen(
+                stats: StatsCalculator.stats(visited: world.visitedCodes, catalog: places, cities: world.cities.count),
+                visited: world.visitedCodes,
+                maps: continentMaps,
+                earned: world.milestones,
+                onPick: flyTo,
+                onShare: world.visitedCodes.isEmpty ? nil : { shareStory() },
+                onClose: { setShowingStats(false) }
+            )
+            #if DEBUG
+            .developerZone(
+                worldview: controller.worldview,
+                storefront: WorldviewSource.lastStorefront,
+                onWorldview: forceWorldview,
+                onReset: resetProgress
+            )
+            #endif
+            .transition(.opacity)
+        }
+
+        if let story {
+            ShareStoryScreen(content: story, onClose: { withAnimation(Motion.smooth) { self.story = nil } })
+                .transition(.opacity)
+        }
+    }
+
+    /// Opens the story of everything visited, with the globe's own outlines and borders.
+    private func shareStory() {
+        guard let geometry = controller.world else { return }
+        let middles = Dictionary(geometry.countries.map { ($0.code, $0.label) }, uniquingKeysWith: { first, _ in first })
+        let content = StoryContent(
+            places: world.visitedCodes.sorted().compactMap { code in
+                middles[code].map { StoryPlan.Place(code: code, latitude: $0.latitude, longitude: $0.longitude) }
+            },
+            countries: Set(visitedPlaces.countries),
+            stats: StatsCalculator.stats(visited: world.visitedCodes, catalog: places, cities: world.cities.count),
+            cities: cityMarkers,
+            world: geometry,
+            worldview: controller.worldview
+        )
+        withAnimation(Motion.smooth) { story = content }
     }
 
     private func select(_ code: String?) {
@@ -682,7 +719,8 @@ struct GlobeScreen: View {
     /// `-NomadedDebugMark IT` flies to a country and marks it, celebration and all
     /// (`-NomadedDebugUnmarkAfter YES` unmarks it 3 s later), `-NomadedDebugMilestone countries.25`
     /// shows a milestone's celebration, `-NomadedDebugSyncMark IT,FR` has those countries
-    /// arrive from "another device" 3 s in (with `-NomadedDebugOnboarding YES`: a restore).
+    /// arrive from "another device" 3 s in (with `-NomadedDebugOnboarding YES`: a restore),
+    /// `-NomadedDebugShare YES` opens the statistics and the story to share.
     /// These runs use an empty in-memory store (see `NomadedApp`), so they never touch countries marked by hand.
     private func applyDebugLaunchArguments() {
         let defaults = UserDefaults.standard
@@ -715,6 +753,7 @@ struct GlobeScreen: View {
         let search = defaults.string(forKey: "NomadedDebugSearch")
         let showsList = defaults.bool(forKey: "NomadedDebugVisitedList")
         let showsStats = defaults.bool(forKey: "NomadedDebugStats")
+        let shares = defaults.bool(forKey: "NomadedDebugShare")
         if let picks = defaults.string(forKey: "NomadedDebugOnboardingPicks"), onboarding != nil {
             walkThroughOnboarding(picking: picks.split(separator: ",").map(String.init))
         }
@@ -724,7 +763,7 @@ struct GlobeScreen: View {
                 world.simulateSync(marking: synced.split(separator: ",").map(String.init))
             }
         }
-        guard !taps.isEmpty || fly != nil || switchesTo != nil || resets || search != nil || showsList || showsStats || focusesCity
+        guard !taps.isEmpty || fly != nil || switchesTo != nil || resets || search != nil || showsList || showsStats || shares || focusesCity
                 || addsCityTo != nil || landsCity != nil || marks != nil || debugMilestone != nil
         else { return }
         Task {
@@ -746,7 +785,8 @@ struct GlobeScreen: View {
                 worldviewSwitches += 1
             }
             if showsList { setShowingVisited(true) }
-            if showsStats { setShowingStats(true) }
+            if showsStats || shares { setShowingStats(true) }
+            if shares { shareStory() }
             if focusesCity, let first = world.cities.first { focus(on: first) }
             if let addsCityTo {
                 select(addsCityTo)

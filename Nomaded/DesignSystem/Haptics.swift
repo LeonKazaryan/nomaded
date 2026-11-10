@@ -22,6 +22,8 @@ enum Haptics {
     static let milestone = SensoryFeedback.success
     /// The user's world came back from iCloud.
     static let restored = SensoryFeedback.success
+    /// A story film is ready to share.
+    static let storyReady = SensoryFeedback.success
     /// A letter of the welcome title lands: barely there.
     static let letter = SensoryFeedback.impact(weight: .light, intensity: 0.35)
 }

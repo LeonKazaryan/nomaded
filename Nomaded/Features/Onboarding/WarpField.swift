@@ -12,7 +12,7 @@ struct WarpField: View {
     var body: some View {
         TimelineView(.animation(paused: start.timeIntervalSinceNow < -Self.duration)) { timeline in
             Canvas { context, size in
-                draw(at: timeline.date.timeIntervalSince(start), in: context, size: size)
+                Self.draw(at: timeline.date.timeIntervalSince(start), in: context, size: size)
             }
         }
         .ignoresSafeArea()
@@ -20,16 +20,17 @@ struct WarpField: View {
         .accessibilityHidden(true)
     }
 
-    private func draw(at t: Double, in context: GraphicsContext, size: CGSize) {
-        guard t >= 0, t < Self.duration else { return }
-        let progress = t / Self.duration
+    /// The streaks `t` seconds in. Nothing before 0 or past `duration`.
+    static func draw(at t: Double, in context: GraphicsContext, size: CGSize) {
+        guard t >= 0, t < duration else { return }
+        let progress = t / duration
         // Full speed at first, easing to a stop.
         let speed = pow(1 - progress, 2)
         let center = CGPoint(x: size.width / 2, y: size.height / 2)
         let reach = hypot(size.width, size.height) / 2
         var random = SplitMix64(seed: 42)
 
-        for _ in 0..<Self.stars {
+        for _ in 0..<stars {
             let angle = Double.random(in: 0..<(2 * .pi), using: &random)
             let start = Double.random(in: 0.02...0.9, using: &random)
             let pace = Double.random(in: 0.6...1.4, using: &random)

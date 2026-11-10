@@ -16,6 +16,16 @@ struct SpaceBackground: View {
     }
 }
 
+/// The same space, held at `time`: for a frame drawn offscreen, such as a story film's.
+struct SpaceStill: View {
+    let time: TimeInterval
+
+    var body: some View {
+        Nebula(time: time)
+            .overlay { Starfield() }
+    }
+}
+
 private struct Nebula: View {
     let time: TimeInterval
 

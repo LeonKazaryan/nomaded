@@ -349,6 +349,7 @@
 				INFOPLIST_FILE = Nomaded/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Nomaded;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.travel";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Nomaded saves your story video or picture to Photos when you choose Save in the share sheet.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -386,6 +387,7 @@
 				INFOPLIST_FILE = Nomaded/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Nomaded;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.travel";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Nomaded saves your story video or picture to Photos when you choose Save in the share sheet.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

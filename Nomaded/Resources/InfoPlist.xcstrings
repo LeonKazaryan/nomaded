@@ -1,0 +1,24 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "NSPhotoLibraryAddUsageDescription" : {
+      "comment" : "Asked the first time a story is saved to Photos from the share sheet.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Nomaded saves your story video or picture to Photos when you choose Save in the share sheet."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nomaded сохраняет видео или картинку для сторис в «Фото», когда ты выбираешь «Сохранить» в меню «Поделиться»."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

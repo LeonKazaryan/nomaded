@@ -204,15 +204,41 @@ final class GlobeRenderer {
     }
 
     func draw(in layer: CAMetalLayer, rotation: simd_quatf, camera: GlobeCamera) {
-        guard let ocean, let land, camera.viewportSize.width > 0, camera.viewportSize.height > 0,
+        guard ocean != nil, land != nil, camera.viewportSize.width > 0, camera.viewportSize.height > 0,
               let drawable = layer.nextDrawable(),
-              let targets = renderTargets(matching: drawable.texture),
-              let commandBuffer = queue.makeCommandBuffer()
+              let commandBuffer = queue.makeCommandBuffer(),
+              encode(into: drawable.texture, rotation: rotation, camera: camera, on: commandBuffer)
         else { return }
+        if layer.presentsWithTransaction {
+            // Lands in the same Core Animation commit as the SwiftUI overlays (city names,
+            // shading), so they never trail the globe by a frame.
+            commandBuffer.commit()
+            commandBuffer.waitUntilScheduled()
+            drawable.present()
+        } else {
+            commandBuffer.present(drawable)
+            commandBuffer.commit()
+        }
+    }
+
+    /// Draws one frame into `texture` (render target, `pixelFormat`) and waits for the GPU:
+    /// a film's frame rather than the screen's. Transparent around the globe.
+    func render(into texture: MTLTexture, rotation: simd_quatf, camera: GlobeCamera) {
+        guard ocean != nil, land != nil, camera.viewportSize.width > 0, camera.viewportSize.height > 0,
+              let commandBuffer = queue.makeCommandBuffer(),
+              encode(into: texture, rotation: rotation, camera: camera, on: commandBuffer)
+        else { return }
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+    }
+
+    /// Encodes the scene, resolved into `texture`. Returns whether there was anything to draw.
+    private func encode(into texture: MTLTexture, rotation: simd_quatf, camera: GlobeCamera, on commandBuffer: MTLCommandBuffer) -> Bool {
+        guard let ocean, let land, let targets = renderTargets(matching: texture) else { return false }
 
         let pass = MTLRenderPassDescriptor()
         pass.colorAttachments[0].texture = targets.color
-        pass.colorAttachments[0].resolveTexture = drawable.texture
+        pass.colorAttachments[0].resolveTexture = texture
         pass.colorAttachments[0].loadAction = .clear
         // Transparent: the SwiftUI space background shows around the globe.
         pass.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
@@ -222,7 +248,7 @@ final class GlobeRenderer {
         pass.depthAttachment.clearDepth = 1
         pass.depthAttachment.storeAction = .dontCare
 
-        guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: pass) else { return }
+        guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: pass) else { return false }
         encoder.setRenderPipelineState(pipeline)
         encoder.setDepthStencilState(depthState)
         encoder.setFrontFacing(.counterClockwise)
@@ -271,16 +297,7 @@ final class GlobeRenderer {
         drawMarkers(with: encoder)
 
         encoder.endEncoding()
-        if layer.presentsWithTransaction {
-            // Lands in the same Core Animation commit as the SwiftUI overlays (city names,
-            // shading), so they never trail the globe by a frame.
-            commandBuffer.commit()
-            commandBuffer.waitUntilScheduled()
-            drawable.present()
-        } else {
-            commandBuffer.present(drawable)
-            commandBuffer.commit()
-        }
+        return true
     }
 
     private func drawMarkers(with encoder: MTLRenderCommandEncoder) {
@@ -342,7 +359,7 @@ final class GlobeRenderer {
         return GPUMesh(vertices: vertices, indices: indices, indexCount: mesh.indices.count)
     }
 
-    /// Multisampled color and depth, remade only when the drawable changes size. On a real
+    /// Multisampled color and depth, remade only when the target changes size. On a real
     /// GPU they're memoryless: they live in tile memory and never touch RAM.
     private func renderTargets(matching drawable: MTLTexture) -> (color: MTLTexture, depth: MTLTexture)? {
         if let targets, targets.color.width == drawable.width, targets.color.height == drawable.height {

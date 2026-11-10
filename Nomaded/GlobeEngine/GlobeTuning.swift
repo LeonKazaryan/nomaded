@@ -79,6 +79,17 @@ enum GlobeTuning {
     /// A world restored from iCloud starts filling in once the introduction has faded.
     static let restoreFillDelay = 0.45
 
+    // MARK: Story film
+
+    /// The film's globe flies in from deep space too, unwinding less spin (radians)…
+    static let filmArrivalSpin = 2.6
+    /// …a little quicker than the first launch: a story is short.
+    static let filmArrivalSpring = SpringParameters(response: 1.9, dampingRatio: 1)
+    /// The camera following the film's path: close behind, never a jolt.
+    static let filmAimSpring = SpringParameters(response: 0.55, dampingRatio: 1)
+    /// Smaller than on screen, leaving room for the numbers above and the name below.
+    static let filmZoom = 0.78
+
     // MARK: First launch
 
     /// The globe flies in from deep space: it starts this small…

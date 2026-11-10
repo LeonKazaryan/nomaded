@@ -34,6 +34,16 @@
         }
       }
     },
+    "%@ of the world" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ мира"
+          }
+        }
+      }
+    },
     "%@ removed from visited" : {
       "localizations" : {
         "ru" : {
@@ -554,6 +564,16 @@
         }
       }
     },
+    "Couldn't make the video" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не получилось сделать видео"
+          }
+        }
+      }
+    },
     "Countries" : {
       "localizations" : {
         "ru" : {
@@ -565,7 +585,6 @@
       }
     },
     "Countries visited" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ru" : {
           "stringUnit" : {
@@ -765,6 +784,26 @@
         }
       }
     },
+    "Makes a video of your globe for stories" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Делает видео с вашим глобусом для сторис"
+          }
+        }
+      }
+    },
+    "Making the video…" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Делаем видео…"
+          }
+        }
+      }
+    },
     "Mark as visited" : {
       "localizations" : {
         "ru" : {
@@ -821,6 +860,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Центральная Африка"
+          }
+        }
+      }
+    },
+    "My world" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Мой мир"
           }
         }
       }
@@ -966,7 +1015,6 @@
       }
     },
     "of %lld" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ru" : {
           "stringUnit" : {
@@ -1034,6 +1082,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "мира"
+          }
+        }
+      }
+    },
+    "Picture" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Картинка"
           }
         }
       }
@@ -1114,6 +1172,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Поиск страны"
+          }
+        }
+      }
+    },
+    "Share" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поделиться"
           }
         }
       }
@@ -1338,12 +1406,32 @@
         }
       }
     },
+    "Try again" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Попробовать ещё раз"
+          }
+        }
+      }
+    },
     "Undiscovered" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Неоткрытые"
+          }
+        }
+      }
+    },
+    "Video" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Видео"
           }
         }
       }
@@ -1454,6 +1542,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Пока карта пуста — это ненадолго"
+          }
+        }
+      }
+    },
+    "Your story" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Твоя история"
           }
         }
       }
