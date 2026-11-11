@@ -96,8 +96,14 @@ private enum HeaderLoop {
     static let opening = 10.0
     /// A country fills this many degrees before the middle, as it comes round from the left.
     static let fillBefore = 22.0
-    /// A drain needs this much of the turn (about 1.5 s) out of sight to finish unseen.
-    static let drainSpan = 30.0
+    /// A drain needs this much of the turn (about 1.5 s, at the fastest) out of sight to
+    /// finish unseen.
+    static let drainSpan = 45.0
+    /// How much the turn speeds up and slows down: from 0.45 to 1.55 times the average,
+    /// slowest over Europe and Africa, where the colors are, fastest over the empty Pacific.
+    static let swing = 0.55
+    /// Where in the turn it's fastest: half a turn after the opening, mid-Pacific.
+    static let fastest = 0.49
     /// These throw a ring across the planet as they fill; one at a time, spread round it.
     static let ringers: Set<String> = ["JP", "BR", "EG", "AU", "KZ"]
 
@@ -154,7 +160,14 @@ private enum HeaderLoop {
         // A whole turn and a second first, unrecorded: from then on each frame is the frame a
         // turn later, every fill, drain, ring and flag included, so the loop has no seam.
         let warmUp = turnFrames + framesPerSecond
-        let facing = { (frame: Int) in opening - 360 * Double(frame - warmUp) / Double(turnFrames) }
+        // How far round, 0…1 a turn: an even pace plus a sway that adds nothing over a whole
+        // turn, so the speed itself loops too.
+        let facing = { (frame: Int) -> Double in
+            let turn = Double(frame - warmUp) / Double(turnFrames)
+            let phase = -2 * Double.pi * fastest
+            let round = turn + swing / (2 * .pi) * (sin(2 * .pi * turn + phase) - sin(phase))
+            return opening - 360 * round
+        }
         globe.renderStill(facing: GeoCoordinate(latitude: latitude, longitude: facing(0)), zoom: zoom, offset: 0, into: stage.texture)
 
         let backdrop = stage.layer(SpaceStill(time: 0), opaque: true)
@@ -248,6 +261,7 @@ private enum HeaderLoop {
 
     /// A flag on each country as it fills, riding round with it, gone over the horizon.
     /// Same as a story's, bigger.
+    @MainActor
     struct Pins {
         private struct Pin {
             let code: String
@@ -258,7 +272,7 @@ private enum HeaderLoop {
         /// Flags as big as this many of a story's.
         private static let size = 1.7
         /// A new flag closer than this (points) to one already up stays down.
-        private static let spacing = 46.0
+        private static let spacing = 66.0
 
         private let scale: Double
         private let canvasHeight: Double
@@ -297,7 +311,8 @@ private enum HeaderLoop {
             for pin in pins {
                 guard let image = images[pin.code], let spot = globe.screenPoint(of: pin.place) else { continue }
                 let age = time - pin.born
-                let opacity = min(1, age / 0.08) * OffscreenGlobe.smoothstep((spot.facing - 0.12) / 0.25)
+                // Gone well before the horizon: a flag standing on the rim sticks out past it.
+                let opacity = min(1, age / 0.08) * OffscreenGlobe.smoothstep((spot.facing - 0.32) / 0.25)
                 guard opacity > 0.005 else { continue }
                 let grow = max(0.01, StoryPin.scale(age: age))
                 let target = CGPoint(x: spot.point.x * scale, y: (canvasHeight - spot.point.y) * scale)
@@ -336,11 +351,13 @@ private enum SearchPicture {
         let square = CGSize(width: globeSide, height: globeSide)
         let stage = try await OffscreenGlobe(world: world, size: square, scale: scale)
         let globe = stage.globe
-        globe.setVisited(CreativeAssets.traveller.subtracting([marked]))
+        // Canada only shows as a sliver on the rim from here, which reads as a glitch.
+        let lit = CreativeAssets.traveller.subtracting(["CA"])
+        globe.setVisited(lit.subtracting([marked]))
         globe.renderStill(facing: facing, zoom: stage.zoom(radius: radius), offset: 0, into: stage.texture)
         // Marked now: everything else is at rest, Italy is in the middle of its moment.
         globe.aim(at: facing)
-        globe.setVisited(CreativeAssets.traveller)
+        globe.setVisited(lit)
         let origin = globe.celebrate(marked) ?? CGPoint(x: globeSide / 2, y: globeSide / 2)
         let step = 1.0 / 120
         for _ in 0..<Int(moment / step) {
@@ -358,18 +375,20 @@ private enum SearchPicture {
             planet,
             canvas.layer(GlobeShading(radius: radius, center: center)),
             canvas.layer(SearchConfetti(origin: burst, ink: ink, time: moment - 0.05)),
-            canvas.layer(SearchWords(language: language, stats: stats, stamp: StampSpot(code: marked, ink: ink, date: stampDate, near: burst))),
+            canvas.layer(SearchWords(language: language, stats: stats, stamp: StampSpot(code: marked, ink: ink, date: stampDate))),
         ])
         try canvas.writePNG(image, to: url)
     }
 }
 
-/// Where the passport stamp goes: above Italy, toward the words.
+/// Italy's passport stamp, pressed on the ocean at the globe's lower left, between the
+/// numbers and the colors.
 private struct StampSpot {
+    static let center = CGPoint(x: 1010, y: 985)
+
     let code: String
     let ink: Color
     let date: Date
-    let near: CGPoint
 }
 
 /// The line, the numbers and the stamp, over the whole picture.
@@ -379,17 +398,19 @@ private struct SearchWords: View {
     let stamp: StampSpot
 
     /// The line, short, in the app's two languages: it says what the picture shows you do.
+    /// Broken by hand, so no word is left on a line of its own.
     private var line: String {
-        language == "ru" ? "Зажги каждую страну, где ты был" : "Light up every country you've been to"
+        language == "ru" ? "Зажги каждую\nстрану,\nгде ты был" : "Light up every\ncountry you've\nbeen to"
     }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
             VStack(alignment: .leading, spacing: 44) {
                 Text(verbatim: line)
-                    .font(.system(size: 104, weight: .heavy, design: .rounded))
+                    .font(.system(size: 100, weight: .heavy, design: .rounded))
                     .foregroundStyle(.white)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(3)
+                    .minimumScaleFactor(0.8)
                 counter
             }
             .frame(width: 700, alignment: .leading)
@@ -397,9 +418,9 @@ private struct SearchWords: View {
             .padding(.leading, 120)
 
             PassportStamp(code: stamp.code, date: stamp.date, ink: stamp.ink, slamsIn: false)
-                .scaleEffect(3.4)
-                .rotationEffect(.degrees(4))
-                .position(x: stamp.near.x - 300, y: stamp.near.y - 250)
+                .scaleEffect(3.2)
+                .rotationEffect(.degrees(2))
+                .position(StampSpot.center)
         }
         .frame(width: SearchPicture.size.width, height: SearchPicture.size.height)
         .environment(\.colorScheme, .dark)

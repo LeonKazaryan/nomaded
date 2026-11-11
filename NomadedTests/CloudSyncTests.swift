@@ -18,6 +18,19 @@ struct CloudSyncTests {
         #expect(said.contains("\(CKError.serverRejectedRequest.rawValue)"))
     }
 
+    /// One record turned down sinks the whole batch: the rest come back as "Atomic failure"
+    /// (what TestFlight 1.2 (6) showed), and the reason is only on the one that sank it.
+    @Test func anAtomicFailurePointsAtTheRecordThatSankIt() {
+        let reason = "Cannot create new type CD_VisitedCity in production schema"
+        var partials: [CKRecord.ID: NSError] = [:]
+        for index in 0..<5 {
+            partials[CKRecord.ID(recordName: "fine-\(index)")] = NSError(domain: CKError.errorDomain, code: CKError.batchRequestFailed.rawValue, userInfo: [NSLocalizedDescriptionKey: "Atomic failure"])
+        }
+        partials[CKRecord.ID(recordName: "city")] = NSError(domain: CKError.errorDomain, code: CKError.serverRejectedRequest.rawValue, userInfo: [NSLocalizedDescriptionKey: reason])
+        let batch = NSError(domain: CKError.errorDomain, code: CKError.partialFailure.rawValue, userInfo: [CKPartialErrorsByItemIDKey: partials])
+        #expect(CloudSync.describe(batch).contains(reason))
+    }
+
     @Test func aPlainErrorSaysItself() {
         let error = NSError(domain: CKError.errorDomain, code: CKError.networkUnavailable.rawValue, userInfo: [NSLocalizedDescriptionKey: "The Internet connection appears to be offline."])
         #expect(CloudSync.describe(error).hasPrefix("The Internet connection appears to be offline."))

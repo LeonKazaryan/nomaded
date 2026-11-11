@@ -103,8 +103,8 @@ final class CloudSync {
         }
     }
 
-    /// What went wrong, in iCloud's own words: the first record it turned down, if it was a
-    /// batch (a schema missing in production says so there), else the error itself.
+    /// What went wrong, in iCloud's own words: for a batch, the record that sank it (a schema
+    /// missing in production says so there), else the error itself.
     nonisolated static func describe(_ error: any Error) -> String {
         var error = error as NSError
         // Core Data wraps CloudKit's own error.
@@ -112,8 +112,12 @@ final class CloudSync {
             error = underlying
         }
         if error.domain == CKError.errorDomain,
-           let partial = (error.userInfo[CKPartialErrorsByItemIDKey] as? [AnyHashable: any Error])?.values.first {
-            error = partial as NSError
+           let partials = (error.userInfo[CKPartialErrorsByItemIDKey] as? [AnyHashable: any Error])?.values.map({ $0 as NSError }) {
+            // A batch goes in whole or not at all: one record turned down, and every other one
+            // comes back as just "Atomic failure", saying nothing. The one that says why is
+            // the one that isn't that.
+            let sinking = partials.first { $0.code != CKError.batchRequestFailed.rawValue }
+            if let partial = sinking ?? partials.first { error = partial }
         }
         return String("\(error.localizedDescription) (\(error.domain) \(error.code))".prefix(300))
     }
