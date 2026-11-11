@@ -24,6 +24,8 @@ enum Haptics {
     static let restored = SensoryFeedback.success
     /// A story film is ready to share.
     static let storyReady = SensoryFeedback.success
+    /// The zoom rail hits its closest or farthest end.
+    static let zoomLimit = SensoryFeedback.impact(weight: .light, intensity: 0.6)
     /// A letter of the welcome title lands: barely there.
     static let letter = SensoryFeedback.impact(weight: .light, intensity: 0.35)
 }

@@ -64,7 +64,8 @@ struct ReadyStep: View {
     private var tips: some View {
         VStack(alignment: .leading, spacing: 14) {
             tip("hand.tap.fill", "Tap a country to mark it")
-            tip("magnifyingglass", "Find countries and cities")
+            // Cities live inside a country's card, where few find them on their own.
+            tip("mappin.and.ellipse", "Add the cities you've been to")
             tip("medal.fill", "Collect medals as you go")
         }
         .frame(maxWidth: .infinity, alignment: .leading)

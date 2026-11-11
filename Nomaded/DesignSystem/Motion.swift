@@ -20,6 +20,9 @@ enum Motion {
     /// Things that pop in one by one and are drawn frame by frame (countries on the
     /// statistics maps). Same feel as `bouncy`, as a `Spring` you can sample at any time.
     static let pop = Spring(duration: 0.55, bounce: 0.45)
+    /// A ring spreading off something, slowing as it fades, like the one that crosses the
+    /// globe when a country is marked. A `Spring`, for keyframes.
+    static let ripple = Spring(duration: 0.9, bounce: 0)
     /// Delay between items of a cascade (docs/02-design.md: 30–50 ms).
     static let stagger = 0.05
 }

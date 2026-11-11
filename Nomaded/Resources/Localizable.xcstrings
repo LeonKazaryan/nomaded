@@ -354,6 +354,16 @@
         }
       }
     },
+    "Add the cities you've been to" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Добавляй города, где ты был"
+          }
+        }
+      }
+    },
     "Africa" : {
       "localizations" : {
         "ru" : {
@@ -691,16 +701,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Интересное"
-          }
-        }
-      }
-    },
-    "Find countries and cities" : {
-      "localizations" : {
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ищи страны и города"
           }
         }
       }
@@ -1528,6 +1528,16 @@
         }
       }
     },
+    "Where exactly?\n**Add a city**" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Где именно был?\n**Добавь город**"
+          }
+        }
+      }
+    },
     "Where have you been?" : {
       "localizations" : {
         "ru" : {
@@ -1594,6 +1604,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Твой мир"
+          }
+        }
+      }
+    },
+    "Zoom" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Масштаб"
           }
         }
       }

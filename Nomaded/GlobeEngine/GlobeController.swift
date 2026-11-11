@@ -940,6 +940,22 @@ final class GlobeController {
         zoom.target = min(range.upperBound, max(range.lowerBound, zoom.value))
     }
 
+    /// The zoom the globe is at, or springing to (1 = the whole globe). Past the range while a
+    /// pinch stretches it.
+    var currentZoom: Double { zoom.target }
+
+    /// Springs in (`factor` above 1) or out a step, around the globe's middle: VoiceOver
+    /// adjusting the zoom rail.
+    func zoom(by factor: Double) {
+        wake()
+        isFocusing = false
+        flight = nil
+        zoomSpring = GlobeTuning.zoomSpring
+        let range = GlobeTuning.zoomRange
+        zoom.target = min(range.upperBound, max(range.lowerBound, zoom.target * factor))
+        lastInteraction = CACurrentMediaTime()
+    }
+
     func country(at point: CGPoint) -> String? {
         guard let coordinate = coordinate(at: point) else { return nil }
         return hitTester?.country(at: coordinate, tolerance: GlobeTuning.microStateTapRadius / camera.pointsPerRadian)

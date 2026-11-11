@@ -5,8 +5,9 @@ import SwiftUI
 /// Once the country is marked, the button splits: a small ✓ stays (tap to unmark) and
 /// "Next destination" grows out of it and opens the search, so adding places one after
 /// another is a single tap.
-/// Below, the cities you've been to there, and "+ City". A visited country's passport stamp
-/// sits on the card's top edge; marking the country slams it down.
+/// Below, the cities you've been to there, and "+ City", which lights up right after a mark
+/// until the first city (`AddCityChip`). A visited country's passport stamp sits on the
+/// card's top edge; marking the country slams it down.
 struct CountryPeekCard: View {
     let code: String
     let isVisited: Bool
@@ -16,6 +17,8 @@ struct CountryPeekCard: View {
     let visitedSince: Date?
     let stampInk: Color
     let stampSlams: Bool
+    /// Something covers the card, like a milestone: "+ City" waits for it to go.
+    let isCovered: Bool
     /// Unmarking a country with cities asks first, in a dialog that comes out of the ✓ (a
     /// popover on an iPad, a sheet from the bottom on an iPhone).
     @Binding var isConfirmingUnmark: Bool
@@ -117,6 +120,8 @@ struct CountryPeekCard: View {
             CityChips(
                 cities: cities,
                 highlighted: highlightedCity,
+                justMarked: stampSlams,
+                isCovered: isCovered,
                 onSelect: onSelectCity,
                 onRemove: onRemoveCity,
                 onAdd: onAddCity
@@ -151,6 +156,8 @@ struct CountryPeekCard: View {
 private struct CityChips: View {
     let cities: [CityPin]
     let highlighted: UUID?
+    let justMarked: Bool
+    let isCovered: Bool
     let onSelect: (UUID) -> Void
     let onRemove: (UUID) -> Void
     let onAdd: () -> Void
@@ -166,22 +173,12 @@ private struct CityChips: View {
                             .id(city.id)
                             .transition(reduceMotion ? .opacity : .scale(scale: 0.4).combined(with: .opacity))
                     }
-                    Button(action: onAdd) {
-                        Label("City", systemImage: "plus")
-                            .font(Typography.label)
-                            .foregroundStyle(Palette.accentLight)
-                            .padding(.horizontal, 14)
-                            .frame(minHeight: 40)
-                            .overlay(Capsule().strokeBorder(Palette.accentLight.opacity(0.6), style: StrokeStyle(lineWidth: 1.5, dash: [4, 3])))
-                            .padding(.vertical, 2)
-                            .contentShape(Capsule())
-                            .contentShape(.hoverEffect, Capsule())
-                    }
-                    .buttonStyle(.pressable)
-                    .accessibilityLabel("Add a city")
+                    AddCityChip(justMarked: justMarked, isCovered: isCovered, action: onAdd)
                 }
             }
             .scrollIndicators(.hidden)
+            // With no chips to scroll, "+ City" alone: its hint's glow and rings spill past the row.
+            .scrollClipDisabled(cities.isEmpty)
             // Runs to the card's edges, so chips scroll out under its rim instead of being
             // cut off inside the padding.
             .contentMargins(.horizontal, 20, for: .scrollContent)
@@ -229,6 +226,8 @@ private struct CityChips: View {
     }
 }
 
+#if DEBUG
+// The scratch store exists in Debug only; Release builds (and archives) skip the preview.
 #Preview {
     let rome = CityPin(id: UUID(), name: "Rome", region: "Lazio", countryCode: "IT", latitude: 41.9, longitude: 12.5, createdAt: .now)
     let florence = CityPin(id: UUID(), name: "Florence", region: "Tuscany", countryCode: "IT", latitude: 43.77, longitude: 11.25, createdAt: .now)
@@ -237,18 +236,20 @@ private struct CityChips: View {
         VStack(spacing: 16) {
             CountryPeekCard(
                 code: "IT", isVisited: true, cities: [rome, florence], highlightedCity: rome.id,
-                visitedSince: .now, stampInk: Palette.candy[0], stampSlams: false,
+                visitedSince: .now, stampInk: Palette.candy[0], stampSlams: false, isCovered: false,
                 isConfirmingUnmark: .constant(false), onConfirmUnmark: {},
                 onToggleVisited: {}, onFindNext: {}, onAddCity: {}, onSelectCity: { _ in }, onRemoveCity: { _ in }, onClose: {}
             )
             CountryPeekCard(
                 code: "KZ", isVisited: false, cities: [], highlightedCity: nil,
-                visitedSince: nil, stampInk: Palette.candy[3], stampSlams: false,
+                visitedSince: nil, stampInk: Palette.candy[3], stampSlams: false, isCovered: false,
                 isConfirmingUnmark: .constant(false), onConfirmUnmark: {},
                 onToggleVisited: {}, onFindNext: {}, onAddCity: {}, onSelectCity: { _ in }, onRemoveCity: { _ in }, onClose: {}
             )
         }
         .padding(16)
     }
+    .environment(WorldStore.scratch())
     .preferredColorScheme(.dark)
 }
+#endif

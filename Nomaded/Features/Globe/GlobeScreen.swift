@@ -90,6 +90,12 @@ struct GlobeScreen: View {
                 .accessibilityHidden(isShowingStats)
                 .accessibilityValue(Text("\(visitedPlaces.countries.count) countries"))
 
+            if let zoomRailSpan {
+                // Over the globe, under the bar and the card: they keep their touches.
+                ZoomRail(controller: controller, span: zoomRailSpan)
+                    .transition(.opacity)
+            }
+
             if isSearching || isShowingVisited || addingCityTo != nil {
                 // Dims the globe so lists stay readable; tapping it closes them.
                 Color.black.opacity(0.35)
@@ -156,6 +162,7 @@ struct GlobeScreen: View {
                                 visitedSince: awaitingLanding == selected ? nil : world.firstVisits[selected],
                                 stampInk: controller.visitedColor(of: selected).map(Color.init(components:)) ?? Palette.accentLight,
                                 stampSlams: justMarked == selected,
+                                isCovered: shownMilestone != nil,
                                 isConfirmingUnmark: Binding(
                                     get: { confirmingUnmark == selected },
                                     set: { if !$0 { confirmingUnmark = nil } }
@@ -396,6 +403,7 @@ struct GlobeScreen: View {
     private func resetProgress() {
         world.resetAll()
         hasOnboarded = false
+        AddCityChip.forgetHint()
         setShowingStats(false)
         select(nil)
         justMarked = nil
@@ -477,6 +485,21 @@ struct GlobeScreen: View {
 
     private var isGlobeBehind: Bool {
         isShowingStats || shownMilestone != nil
+    }
+
+    /// The stretch of the right edge the zoom rail may take, in window points: below the bar,
+    /// above the country card, and on an iPhone Duo stood on a table above the fold (held like
+    /// a book, the card is on the other page). `nil` while something covers the globe.
+    private var zoomRailSpan: ClosedRange<Double>? {
+        guard controller.isReady, onboarding == nil, !isSearching, !isShowingVisited, addingCityTo == nil,
+              !isShowingStats, story == nil, shownMilestone == nil, !isGlobeHidden
+        else { return nil }
+        var bottom = windowSize.height
+        if let spread, spread.layout == .stacked { bottom = spread.firstPage.maxY }
+        if selected != nil, let cardTop, spread?.layout != .sideBySide { bottom = min(bottom, cardTop) }
+        let top = topBarBottom + 12
+        bottom -= 12
+        return top < bottom ? top...bottom : nil
     }
 
     // MARK: - iPhone Duo

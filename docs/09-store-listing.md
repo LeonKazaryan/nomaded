@@ -311,6 +311,10 @@ Show off your world. Statistics now has a share button: Nomaded films your globe
 
 Your world also follows you now. With iCloud, the countries, cities and medals you mark show up on all your iPhones and iPads, and come back if you reinstall the app or get a new device. No account needed: everything stays in your own iCloud.
 
+Zoom with one hand. Slide your thumb up or down the right edge of the screen: a see-through rail slides out, and the globe comes closer or pulls back. No pinch needed.
+
+Where exactly? Mark a country and its card now points you to + City: add Paris, Kyoto or that tiny town by the sea, and it lands on your globe as a little spark.
+
 Made for iPhone Duo. Open it and Nomaded opens like a passport: your globe on one page, everything else on the other, nothing lost in the fold. Stand it half open on your desk and it turns into a desk globe.
 ```
 
@@ -320,6 +324,10 @@ Made for iPhone Duo. Open it and Nomaded opens like a passport: your globe on on
 Похвастайся своим миром. В статистике появилась кнопка «Поделиться»: Nomaded снимает, как твой глобус прилетает из космоса и загорается странами, где ты был, а сверху — твои цифры. Видео или картинка — в сторис в одно касание.
 
 А ещё твой мир теперь всегда с тобой. Через iCloud отмеченные страны, города и медали появляются на всех твоих iPhone и iPad и возвращаются после переустановки или на новом устройстве. Без аккаунтов: всё хранится в твоём личном iCloud.
+
+Зум одной рукой. Проведи большим пальцем вверх или вниз у правого края экрана: выедет прозрачная шкала, и глобус приблизится или отдалится. Щипать не нужно.
+
+Где именно был? Отметь страну, и её карточка подскажет кнопку «+ Город»: добавь Париж, Киото или маленький городок у моря, и он приземлится на глобус искоркой.
 
 Сделано для iPhone Duo. Раскрой его, и Nomaded откроется как паспорт: глобус на одной странице, всё остальное на другой, на сгибе ничего не теряется. Поставь полураскрытым на стол, и он станет настольным глобусом.
 ```

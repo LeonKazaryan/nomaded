@@ -164,6 +164,15 @@ enum GlobeTuning {
     static let tapSlop = 10.0
     static let microStateTapRadius = 14.0
 
+    // MARK: Zoom rail
+
+    /// A finger sliding up or down the screen's right edge zooms (`ZoomRail`): this far doubles
+    /// or halves the zoom. The whole range is then about four times this, the rail's own
+    /// length, so its fill keeps pace with the finger.
+    static let zoomRailPointsPerDoubling = 110.0
+    /// How far in from the right edge a touch can start the rail, in points.
+    static let zoomRailEdgeWidth = 30.0
+
     // MARK: Tiny countries
 
     /// Countries and territories smaller than this (km²) get a dot: Vatican, Monaco, Malta,
