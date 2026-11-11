@@ -292,12 +292,12 @@ Nomaded теперь сделан и для iPad. Глобус занимает 
 
 ## Версия 1.2 — iCloud, сторис и iPhone Duo (ADR-018, ADR-019, ADR-020)
 
-Перед загрузкой: схема CloudKit выложена в Production (CloudKit Console → контейнер `iCloud.com.leonkazaryan.nomaded` → Deploy Schema Changes), сборка 4 проверена в TestFlight на iPhone и iPad с одним Apple ID. App Privacy не меняется: данные лежат в личном iCloud пользователя, разработчик их не получает («Data Not Collected»). Политика конфиденциальности на сайте уже говорит про iCloud.
+Перед загрузкой: схема CloudKit выложена в Production (CloudKit Console → контейнер `iCloud.com.leonkazaryan.nomaded` → Deploy Schema Changes, сделано 2026-11-11), сборка 7 проверена в TestFlight на iPhone и iPad с одним Apple ID. App Privacy не меняется: данные лежат в личном iCloud пользователя, разработчик их не получает («Data Not Collected»). Политика конфиденциальности на сайте уже говорит про iCloud.
 
 ### App Review Notes 1.2 (добавить в начало старых)
 
 ```
-Version 1.2 syncs the user's marked countries, cities and medals through their own private iCloud database (CloudKit), so an iPhone and an iPad show the same world and it comes back after reinstalling. There is still no account and no server of ours; we can't access the data. Without iCloud the app works on the device as before.
+Version 1.2 syncs the user's marked countries, cities and medals through their own private iCloud database (CloudKit), so an iPhone and an iPad show the same world and it comes back after reinstalling. There is still no account and no server of ours; we can't access the data. Without iCloud the app works on the device as before; if the device isn't signed in to iCloud or iCloud Drive is off, a card explains how to turn it on (its button opens the app's page in Settings), and the end of Statistics shows the sync status.
 
 It also adds sharing a story: Statistics → the share button makes a short video (8 to 25 seconds, a tour of the user's countries) and a picture of the user's globe on the device and opens the system share sheet. The only new permission is adding to Photos (NSPhotoLibraryAddUsageDescription), requested by iOS when the user picks Save in the share sheet. The app never reads the photo library.
 
@@ -331,6 +331,20 @@ Made for iPhone Duo. Open it and Nomaded opens like a passport: your globe on on
 
 Сделано для iPhone Duo. Раскрой его, и Nomaded откроется как паспорт: глобус на одной странице, всё остальное на другой, на сгибе ничего не теряется. Поставь полураскрытым на стол, и он станет настольным глобусом.
 ```
+
+### App Accessibility (Accessibility Nutrition Labels)
+
+App Store Connect → приложение → слева **App Accessibility** → Get Started → устройства iPhone и iPad → по каждому «Yes» → отметить функции → Publish. Это раздел приложения, а не версии: публикуется сразу, без ревью. Отмечаем только то, где по критериям Apple **все основные задачи** (первый запуск, отметка страны, город, статистика, сторис) выполнимы с этой функцией:
+
+| Функция | Отмечаем? | Почему |
+|---|---|---|
+| VoiceOver | Да, после 5 минут проверки на iPhone | У глобуса действия «Поиск стран», «Посещённые страны», «Статистика»; отметка, город, статистика и сторис — кнопками и списками с подписями (`07-apple-rules.md`) |
+| Dark Interface | Да | Приложение всегда тёмное, Apple это засчитывает |
+| Reduced Motion | Да | Полёты, автовращение, прыжки и выезды заменены проявлением (`07-apple-rules.md`) |
+| Larger Text | Пока нет | Нужно ≥ 200%, а текст растёт до AX2: 33 pt от 17 pt, это 194%. Поднять предел до AX3 и проверить раскладки — в 1.2.1 |
+| Voice Control | Пока нет | Подписи у кнопок есть, но на устройстве не проверяли |
+| Differentiate Without Color Alone, Sufficient Contrast | Нет | Посещённые страны на глобусе отличаются цветом; контраст не измеряли |
+| Captions, Audio Descriptions | Нет | Видео со звуком и речью в приложении нет |
 
 ### Креативные материалы (iOS 27, с октября 2026)
 
