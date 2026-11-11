@@ -403,7 +403,6 @@ struct GlobeScreen: View {
     private func resetProgress() {
         world.resetAll()
         hasOnboarded = false
-        AddCityChip.forgetHint()
         setShowingStats(false)
         select(nil)
         justMarked = nil

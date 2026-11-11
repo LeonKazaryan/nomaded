@@ -5,8 +5,8 @@ import SwiftUI
 /// Once the country is marked, the button splits: a small ✓ stays (tap to unmark) and
 /// "Next destination" grows out of it and opens the search, so adding places one after
 /// another is a single tap.
-/// Below, the cities you've been to there, and "+ City", which lights up right after a mark
-/// until the first city (`AddCityChip`). A visited country's passport stamp sits on the
+/// Below, the cities you've been to there, and "+ City", which lights up right after the
+/// country is marked while it has no cities yet (`AddCityChip`). A visited country's passport stamp sits on the
 /// card's top edge; marking the country slams it down.
 struct CountryPeekCard: View {
     let code: String
@@ -173,7 +173,7 @@ private struct CityChips: View {
                             .id(city.id)
                             .transition(reduceMotion ? .opacity : .scale(scale: 0.4).combined(with: .opacity))
                     }
-                    AddCityChip(justMarked: justMarked, isCovered: isCovered, action: onAdd)
+                    AddCityChip(justMarked: justMarked, countryHasCities: !cities.isEmpty, isCovered: isCovered, action: onAdd)
                 }
             }
             .scrollIndicators(.hidden)
@@ -226,8 +226,6 @@ private struct CityChips: View {
     }
 }
 
-#if DEBUG
-// The scratch store exists in Debug only; Release builds (and archives) skip the preview.
 #Preview {
     let rome = CityPin(id: UUID(), name: "Rome", region: "Lazio", countryCode: "IT", latitude: 41.9, longitude: 12.5, createdAt: .now)
     let florence = CityPin(id: UUID(), name: "Florence", region: "Tuscany", countryCode: "IT", latitude: 43.77, longitude: 11.25, createdAt: .now)
@@ -249,7 +247,5 @@ private struct CityChips: View {
         }
         .padding(16)
     }
-    .environment(WorldStore.scratch())
     .preferredColorScheme(.dark)
 }
-#endif

@@ -2,22 +2,21 @@ import SwiftUI
 
 /// "+ City", the last of the country card's city chips.
 ///
-/// Many people mark countries and never find out they can add cities. So right after a mark,
-/// until their first city and three times at most (`CityHint`), the chip lights up in the
-/// accent color and pulses twice, a ring spreading off it each time, while "Where exactly? Add
-/// a city" grows out of it. A few seconds later the words go back into the chip.
+/// Many people mark countries and never find out they can add cities. So every time a country
+/// with no cities yet is marked, the chip lights up in the accent color and pulses twice, a
+/// ring spreading off it each time, while "Where exactly? Add a city" grows out of it. A few
+/// seconds later the words go back into the chip.
 /// Reduce Motion: the light and the words, no pulse.
 struct AddCityChip: View {
     /// The country was just marked: its stamp is slamming into the card.
     let justMarked: Bool
+    /// Cities there already: nothing to point out.
+    let countryHasCities: Bool
     /// Something covers the card, like a milestone: the hint waits for it to go.
     let isCovered: Bool
     let action: () -> Void
 
-    @Environment(WorldStore.self) private var world
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @AppStorage(Self.showsKey) private var shows = 0
-    @AppStorage(Self.addedKey) private var hasAddedCity = false
     @State private var phase = Phase.idle
     @State private var pulses = 0
 
@@ -30,8 +29,6 @@ struct AddCityChip: View {
         var ring = 0.0
     }
 
-    private static let showsKey = "cityHintShows"
-    private static let addedKey = "hasAddedCity"
     /// After the mark, once the fill, the stamp and the confetti have had their moment. Longer
     /// than a milestone's 1.1 s, so one that's coming is already on screen and the hint waits.
     private static let lead = 1.3
@@ -95,13 +92,9 @@ struct AddCityChip: View {
             if !marked {
                 // Unmarked before or while it showed: it goes quietly.
                 phase = .idle
-            } else if phase != .waiting, phase != .showing, isDue {
+            } else if phase != .waiting, phase != .showing, !countryHasCities, !Self.isMuted {
                 phase = .waiting
             }
-        }
-        .onChange(of: world.cities.isEmpty, initial: true) { _, isEmpty in
-            guard Self.scripted == nil else { return }
-            update { $0.noteCities(exist: !isEmpty) }
         }
         // A milestone taking the stage cancels the wait; once it's gone, the wait starts over.
         .task(id: phase == .waiting && !isCovered) {
@@ -146,14 +139,7 @@ struct AddCityChip: View {
             )
     }
 
-    private var isDue: Bool {
-        let citiesExist = !world.cities.isEmpty
-        if let scripted = Self.scripted { return scripted && !citiesExist }
-        return CityHint(shows: shows, hasAddedCity: hasAddedCity).isDue(citiesExist: citiesExist)
-    }
-
     private func show() {
-        if Self.scripted == nil { update { $0.recordShow() } }
         phase = .showing
         // After "France marked as visited", not over it.
         var message = AttributedString(localized: "Where exactly?\n**Add a city**")
@@ -161,53 +147,30 @@ struct AddCityChip: View {
         AccessibilityNotification.Announcement(message).post()
     }
 
-    private func update(_ change: (inout CityHint) -> Void) {
-        var hint = CityHint(shows: shows, hasAddedCity: hasAddedCity)
-        change(&hint)
-        if hint.shows != shows { shows = hint.shows }
-        if hint.hasAddedCity != hasAddedCity { hasAddedCity = hint.hasAddedCity }
-    }
-
     /// Scripted debug runs (`-NomadedDebug…`) skip the hint, so screenshots stay as they were,
-    /// unless `-NomadedDebugCityHint YES` asks for it: then it shows on every mark and nothing
-    /// is counted. `nil` in a normal run.
-    private static let scripted: Bool? = {
+    /// unless `-NomadedDebugCityHint YES` asks for it.
+    private static let isMuted: Bool = {
         #if DEBUG
-        guard ProcessInfo.processInfo.arguments.contains(where: { $0.hasPrefix("-NomadedDebug") }) else { return nil }
-        return UserDefaults.standard.bool(forKey: "NomadedDebugCityHint")
+        ProcessInfo.processInfo.arguments.contains { $0.hasPrefix("-NomadedDebug") }
+            && !UserDefaults.standard.bool(forKey: "NomadedDebugCityHint")
         #else
-        return nil
+        false
         #endif
     }()
-
-    #if DEBUG
-    /// The developer zone's reset: the hint comes back, as for someone new.
-    static func forgetHint() {
-        UserDefaults.standard.removeObject(forKey: showsKey)
-        UserDefaults.standard.removeObject(forKey: addedKey)
-    }
-    #endif
 }
 
-#if DEBUG
-// The scratch store and `forgetHint` exist in Debug only; Release builds (and archives) skip
-// the preview.
 #Preview {
     @Previewable @State var marked = false
     ZStack {
         SpaceBackground()
         VStack(alignment: .leading, spacing: 24) {
-            AddCityChip(justMarked: marked, isCovered: false) {}
+            AddCityChip(justMarked: marked, countryHasCities: false, isCovered: false) {}
             Button(marked ? "Unmark" : "Mark") { marked.toggle() }
-                .buttonStyle(.capsule(.subtle))
-            Button("Forget the hint") { AddCityChip.forgetHint() }
                 .buttonStyle(.capsule(.subtle))
         }
         .padding(20)
         .glassCard(cornerRadius: 30)
         .padding(16)
     }
-    .environment(WorldStore.scratch())
     .preferredColorScheme(.dark)
 }
-#endif
