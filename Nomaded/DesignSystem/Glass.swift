@@ -25,4 +25,28 @@ extension View {
     func glassCard(cornerRadius: CGFloat = 28) -> some View {
         glass(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
+
+    /// Liquid Glass on iOS 26 and later, the frosted surface before: for what floats over
+    /// everything else, like a prompt.
+    @ViewBuilder
+    func liquidGlass(_ shape: some InsettableShape) -> some View {
+        if #available(iOS 26, *) {
+            glassEffect(.regular, in: shape)
+        } else {
+            glass(shape)
+        }
+    }
+
+    /// The main action on a Liquid Glass surface: glass tinted with the accent on iOS 26 and
+    /// later, the accent capsule before. Give the label the full width.
+    @ViewBuilder
+    func liquidPrimaryButton() -> some View {
+        if #available(iOS 26, *) {
+            buttonStyle(.glassProminent)
+                .tint(Palette.accent)
+                .controlSize(.large)
+        } else {
+            buttonStyle(.capsule(.accent))
+        }
+    }
 }

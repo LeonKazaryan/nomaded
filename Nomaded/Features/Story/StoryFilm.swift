@@ -360,14 +360,14 @@ enum StoryFilm {
 
 /// H.264 in an MP4: what every app that takes stories plays. No sound.
 @MainActor
-private final class VideoWriter {
+final class VideoWriter {
     private let writer: AVAssetWriter
     private let input: AVAssetWriterInput
     private let adaptor: AVAssetWriterInputPixelBufferAdaptor
     private let framesPerSecond: Int32
     private var frame: Int64 = 0
 
-    init(url: URL, width: Int, height: Int, framesPerSecond: Int) throws {
+    init(url: URL, width: Int, height: Int, framesPerSecond: Int, bitRate: Int = 12_000_000) throws {
         writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
         // The index up front, as apps that post video expect it.
         writer.shouldOptimizeForNetworkUse = true
@@ -376,7 +376,7 @@ private final class VideoWriter {
             AVVideoWidthKey: width,
             AVVideoHeightKey: height,
             AVVideoCompressionPropertiesKey: [
-                AVVideoAverageBitRateKey: 12_000_000,
+                AVVideoAverageBitRateKey: bitRate,
                 AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel,
                 AVVideoExpectedSourceFrameRateKey: framesPerSecond,
             ],

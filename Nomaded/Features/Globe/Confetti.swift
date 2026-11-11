@@ -8,7 +8,7 @@ struct ConfettiBurst: Identifiable {
     let colors: [Color]
     let start = Date.now
     /// Picks every piece's size, speed and spin; the same each frame.
-    let seed = UInt64.random(in: 0...UInt64.max)
+    var seed = UInt64.random(in: 0...UInt64.max)
 
     static let lifetime = 1.9
 }
@@ -36,7 +36,9 @@ struct ConfettiView: View {
         .accessibilityHidden(true)
     }
 
-    private func draw(_ burst: ConfettiBurst, at t: Double, in context: GraphicsContext) {
+    /// The burst `t` seconds after it went off. Also draws a still of it (the App Store's
+    /// creative assets).
+    func draw(_ burst: ConfettiBurst, at t: Double, in context: GraphicsContext) {
         guard t >= 0, t < ConfettiBurst.lifetime else { return }
         var random = SplitMix64(seed: burst.seed)
         let fade = 1 - max(0, (t - (ConfettiBurst.lifetime - 0.6)) / 0.6)

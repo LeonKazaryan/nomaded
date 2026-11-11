@@ -3,6 +3,8 @@ import SwiftUI
 /// Main screen: the globe as the base layer with floating UI on top.
 struct GlobeScreen: View {
     @Environment(WorldStore.self) private var world
+    /// How iCloud is doing. Missing in previews.
+    @Environment(CloudSync.self) private var cloud: CloudSync?
     @State private var controller = GlobeController(style: .nomaded)
     @State private var selected: String?
     @State private var celebrations = 0
@@ -61,6 +63,11 @@ struct GlobeScreen: View {
     /// globe stands above the card.
     @State private var cardTop: Double?
     @State private var windowSize = CGSize.zero
+    @State private var isShowingCloudPrompt = false
+    /// When "Not now" last put the iCloud prompt off (seconds since 1970); 0 if never.
+    @AppStorage("cloudPromptDismissedAt") private var cloudPromptDismissedAt = 0.0
+    /// How long "Not now" puts the iCloud prompt off: it asks again, but doesn't nag.
+    private static let cloudPromptPause: TimeInterval = 10 * 24 * 60 * 60
 
     /// The one split every counter on this screen uses.
     private var visitedPlaces: VisitedPlaces {
@@ -268,6 +275,11 @@ struct GlobeScreen: View {
                 .transition(.opacity)
             }
 
+            if isShowingCloudPrompt, let cloud {
+                CloudPrompt(state: cloud.state, onDismiss: dismissCloudPrompt)
+                    .transition(.opacity)
+            }
+
             #if DEBUG
             if showsFrameRate {
                 FrameRateBadge(framesPerSecond: controller.framesPerSecond, demand: controller.isPaused ? .none : controller.frameDemand)
@@ -282,6 +294,13 @@ struct GlobeScreen: View {
         .environment(\.spread, spread)
         .onChange(of: globeStage, initial: true) { _, stage in
             controller.setStage(stage)
+        }
+        .task(id: cloudPromptIsDue) {
+            // A beat after things settle, not over the globe flying in.
+            guard cloudPromptIsDue else { return }
+            try? await Task.sleep(for: .seconds(1.5))
+            guard !Task.isCancelled, cloudPromptIsDue else { return }
+            showCloudPrompt()
         }
         .environment(\.countryCatalog, places)
         .sensoryFeedback(Haptics.select, trigger: selected) { _, new in new != nil }
@@ -482,6 +501,27 @@ struct GlobeScreen: View {
         withAnimation(Motion.smooth) { isShowingRestored = false }
     }
 
+    /// This device can't sync and there's a world on it to lose: time to say so, once
+    /// nothing else is going on, and again `cloudPromptPause` after "Not now".
+    private var cloudPromptIsDue: Bool {
+        guard cloud?.state == .unavailable, !isShowingCloudPrompt, onboarding == nil, !world.visitedCodes.isEmpty,
+              controller.isReady, selected == nil, !isSearching, !isShowingVisited, addingCityTo == nil,
+              !isShowingStats, story == nil, shownMilestone == nil, !isShowingRestored
+        else { return false }
+        return Date.now.timeIntervalSince1970 - cloudPromptDismissedAt > Self.cloudPromptPause
+    }
+
+    private func showCloudPrompt() {
+        withAnimation(Motion.smooth) { isShowingCloudPrompt = true }
+    }
+
+    /// "Not now" (or a tap beside the card) puts the prompt off for a while. Gone by itself
+    /// once iCloud came on, or after saying what iCloud turned down, it's just gone.
+    private func dismissCloudPrompt() {
+        if cloud?.state == .unavailable { cloudPromptDismissedAt = Date.now.timeIntervalSince1970 }
+        withAnimation(Motion.smooth) { isShowingCloudPrompt = false }
+    }
+
     private var isGlobeBehind: Bool {
         isShowingStats || shownMilestone != nil
     }
@@ -597,6 +637,8 @@ struct GlobeScreen: View {
                 earned: world.milestones,
                 onPick: flyTo,
                 onShare: world.visitedCodes.isEmpty ? nil : { shareStory() },
+                cloud: cloud?.state ?? .off,
+                onCloud: showCloudPrompt,
                 onClose: { setShowingStats(false) }
             )
             #if DEBUG
@@ -887,6 +929,12 @@ struct GlobeScreen: View {
         let showsList = defaults.bool(forKey: "NomadedDebugVisitedList")
         let showsStats = defaults.bool(forKey: "NomadedDebugStats")
         let shares = defaults.bool(forKey: "NomadedDebugShare")
+        if defaults.bool(forKey: "NomadedDebugCloudPrompt") {
+            Task {
+                try? await Task.sleep(for: .seconds(2.5))
+                showCloudPrompt()
+            }
+        }
         if let picks = defaults.string(forKey: "NomadedDebugOnboardingPicks"), onboarding != nil {
             walkThroughOnboarding(picking: picks.split(separator: ",").map(String.init))
         }

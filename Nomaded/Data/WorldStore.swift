@@ -29,7 +29,6 @@ final class WorldStore {
     @ObservationIgnored private var context: ModelContext { container.mainContext }
     @ObservationIgnored private let catalog: CountryCatalog
     @ObservationIgnored private var remoteChanges: (any NSObjectProtocol)?
-    @ObservationIgnored private var syncEvents: (any NSObjectProtocol)?
     @ObservationIgnored private var pendingMerge: Task<Void, Never>?
 
     nonisolated private static let log = Logger(subsystem: "com.leonkazaryan.nomaded", category: "WorldStore")
@@ -47,20 +46,6 @@ final class WorldStore {
             forName: .NSPersistentStoreRemoteChange, object: nil, queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.scheduleMerge() }
-        }
-        // Every setup, import and export iCloud finishes goes in the log: the place to look
-        // when a device doesn't get its marks.
-        syncEvents = NotificationCenter.default.addObserver(
-            forName: NSPersistentCloudKitContainer.eventChangedNotification, object: nil, queue: nil
-        ) { note in
-            guard let event = note.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey] as? NSPersistentCloudKitContainer.Event,
-                  event.endDate != nil
-            else { return }
-            if let error = event.error {
-                Self.log.error("iCloud \(event.type.name) failed: \(error)")
-            } else {
-                Self.log.info("iCloud \(event.type.name) done")
-            }
         }
     }
 
@@ -309,17 +294,6 @@ struct SyncedChange: Equatable {
     let isRestore: Bool
     /// Tells two changes with the same countries apart.
     let serial: Int
-}
-
-private extension NSPersistentCloudKitContainer.EventType {
-    var name: String {
-        switch self {
-        case .setup: "setup"
-        case .import: "import"
-        case .export: "export"
-        @unknown default: "event \(rawValue)"
-        }
-    }
 }
 
 extension ModelConfiguration {

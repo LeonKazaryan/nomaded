@@ -484,6 +484,16 @@
         }
       }
     },
+    "Checking iCloud…" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Проверяем iCloud…"
+          }
+        }
+      }
+    },
     "Cities" : {
       "localizations" : {
         "ru" : {
@@ -554,6 +564,16 @@
         }
       }
     },
+    "Come back here: your world saves itself" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вернись сюда — мир сохранится сам"
+          }
+        }
+      }
+    },
     "Continents" : {
       "localizations" : {
         "ru" : {
@@ -590,6 +610,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Не получилось сделать видео"
+          }
+        }
+      }
+    },
+    "Couldn't sync with iCloud" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось синхронизировать с iCloud"
           }
         }
       }
@@ -715,6 +745,16 @@
         }
       }
     },
+    "For now your countries and cities are only on this device. With iCloud they're on all your iPhones and iPads, and come back on a new phone." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сейчас страны и города есть только на этом устройстве. С iCloud они будут на всех твоих iPhone и iPad и вернутся на новом телефоне."
+          }
+        }
+      }
+    },
     "Get started" : {
       "localizations" : {
         "ru" : {
@@ -731,6 +771,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Глобус"
+          }
+        }
+      }
+    },
+    "Got it" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Понятно"
           }
         }
       }
@@ -761,6 +811,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Скрывает это сообщение"
+          }
+        }
+      }
+    },
+    "iCloud is off · only on this device" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iCloud выключен · только на этом устройстве"
+          }
+        }
+      }
+    },
+    "iCloud is on" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iCloud включён"
+          }
+        }
+      }
+    },
+    "It's on all your devices now." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Теперь он на всех твоих устройствах."
+          }
+        }
+      }
+    },
+    "Keep your world in iCloud" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сохрани свой мир в iCloud"
           }
         }
       }
@@ -925,6 +1015,16 @@
         }
       }
     },
+    "No name there? Tap Sign in to your iPhone" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Имени нет? Нажми «Войти в iPhone»"
+          }
+        }
+      }
+    },
     "No visited countries yet" : {
       "localizations" : {
         "ru" : {
@@ -991,6 +1091,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Северная Европа"
+          }
+        }
+      }
+    },
+    "Not now" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не сейчас"
           }
         }
       }
@@ -1098,6 +1208,26 @@
         }
       }
     },
+    "Open Settings" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Открыть Настройки"
+          }
+        }
+      }
+    },
+    "Open Settings and tap your name at the top" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Открой Настройки и нажми на своё имя вверху"
+          }
+        }
+      }
+    },
     "Opens the statistics" : {
       "localizations" : {
         "ru" : {
@@ -1178,6 +1308,16 @@
         }
       }
     },
+    "Saved in iCloud · %@" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сохранено в iCloud · %@"
+          }
+        }
+      }
+    },
     "Search cities" : {
       "localizations" : {
         "ru" : {
@@ -1218,6 +1358,16 @@
         }
       }
     },
+    "Shows how to turn on iCloud" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показывает, как включить iCloud"
+          }
+        }
+      }
+    },
     "Shows the city on the globe" : {
       "localizations" : {
         "ru" : {
@@ -1244,6 +1394,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Показывает страны, где вы были"
+          }
+        }
+      }
+    },
+    "Shows what went wrong" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показывает, что пошло не так"
           }
         }
       }
@@ -1344,6 +1504,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Отмечай страны тапом по глобусу"
+          }
+        }
+      }
+    },
+    "Tap iCloud and turn on iCloud Drive" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выбери iCloud и включи iCloud Drive"
           }
         }
       }
@@ -1528,6 +1698,16 @@
         }
       }
     },
+    "What iCloud said" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Что ответил iCloud"
+          }
+        }
+      }
+    },
     "Where exactly?\n**Add a city**" : {
       "localizations" : {
         "ru" : {
@@ -1578,6 +1758,16 @@
         }
       }
     },
+    "Your marks are safe on this device. They go to iCloud as soon as it takes them." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отметки в безопасности на этом устройстве. Они уйдут в iCloud, как только он их примет."
+          }
+        }
+      }
+    },
     "Your story" : {
       "localizations" : {
         "ru" : {
@@ -1604,6 +1794,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Твой мир"
+          }
+        }
+      }
+    },
+    "Your world is in iCloud" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Твой мир теперь в iCloud"
           }
         }
       }

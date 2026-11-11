@@ -23,6 +23,9 @@ struct StatisticsScreen: View {
     let onPick: (String) -> Void
     /// Opens the story to share. `nil` with nothing to share yet.
     let onShare: (() -> Void)?
+    /// How iCloud is doing, in a line at the end; `onCloud` says what to do about it.
+    let cloud: CloudSync.State
+    let onCloud: () -> Void
     let onClose: () -> Void
 
     @State private var appeared = false
@@ -168,6 +171,9 @@ struct StatisticsScreen: View {
                         }
                     }
                 }
+                CloudStatusLine(state: cloud, onOpen: onCloud)
+                    .padding(.top, 8)
+                    .cascade(6, appeared: appeared)
                 #if DEBUG
                 if let developer {
                     DeveloperZone(tools: developer, pulls: bottomPulls, isOpen: isDeveloperOpen)
@@ -589,6 +595,8 @@ private struct Cascade: ViewModifier {
             earned: [.countries(10): .now, .continent(.europe): .now],
             onPick: { _ in },
             onShare: {},
+            cloud: .synced(.now.addingTimeInterval(-300)),
+            onCloud: {},
             onClose: {}
         )
     }
