@@ -198,12 +198,15 @@ No login, setup or sample files are needed.
 - Visited list: tap the "N countries" counter at the top.
 - Statistics and medals: the chart button (top left).
 - To remove a country, tap it and tap the checkmark button on its card.
+- Share a story: Statistics → the share button (top right) → Picture or Video → Share.
+- One-handed zoom: slide a finger up or down along the right edge of the screen.
 
 4. EXTERNAL SERVICES
-- Apple MapKit (MKLocalSearchCompleter): city search for places that are not in the built-in list. This is the only network request the app makes.
+- Apple MapKit (MKLocalSearchCompleter): city search for places that are not in the built-in list.
+- Apple CloudKit (since 1.2): the user's countries, cities and medals sync through their own private iCloud database. We have no access to it.
 - StoreKit Storefront: reads the App Store country code to pick the border view (see 5). No purchases.
 - Built into the app and used offline: country shapes from Natural Earth and a city list from GeoNames.
-There are no own servers, accounts, analytics, ads, payment or AI services. All user data stays on the device.
+There are no own servers, accounts, analytics, ads, payment or AI services. User data stays on the device and in the user's own iCloud.
 
 5. REGIONAL DIFFERENCES
 All features are the same in every region. The only difference is how disputed borders are drawn. The border view is chosen by the App Store storefront so that the map follows local law:
@@ -292,7 +295,95 @@ Nomaded теперь сделан и для iPad. Глобус занимает 
 
 ## Версия 1.2 — iCloud, сторис и iPhone Duo (ADR-018, ADR-019, ADR-020)
 
-Перед загрузкой: схема CloudKit выложена в Production (CloudKit Console → контейнер `iCloud.com.leonkazaryan.nomaded` → Deploy Schema Changes, сделано 2026-11-11), сборка 7 проверена в TestFlight на iPhone и iPad с одним Apple ID. App Privacy не меняется: данные лежат в личном iCloud пользователя, разработчик их не получает («Data Not Collected»). Политика конфиденциальности на сайте уже говорит про iCloud.
+Перед загрузкой: схема CloudKit выложена в Production (CloudKit Console → контейнер `iCloud.com.leonkazaryan.nomaded` → Deploy Schema Changes, сделано 2026-11-11), сборка проверена в TestFlight на iPhone и iPad с одним Apple ID. Загружать для App Store: Distribute App → **App Store Connect** → Upload. Сборки, загруженные через «TestFlight Internal Only» (1.2 (4)–(7)), отправить на ревью нельзя: в «Добавить сборку» они серые. App Privacy не меняется: данные лежат в личном iCloud пользователя, разработчик их не получает («Data Not Collected»). Политика конфиденциальности на сайте уже говорит про iCloud.
+
+### Promotional Text 1.2 (170, меняется в любой момент без ревью)
+
+English:
+```
+New: share your world as a story. Your globe tours every country you’ve been to, flag by flag. Plus iCloud sync and iPhone Duo.
+```
+
+Русский:
+```
+Новое: делись своим миром в сторис — глобус облетает все твои страны с флажками. А ещё синхронизация через iCloud и iPhone Duo.
+```
+
+### Description 1.2 — English (4000)
+
+Заменяет описание 1.0: сторис, iCloud, iPhone Duo, зум одной рукой, приватность с iCloud.
+
+```
+Nomaded is your travel passport on a living 3D globe. Mark the countries you’ve been to and watch your world fill with color.
+
+A GLOBE THAT FEELS REAL
+Flick it and it keeps spinning. Pinch to zoom in on any place, or slide your thumb along the right edge to zoom with one hand. Tap a country and the camera flies there and frames it, whether it’s Vatican City or Russia. Lakes and rivers rise with their country, and tiny states show up as dots, so you never miss Monaco or Malta.
+
+EVERY MARK IS A CELEBRATION
+The country fills with color from the spot you tapped and jumps off the globe. A ring runs around the planet, confetti flies, and a passport stamp lands on the card.
+
+CITIES
+Add the cities you’ve seen. Each country opens with a list of its largest cities, capital first, and Apple Maps finds the rest. Every city lands on the globe as a pin.
+
+SHARE YOUR WORLD
+Turn your travels into a story. Your globe flies in from deep space and tours everywhere you’ve been, region by region and up close, each country lighting up as its flag pops up. Then it pulls back to your whole world with your numbers. Share the video or a picture to your stories in a tap.
+
+YOUR WORLD IN NUMBERS
+See how much of the world you’ve explored, how far along you are on each continent and in every region, and which of your countries is the largest and the smallest.
+
+MEDALS
+Earn medals at 10, 25, 50, 100, 150 and all 195 countries, and for every new continent.
+
+ON ALL YOUR DEVICES
+Your countries, cities and medals sync through iCloud between your iPhone and iPad, and come back on a new phone. Made for iPhone Duo: open it and Nomaded opens like a passport, with your globe on one page and everything else on the other. Stand it half open on your desk and it becomes a desk globe.
+
+MADE WITH CARE
+• 195 countries, plus territories you can mark too
+• Works offline, with over 80,000 cities and resorts built in
+• iPhone, iPad and iPhone Duo, in any orientation on iPad
+• VoiceOver, Dynamic Type and Reduce Motion
+• English and Russian
+
+PRIVATE BY DESIGN
+No account, no ads, no tracking. Your travels stay on your device and in your own iCloud. We never see them.
+```
+
+### Описание 1.2 — Russian (4000)
+
+```
+Nomaded — твой паспорт путешественника на живом 3D-глобусе. Отмечай страны, где ты был, и смотри, как мир наполняется цветом.
+
+ГЛОБУС, КОТОРЫЙ ОЩУЩАЕТСЯ НАСТОЯЩИМ
+Толкни его — и он крутится дальше по инерции. Сведи пальцы, чтобы приблизить любое место, или проведи большим пальцем у правого края — это зум одной рукой. Коснись страны — камера долетит до неё и покажет её целиком, будь то Ватикан или Россия. Озёра и реки поднимаются вместе со своей страной, а крошечные государства видны точками: Монако и Мальту не пропустишь.
+
+КАЖДАЯ ОТМЕТКА — МАЛЕНЬКИЙ ПРАЗДНИК
+Страна заливается цветом от точки касания и подпрыгивает над глобусом. По планете бежит кольцо, летят конфетти, а на карточку ложится штамп паспорта.
+
+ГОРОДА
+Добавляй города, где ты был. У каждой страны сразу открывается список крупнейших городов со столицей во главе, остальные найдут Apple Maps. Каждый город приземляется на глобус булавкой.
+
+ПОДЕЛИСЬ СВОИМ МИРОМ
+Преврати свои путешествия в сторис. Глобус прилетает из космоса и облетает всё, где ты был, регион за регионом и вблизи: каждая страна загорается, и над ней выскакивает её флаг. А в конце виден весь твой мир с цифрами. Видео или картинка — в сторис в одно касание.
+
+ТВОЙ МИР В ЦИФРАХ
+Смотри, какую часть мира ты уже открыл, сколько пройдено на каждом континенте и в каждом регионе и какая из твоих стран самая большая, а какая самая маленькая.
+
+МЕДАЛИ
+Получай медали за 10, 25, 50, 100, 150 и все 195 стран и за каждый новый континент.
+
+НА ВСЕХ ТВОИХ УСТРОЙСТВАХ
+Страны, города и медали синхронизируются через iCloud между iPhone и iPad и возвращаются на новом телефоне. Сделано для iPhone Duo: раскрой его, и Nomaded откроется как паспорт — глобус на одной странице, всё остальное на другой. Поставь полураскрытым на стол, и он станет настольным глобусом.
+
+СДЕЛАНО С ЛЮБОВЬЮ
+• 195 стран и территории, которые тоже можно отмечать
+• Работает без интернета, встроено больше 80 000 городов и курортов
+• iPhone, iPad и iPhone Duo, на iPad — в любой ориентации
+• VoiceOver, крупный шрифт и «Уменьшение движения»
+• Русский и английский языки
+
+ПРИВАТНОСТЬ ПО УМОЛЧАНИЮ
+Без аккаунта, рекламы и отслеживания. Твои путешествия остаются на твоём устройстве и в твоём личном iCloud. Мы их не видим.
+```
 
 ### App Review Notes 1.2 (добавить в начало старых)
 

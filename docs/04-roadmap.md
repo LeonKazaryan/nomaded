@@ -181,6 +181,9 @@
 - [x] `-NomadedDebugCityHint YES` — подсказка в скриптовых прогонах (без него её там нет, скриншоты не меняются)
 - [ ] **Leon:** на iPhone: отметить страну без городов — заметна ли подсказка, не мешает ли штампу и «Куда дальше»; страна с новым континентом — подсказка после медали; страна, отмеченная через город, — без подсказки
 
+- [x] Сборки 1.2 (4)–(7) загружались как «TestFlight Internal Only» — их нельзя отправить на ревью. Сборка 8: Distribute App → App Store Connect → Upload
+- [x] Описание и промотекст 1.2 (сторис, iCloud, iPhone Duo, зум одной рукой) и заметки для ревью (CloudKit как второй сетевой сервис) — `09-store-listing.md`
+
 **App Accessibility** (`09-store-listing.md` → «App Accessibility»)
 - [ ] **Leon:** VoiceOver на iPhone, 5 минут: онбординг, отметить страну через поиск, добавить город, статистика, сторис. Получилось — отметить VoiceOver, Dark Interface, Reduced Motion для iPhone и iPad → Publish
 - [ ] Larger Text: поднять предел Dynamic Type с AX2 до AX3 (200%+) и проверить раскладки — тогда можно отметить (1.2.1)
