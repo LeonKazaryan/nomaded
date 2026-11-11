@@ -62,8 +62,9 @@ enum StoryTiming {
     static let header = 0.5
     /// The counter, at the earliest: it waits for the first country.
     static let counter = 1.3
-    static let finale = 5.3
-    static let brand = 5.8
+    /// The numbers come in as the camera pulls back for the finale (`StoryPlan.finale`), and
+    /// the name this long after them.
+    static let brandAfterFinale = 0.5
     static let reveal = 0.6
     static let pop = 0.28
 
@@ -94,13 +95,14 @@ struct StoryHeadline: View {
         var finale: Double
 
         /// `firstCounted`: when the first country was counted, `nil` before. The counter comes
-        /// in with it, never as "0 countries"; with only territories, in the finale.
-        init(time: Double, countries: Int, firstCounted: Double?, lastCounted: Double) {
+        /// in with it, never as "0 countries"; with only territories, in the finale, which
+        /// starts at `finale`.
+        init(time: Double, countries: Int, firstCounted: Double?, lastCounted: Double, finale: Double) {
             self.countries = countries
             header = StoryTiming.reveal(StoryTiming.header, at: time)
-            counter = StoryTiming.reveal(max(StoryTiming.counter, firstCounted ?? StoryTiming.finale), at: time)
+            counter = StoryTiming.reveal(max(StoryTiming.counter, firstCounted ?? finale), at: time)
             pop = (pow(max(0, 1 - (time - lastCounted) / StoryTiming.pop), 2) * 10).rounded() / 10
-            finale = StoryTiming.reveal(StoryTiming.finale, at: time)
+            self.finale = StoryTiming.reveal(finale, at: time)
         }
     }
 
@@ -169,6 +171,72 @@ struct StoryHeadline: View {
         }
         .lineLimit(1)
         .minimumScaleFactor(0.7)
+    }
+}
+
+/// Darkens the top of the frame behind the words while the camera is in close: up close
+/// the globe fills the frame, and white numbers over a lemon-yellow country don't read.
+struct StoryScrim: View {
+    var body: some View {
+        LinearGradient(
+            stops: [
+                .init(color: Palette.night.opacity(0.85), location: 0),
+                .init(color: Palette.night.opacity(0.55), location: 0.22),
+                .init(color: Palette.night.opacity(0), location: 0.45),
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .frame(width: StoryFilm.size.width, height: StoryFilm.size.height)
+    }
+}
+
+/// A flag on a pin, standing on a country as it fills on the tour. Drawn once per country;
+/// the film pops, moves and fades it.
+struct StoryPin: View {
+    /// The image's size around the pin, with room for its shadow, and where its tip is.
+    static let size = CGSize(width: 46, height: 54)
+    static let tip = CGPoint(x: 23, y: 42)
+    private static let badge = 32.0
+
+    let flag: String
+
+    var body: some View {
+        VStack(spacing: -2) {
+            Text(verbatim: flag)
+                .font(.system(size: 19))
+                .frame(width: Self.badge, height: Self.badge)
+                .background(Circle().fill(.white))
+                .overlay(Circle().strokeBorder(Palette.accentLight, lineWidth: 2))
+            // The point it stands on.
+            Triangle()
+                .fill(.white)
+                .frame(width: 10, height: 8)
+        }
+        .compositingGroup()
+        .shadow(color: .black.opacity(0.45), radius: 4, y: 2)
+        .padding(.top, 4)
+        .frame(width: Self.size.width, height: Self.size.height, alignment: .top)
+    }
+
+    private struct Triangle: Shape {
+        func path(in rect: CGRect) -> Path {
+            Path { path in
+                path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+                path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+                path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
+                path.closeSubpath()
+            }
+        }
+    }
+
+    /// How big a pin is `age` seconds after it pops up: out of nothing, a little past full
+    /// size, and settling, like the app's pop spring.
+    static func scale(age: Double) -> Double {
+        guard age > 0 else { return 0 }
+        let damping = 0.45, frequency = 2 * Double.pi / 0.42
+        let decay = damping * frequency, ringing = frequency * (1 - damping * damping).squareRoot()
+        return 1 - exp(-decay * age) * (cos(ringing * age) + decay / ringing * sin(ringing * age))
     }
 }
 

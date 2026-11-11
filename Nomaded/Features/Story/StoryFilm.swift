@@ -31,9 +31,9 @@ enum StoryFilmError: Error {
 
 /// Makes the user's world into a story (ADR-019), on a globe of its own drawn offscreen,
 /// under the numbers and over deep space, 1080×1920. The picture is a single frame, ready
-/// at once. The film plays `StoryPlan` frame by frame (out of hyperspace, across the places,
-/// each filling as it comes round) into a video at 30 fps: as fast as the phone draws, not in
-/// real time, and only when asked for.
+/// at once. The film plays `StoryPlan` frame by frame (out of hyperspace, a tour of the places
+/// stop by stop, each filling with its flag, back out to the whole planet) into a video at
+/// 30 fps: as fast as the phone draws, not in real time, and only when asked for.
 @MainActor
 enum StoryFilm {
     /// A frame in points. Drawn at 3×: 1080×1920, the size stories are made for.
@@ -52,8 +52,8 @@ enum StoryFilm {
         let started = CACurrentMediaTime()
         try? FileManager.default.removeItem(at: folder)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let plan = StoryPlan(places: content.places)
         let stage = try await Stage(content)
+        let plan = stage.plan(content)
         stage.globe.setVisited(Set(content.places.map(\.code)))
         stage.globe.renderStill(
             facing: GeoCoordinate(latitude: plan.focus.latitude, longitude: plan.focus.longitude),
@@ -61,13 +61,12 @@ enum StoryFilm {
             offset: StoryLayout.globeOffset,
             into: stage.texture
         )
-        let words = StoryHeadline.State(time: StoryPlan.duration, countries: content.countries.count, firstCounted: 0, lastCounted: -10)
-        let frame = stage.frame(
-            space: stage.backdrop,
-            shading: render(stage.shading, opaque: false),
-            headline: render(StoryHeadline(state: words, stats: content.stats, year: stage.year), in: StoryHeadline.frame),
-            brand: render(StoryBrand(progress: 1), in: StoryBrand.frame)
-        )
+        let words = StoryHeadline.State(time: plan.duration, countries: content.countries.count, firstCounted: 0, lastCounted: -10, finale: 0)
+        let frame = stage.frame(space: stage.backdrop, layers: [
+            render(stage.shading, opaque: false),
+            render(StoryHeadline(state: words, stats: content.stats, year: stage.year), in: StoryHeadline.frame),
+            render(StoryBrand(progress: 1), in: StoryBrand.frame),
+        ])
         guard let image = stage.context.createCGImage(frame, from: frame.extent),
               let data = UIImage(cgImage: image).jpegData(compressionQuality: 0.95)
         else { throw StoryFilmError.noGlobe }
@@ -81,10 +80,10 @@ enum StoryFilm {
     /// task stops it and keeps nothing.
     static func video(_ content: StoryContent, onProgress: (Double) -> Void) async throws -> URL {
         let started = CACurrentMediaTime()
-        let plan = StoryPlan(places: content.places)
         let stage = try await Stage(content)
+        let plan = stage.plan(content)
         stage.globe.startFilm(
-            facing: GeoCoordinate(latitude: plan.latitude, longitude: plan.longitude(at: 0)),
+            facing: GeoCoordinate(latitude: plan.opening.latitude, longitude: plan.opening.longitude),
             zoom: GlobeTuning.filmZoom,
             offset: StoryLayout.globeOffset
         )
@@ -93,62 +92,69 @@ enum StoryFilm {
         try? FileManager.default.removeItem(at: file)
         let video = try VideoWriter(url: file, width: pixels.width, height: pixels.height, framesPerSecond: StoryPlan.framesPerSecond)
 
-        var shading: (layer: StoryShading, image: CIImage)?
+        // Drawn once, then only moved, scaled and faded: the same picture every frame.
+        let shading = ShadingSprite()
+        let scrim = render(StoryScrim(), opaque: false)
+        var pins = Pins()
         var headline: (state: StoryHeadline.State, image: CIImage)?
         var brand: (progress: Double, image: CIImage)?
-        var queued: Set<String> = []
-        var waiting: [StoryPlan.Place] = []
+        var nextFill = 0
         var visited: Set<String> = []
         var counted = 0
         var firstCounted: Double?
         var lastCounted = -10.0
 
-        let frames = Int(StoryPlan.duration * Double(StoryPlan.framesPerSecond))
+        let frames = Int((plan.duration * Double(StoryPlan.framesPerSecond)).rounded())
         let step = 1.0 / Double(StoryPlan.framesPerSecond)
         do {
             for frame in 0..<frames {
                 let time = Double(frame) * step
-                stage.globe.aim(at: GeoCoordinate(latitude: plan.latitude, longitude: plan.longitude(at: time)))
-
-                // Places fill as the globe brings them round; whatever's left once the turn
-                // is over fills then. A crowd (Europe) comes a few a frame, never all at once.
-                if time >= StoryPlan.sweep.lowerBound {
-                    let due = time > StoryPlan.sweep.upperBound ? plan.places : plan.reached(atLongitude: stage.globe.facingLongitude)
-                    for place in due where queued.insert(place.code).inserted {
-                        waiting.append(place)
-                    }
+                let shot = plan.shot(at: time)
+                let target = GeoCoordinate(latitude: shot.latitude, longitude: shot.longitude)
+                // While it flies in, the zoom is the arrival's own; then the tour's.
+                if time < StoryPlan.arrival {
+                    stage.globe.aim(at: target)
+                } else {
+                    stage.globe.aim(at: target, zoom: shot.zoom)
                 }
-                let release = waiting.isEmpty ? 0 : max(1, waiting.count / 6)
-                for place in waiting.prefix(release) {
-                    visited.insert(place.code)
+
+                while nextFill < plan.fills.count, plan.fills[nextFill].time <= time {
+                    let fill = plan.fills[nextFill]
+                    nextFill += 1
+                    visited.insert(fill.place.code)
                     stage.globe.setVisited(visited)
-                    stage.globe.celebrate(place.code, quietly: true)
-                    if content.countries.contains(place.code) {
+                    stage.globe.celebrate(fill.place.code, quietly: !fill.opensStop)
+                    pins.pop(fill, at: time, on: stage.globe)
+                    if content.countries.contains(fill.place.code) {
                         counted += 1
                         firstCounted = firstCounted ?? time
                         lastCounted = time
                     }
                 }
-                waiting.removeFirst(release)
 
                 stage.globe.renderFilmFrame(deltaTime: step, into: stage.texture)
 
-                // Each layer is drawn again only when it changes.
-                if shading?.layer != stage.shading {
-                    shading = (stage.shading, render(stage.shading, opaque: false))
-                }
-                let state = StoryHeadline.State(time: time, countries: counted, firstCounted: firstCounted, lastCounted: lastCounted)
+                let state = StoryHeadline.State(time: time, countries: counted, firstCounted: firstCounted, lastCounted: lastCounted, finale: plan.finale)
                 if headline?.state != state {
                     headline = (state, render(StoryHeadline(state: state, stats: content.stats, year: stage.year), in: StoryHeadline.frame))
                 }
-                let progress = StoryTiming.reveal(StoryTiming.brand, at: time)
+                let progress = StoryTiming.reveal(plan.finale + StoryTiming.brandAfterFinale, at: time)
                 if progress > 0, brand?.progress != progress {
                     brand = (progress, render(StoryBrand(progress: progress), in: StoryBrand.frame))
                 }
                 let space = time < WarpField.duration
                     ? render(StoryWarp(time: time), opaque: false).composited(over: stage.backdrop)
                     : stage.backdrop
-                let image = stage.frame(space: space, shading: shading?.image, headline: headline?.image, brand: brand?.image)
+                let camera = stage.globe.camera
+                // Up close the globe runs under the words: the top of the frame darkens.
+                let closeness = camera.silhouetteRadius / stage.wholeRadius
+                let image = stage.frame(space: space, layers: [
+                    shading.placed(center: camera.center, radius: camera.silhouetteRadius),
+                    pins.layer(at: time, on: stage.globe),
+                    faded(scrim, by: smoothstep((closeness - 1.25) / 0.75)),
+                    headline?.image,
+                    brand?.image,
+                ].compactMap { $0 })
                 try await video.append(image, context: stage.context, colorSpace: sRGB)
 
                 onProgress(Double(frame + 1) / Double(frames))
@@ -162,7 +168,7 @@ enum StoryFilm {
             try? FileManager.default.removeItem(at: file)
             throw error
         }
-        log.notice("Story video in \(CACurrentMediaTime() - started, format: .fixed(precision: 1)) s")
+        log.notice("Story video, \(frames) frames, in \(CACurrentMediaTime() - started, format: .fixed(precision: 1)) s")
         return file
     }
 
@@ -173,6 +179,32 @@ enum StoryFilm {
         renderer.proposedSize = ProposedViewSize(size)
         renderer.isOpaque = opaque
         return renderer.cgImage.map { CIImage(cgImage: $0) } ?? CIImage.empty()
+    }
+
+    /// A view of its own size, as an image with its corner at the origin.
+    private static func render(_ view: some View, size: CGSize) -> CIImage {
+        let renderer = ImageRenderer(content: view)
+        renderer.scale = scale
+        renderer.proposedSize = ProposedViewSize(size)
+        return renderer.cgImage.map { CIImage(cgImage: $0) } ?? CIImage.empty()
+    }
+
+    /// `image` at `opacity`, 0…1. `nil` once it's gone.
+    private static func faded(_ image: CIImage, by opacity: Double) -> CIImage? {
+        guard opacity > 0.005 else { return nil }
+        guard opacity < 0.995 else { return image }
+        return image.applyingFilter("CIColorMatrix", parameters: ["inputAVector": CIVector(x: 0, y: 0, z: 0, w: opacity)])
+    }
+
+    /// 0 below 0, 1 above 1, an S between.
+    private static func smoothstep(_ x: Double) -> Double {
+        let t = min(max(x, 0), 1)
+        return t * t * (3 - 2 * t)
+    }
+
+    /// Where a point of the frame (points, top down) is in pixels, bottom up as Core Image counts.
+    private static func pixels(_ point: CGPoint) -> CGPoint {
+        CGPoint(x: point.x * scale, y: (size.height - point.y) * scale)
     }
 
     /// A strip of the frame (`frame` in points, top down), placed where it belongs.
@@ -219,15 +251,109 @@ enum StoryFilm {
             StoryShading(center: globe.camera.center, radius: globe.camera.silhouetteRadius)
         }
 
-        /// The globe as last drawn, with the layers over and under it.
-        func frame(space: CIImage, shading: CIImage?, headline: CIImage?, brand: CIImage?) -> CIImage {
+        /// The globe's radius on screen when the whole planet shows.
+        var wholeRadius: Double {
+            GlobeTuning.baseDiameter(in: StoryFilm.size) / 2 * GlobeTuning.filmZoom
+        }
+
+        /// The script for this globe: its zooms are this frame's.
+        func plan(_ content: StoryContent) -> StoryPlan {
+            StoryPlan(places: content.places, wholeZoom: GlobeTuning.filmZoom, zoomFitting: globe.filmZoom(fitting:))
+        }
+
+        /// The globe as last drawn, over `space`, under `layers` (bottom first).
+        func frame(space: CIImage, layers: [CIImage]) -> CIImage {
             // Metal's rows run top down, Core Image's bottom up.
             let planet = CIImage(mtlTexture: texture, options: [.colorSpace: StoryFilm.sRGB])?.oriented(.downMirrored) ?? CIImage.empty()
-            var image = planet.composited(over: space)
-            for layer in [shading, headline, brand].compactMap({ $0 }) {
-                image = layer.composited(over: image)
+            return layers.reduce(planet.composited(over: space)) { $1.composited(over: $0) }
+        }
+    }
+
+    /// The globe's shading and glow, drawn once, big. They scale with the globe and
+    /// nothing else, so each frame only moves and scales this one picture: no redrawing
+    /// as the camera zooms in and out.
+    @MainActor
+    private struct ShadingSprite {
+        /// The globe's radius in the picture, in points: bigger than it ever gets in a frame
+        /// but the closest, so it's scaled down far more often than up.
+        private static let radius = 240.0
+        /// The glow reaches 1.45 radii out.
+        private static let side = radius * 2 * 1.5
+
+        private let image: CIImage
+
+        init() {
+            let side = Self.side
+            image = StoryFilm.render(
+                GlobeShading(radius: Self.radius, center: CGPoint(x: side / 2, y: side / 2)).frame(width: side, height: side),
+                size: CGSize(width: side, height: side)
+            )
+        }
+
+        /// The shading for a globe this big, here (points, top down).
+        func placed(center: CGPoint, radius: Double) -> CIImage {
+            let middle = Self.side * StoryFilm.scale / 2
+            let target = StoryFilm.pixels(center)
+            return image.transformed(by: CGAffineTransform(translationX: -middle, y: -middle)
+                .concatenating(CGAffineTransform(scaleX: radius / Self.radius, y: radius / Self.radius))
+                .concatenating(CGAffineTransform(translationX: target.x, y: target.y)))
+        }
+    }
+
+    /// The flags on the tour: each pops up on its country as it fills, rides along on the
+    /// globe and goes as the camera moves on. Each country's is drawn once.
+    @MainActor
+    private struct Pins {
+        private struct Pin {
+            let code: String
+            let place: GeoCoordinate
+            let born: Double
+            let departure: Double
+        }
+
+        /// A new flag closer than this (points) to one already up stays down: in a crowd the
+        /// country still fills and counts, without a pile of flags.
+        private static let spacing = 24.0
+        private static let fadeOut = 0.3
+
+        private var pins: [Pin] = []
+        private var images: [String: CIImage] = [:]
+
+        mutating func pop(_ fill: StoryPlan.Fill, at time: Double, on globe: GlobeController) {
+            let place = GeoCoordinate(latitude: fill.place.latitude, longitude: fill.place.longitude)
+            guard let new = globe.screenPoint(of: place) else { return }
+            let crowded = pins.contains { pin in
+                guard time < pin.departure, let point = globe.screenPoint(of: pin.place)?.point else { return false }
+                return hypot(point.x - new.point.x, point.y - new.point.y) < Self.spacing
             }
-            return image
+            guard !crowded else { return }
+            if images[fill.place.code] == nil {
+                images[fill.place.code] = StoryFilm.render(StoryPin(flag: RegionDisplay.flag(for: fill.place.code)), size: StoryPin.size)
+            }
+            pins.append(Pin(code: fill.place.code, place: place, born: time, departure: fill.departure))
+        }
+
+        /// The flags up at `time`, standing where their countries are now. `nil` with none.
+        mutating func layer(at time: Double, on globe: GlobeController) -> CIImage? {
+            pins.removeAll { time > $0.departure + Self.fadeOut }
+            let tip = CGPoint(x: StoryPin.tip.x * StoryFilm.scale, y: (StoryPin.size.height - StoryPin.tip.y) * StoryFilm.scale)
+            var layer: CIImage?
+            for pin in pins {
+                guard let image = images[pin.code], let spot = globe.screenPoint(of: pin.place) else { continue }
+                let age = time - pin.born
+                // In quickly, out as the camera leaves, and gone over the horizon.
+                let opacity = min(1, age / 0.08)
+                    * (1 - StoryFilm.smoothstep((time - pin.departure) / Self.fadeOut))
+                    * StoryFilm.smoothstep((spot.facing - 0.12) / 0.2)
+                let size = max(0.01, StoryPin.scale(age: age))
+                let target = StoryFilm.pixels(spot.point)
+                guard let placed = StoryFilm.faded(image.transformed(by: CGAffineTransform(translationX: -tip.x, y: -tip.y)
+                    .concatenating(CGAffineTransform(scaleX: size, y: size))
+                    .concatenating(CGAffineTransform(translationX: target.x, y: target.y))), by: opacity)
+                else { continue }
+                layer = layer.map(placed.composited(over:)) ?? placed
+            }
+            return layer
         }
     }
 }

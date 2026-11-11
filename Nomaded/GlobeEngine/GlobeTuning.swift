@@ -89,6 +89,10 @@ enum GlobeTuning {
     static let filmAimSpring = SpringParameters(response: 0.55, dampingRatio: 1)
     /// Smaller than on screen, leaving room for the numbers above and the name below.
     static let filmZoom = 0.78
+    /// On the tour a stop's places take this share of the frame's width…
+    static let filmFitFraction = 0.9
+    /// …but the camera comes no closer than this: Luxembourg alone still shows its neighbours.
+    static let filmMaxZoom = 4.2
 
     // MARK: First launch
 

@@ -619,10 +619,20 @@ struct GlobeScreen: View {
     /// Opens the story of everything visited, with the globe's own outlines and borders.
     private func shareStory() {
         guard let geometry = controller.world else { return }
-        let middles = Dictionary(geometry.countries.map { ($0.code, $0.label) }, uniquingKeysWith: { first, _ in first })
+        let shapes = Dictionary(geometry.countries.map { ($0.code, $0) }, uniquingKeysWith: { first, _ in first })
         let content = StoryContent(
             places: world.visitedCodes.sorted().compactMap { code in
-                middles[code].map { StoryPlan.Place(code: code, latitude: $0.latitude, longitude: $0.longitude) }
+                shapes[code].map { shape in
+                    // The film frames each country by its main land, as a tap does.
+                    let framing = GeoMath.framing(of: shape.rings, limit: GlobeTuning.framingExtentLimit)
+                    return StoryPlan.Place(
+                        code: code,
+                        latitude: shape.label.latitude,
+                        longitude: shape.label.longitude,
+                        frame: framing.map { StoryPlan.Spot(latitude: $0.center.latitude, longitude: $0.center.longitude) },
+                        radius: framing.map { $0.radius * 180 / .pi } ?? 3
+                    )
+                }
             },
             countries: Set(visitedPlaces.countries),
             stats: StatsCalculator.stats(visited: world.visitedCodes, catalog: places, cities: world.cities.count),

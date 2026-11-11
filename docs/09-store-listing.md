@@ -299,7 +299,7 @@ Nomaded теперь сделан и для iPad. Глобус занимает 
 ```
 Version 1.2 syncs the user's marked countries, cities and medals through their own private iCloud database (CloudKit), so an iPhone and an iPad show the same world and it comes back after reinstalling. There is still no account and no server of ours; we can't access the data. Without iCloud the app works on the device as before.
 
-It also adds sharing a story: Statistics → the share button makes an 8-second video (and a picture) of the user's globe on the device and opens the system share sheet. The only new permission is adding to Photos (NSPhotoLibraryAddUsageDescription), requested by iOS when the user picks Save in the share sheet. The app never reads the photo library.
+It also adds sharing a story: Statistics → the share button makes a short video (8 to 25 seconds, a tour of the user's countries) and a picture of the user's globe on the device and opens the system share sheet. The only new permission is adding to Photos (NSPhotoLibraryAddUsageDescription), requested by iOS when the user picks Save in the share sheet. The app never reads the photo library.
 
 Built for iPhone Duo with the iOS 27.2 SDK: open, the screen becomes a two-page spread (panels on the left page, the globe on the right, nothing on the fold); half open on a table, the globe turns on the upper half with a summary below. No new permissions.
 ```
@@ -307,7 +307,7 @@ Built for iPhone Duo with the iOS 27.2 SDK: open, the screen becomes a two-page 
 ### What's New — English (4000)
 
 ```
-Show off your world. Statistics now has a share button: Nomaded films your globe flying in from deep space and lighting up every country you've been to, with your numbers on top. Post the video or a picture to your stories in a tap.
+Show off your world. Statistics now has a share button: your globe flies in from deep space and takes a tour of everywhere you've been, region by region and up close, each country lighting up as its flag pops up, then pulls back to your whole world with your numbers. Post the video or a picture to your stories in a tap.
 
 Your world also follows you now. With iCloud, the countries, cities and medals you mark show up on all your iPhones and iPads, and come back if you reinstall the app or get a new device. No account needed: everything stays in your own iCloud.
 
@@ -321,7 +321,7 @@ Made for iPhone Duo. Open it and Nomaded opens like a passport: your globe on on
 ### Что нового — Russian (4000)
 
 ```
-Похвастайся своим миром. В статистике появилась кнопка «Поделиться»: Nomaded снимает, как твой глобус прилетает из космоса и загорается странами, где ты был, а сверху — твои цифры. Видео или картинка — в сторис в одно касание.
+Похвастайся своим миром. В статистике появилась кнопка «Поделиться»: глобус прилетает из космоса и облетает всё, где ты был, регион за регионом и вблизи. Каждая страна загорается, и над ней выскакивает её флаг, а в конце виден весь твой мир с цифрами. Видео или картинка — в сторис в одно касание.
 
 А ещё твой мир теперь всегда с тобой. Через iCloud отмеченные страны, города и медали появляются на всех твоих iPhone и iPad и возвращаются после переустановки или на новом устройстве. Без аккаунтов: всё хранится в твоём личном iCloud.
 

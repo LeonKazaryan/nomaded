@@ -1241,15 +1241,18 @@ final class GlobeController {
     /// The zoom at which an angular radius around the screen center spans `fraction` of the
     /// stage's shorter side, clamped to the zoom range.
     private func zoom(fitting angle: Double, fraction: Double) -> Double {
+        let range = GlobeTuning.zoomRange
+        return min(range.upperBound, max(range.lowerBound, unclampedZoom(fitting: angle, fraction: fraction)))
+    }
+
+    private func unclampedZoom(fitting angle: Double, fraction: Double) -> Double {
         let size = stage?.size ?? camera.viewportSize
         let side = Double(min(size.width, size.height))
-        let range = GlobeTuning.zoomRange
-        guard side > 0, angle > 0 else { return range.upperBound }
+        guard side > 0, angle > 0 else { return .infinity }
         let distance = camera.distance(fitting: angle, screenRadius: side * fraction / 2)
-        guard distance > 1 else { return range.upperBound }
+        guard distance > 1 else { return .infinity }
         let silhouette = camera.focalLength / (distance * distance - 1).squareRoot()
-        let zoom = silhouette / (GlobeTuning.baseDiameter(in: size) / 2)
-        return min(range.upperBound, max(range.lowerBound, zoom))
+        return silhouette / (GlobeTuning.baseDiameter(in: size) / 2)
     }
 
     private func stepZoom(_ dt: Double) {
@@ -1357,6 +1360,31 @@ final class GlobeController {
         focus(on: coordinate, spring: GlobeTuning.filmAimSpring)
         // No idle spin: the film turns the globe itself.
         lastInteraction = CACurrentMediaTime()
+    }
+
+    /// Follows a point and a zoom that move every frame, a step behind on a spring.
+    func aim(at coordinate: GeoCoordinate, zoom: Double) {
+        self.zoom.target = zoom
+        zoomSpring = GlobeTuning.filmAimSpring
+        focus(on: coordinate, spring: GlobeTuning.filmAimSpring, atZoom: zoom)
+        lastInteraction = CACurrentMediaTime()
+    }
+
+    /// The zoom at which a cap `degrees` across its middle fills `filmFitFraction` of a film
+    /// frame's narrower side, between the whole planet (`filmZoom`) and `filmMaxZoom`.
+    func filmZoom(fitting degrees: Double) -> Double {
+        let zoom = unclampedZoom(fitting: degrees * .pi / 180, fraction: GlobeTuning.filmFitFraction)
+        return min(GlobeTuning.filmMaxZoom, max(GlobeTuning.filmZoom, zoom))
+    }
+
+    /// Where a place on the globe shows in the frame, standing on its country (lifted as
+    /// visited), and how squarely it faces the camera (1 head-on, 0 at the horizon). `nil`
+    /// past the horizon. A film's flags stand here.
+    func screenPoint(of coordinate: GeoCoordinate) -> (point: CGPoint, facing: Double)? {
+        let orientation = GlobeOrientation(yaw: yaw.value, pitch: pitch.value)
+        let world = orientation.quaternion.act(GeoMath.unitVector(coordinate) * Double(GlobeTuning.landRadius) * (1 + GlobeTuning.visitedLift))
+        guard camera.faces(worldPoint: world), let point = camera.screenPoint(ofWorld: world) else { return nil }
+        return (point, camera.facing(worldPoint: world))
     }
 
     /// Draws the globe at rest into `texture`: every country already at its color and
