@@ -24,6 +24,8 @@ struct PickCountriesStep: View {
     @Environment(WorldStore.self) private var world
     @State private var query = ""
     @State private var continent: Continent?
+    /// Back to the top whenever the list becomes another one (a continent, a search).
+    @State private var listPosition = ScrollPosition(edge: .top)
     @State private var index: CountrySearchIndex?
     @State private var appeared = false
     @FocusState private var isSearchFocused: Bool
@@ -167,6 +169,7 @@ struct PickCountriesStep: View {
                 }
             }
         }
+        .scrollPosition($listPosition)
         .scrollIndicators(.hidden)
         .scrollDismissesKeyboard(.interactively)
         .overlay {
@@ -176,6 +179,16 @@ struct PickCountriesStep: View {
                     .foregroundStyle(.secondary)
             }
         }
+        // Scrolled to the end of Europe, Asia opens at its start, not its end. A jump, not a
+        // scroll: the list underneath has already changed.
+        .onChange(of: continent) { scrollListToTop() }
+        .onChange(of: query) { scrollListToTop() }
+    }
+
+    private func scrollListToTop() {
+        var jump = Transaction()
+        jump.disablesAnimations = true
+        withTransaction(jump) { listPosition.scrollTo(edge: .top) }
     }
 
     private var continueButton: some View {
