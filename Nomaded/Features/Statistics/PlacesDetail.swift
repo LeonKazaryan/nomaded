@@ -25,6 +25,7 @@ struct PlacesDetail<Hero: View>: View {
     @State private var pull: CGFloat = 0
     @ScaledMetric(relativeTo: .body) private var rowHeight = 56
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.spread) private var spread
 
     init(
         title: LocalizedStringResource,
@@ -53,37 +54,70 @@ struct PlacesDetail<Hero: View>: View {
     private var hasCountries: Bool { !places.discovered.isEmpty || !places.undiscovered.isEmpty }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                header
-                hero
-
-                if hasCountries {
-                    PillPicker(
-                        options: [
-                            .init(id: .discovered, title: "Nomaded", count: places.discovered.count),
-                            .init(id: .undiscovered, title: "Undiscovered", count: places.undiscovered.count),
-                        ],
-                        selection: $segment
-                    )
-                    list(for: segment)
-                        .id(segment)
-                        .transition(reduceMotion ? AnyTransition.opacity : AnyTransition(.blurReplace))
-                } else {
-                    placeList(
-                        countries: [],
-                        territories: places.discoveredTerritories + places.undiscoveredTerritories,
-                        marksVisited: true
-                    )
+        if let spread, spread.layout == .sideBySide {
+            // An open iPhone Duo: the title and the card that flew up stay on the left page,
+            // the places scroll on the right.
+            let columns = spread.columns(padding: 16)
+            HStack(alignment: .top, spacing: columns.gap) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        header
+                        hero
+                    }
+                    .padding(.bottom, 24)
                 }
+                .frame(width: columns.first)
+                .scrollIndicators(.hidden)
+                .fadingUnderStatusBar()
+                ScrollView {
+                    placeLists
+                        .padding(.top, 8)
+                        .padding(.bottom, 24)
+                }
+                .frame(width: columns.second)
+                .scrollIndicators(.hidden)
+                .fadingUnderStatusBar()
+                .pullToClose($pull, onClose: onBack)
             }
-            .centered(maxWidth: Metrics.readableWidth)
             .padding(.horizontal, 16)
-            .padding(.bottom, 24)
+        } else {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    header
+                    hero
+                    placeLists
+                }
+                .centered(maxWidth: Metrics.readableWidth)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 24)
+            }
+            .scrollIndicators(.hidden)
+            .fadingUnderStatusBar()
+            .pullToClose($pull, onClose: onBack)
         }
-        .scrollIndicators(.hidden)
-        .fadingUnderStatusBar()
-        .pullToClose($pull, onClose: onBack)
+    }
+
+    private var placeLists: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            if hasCountries {
+                PillPicker(
+                    options: [
+                        .init(id: .discovered, title: "Nomaded", count: places.discovered.count),
+                        .init(id: .undiscovered, title: "Undiscovered", count: places.undiscovered.count),
+                    ],
+                    selection: $segment
+                )
+                list(for: segment)
+                    .id(segment)
+                    .transition(reduceMotion ? AnyTransition.opacity : AnyTransition(.blurReplace))
+            } else {
+                placeList(
+                    countries: [],
+                    territories: places.discoveredTerritories + places.undiscoveredTerritories,
+                    marksVisited: true
+                )
+            }
+        }
     }
 
     private var header: some View {

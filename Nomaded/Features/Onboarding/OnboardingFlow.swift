@@ -110,15 +110,18 @@ struct OnboardingFlow: View {
 }
 
 /// A step on an iPad held sideways: its content in a column on the left, as wide as a
-/// phone, and the globe's room everything to the right of it.
+/// phone, and the globe's room everything to the right of it. On an open iPhone Duo the
+/// column is the left page and the room the right one.
 struct SideColumn<Content: View>: View {
     @Binding var globeRoom: GlobeRoom
     @ViewBuilder var content: Content
+    @Environment(\.spread) private var spread
 
     var body: some View {
-        HStack(spacing: 32) {
+        let columns = spread?.layout == .sideBySide ? spread?.columns(padding: 24) : nil
+        HStack(spacing: columns?.gap ?? 32) {
             content
-                .frame(width: Metrics.panelWidth)
+                .frame(width: columns?.first ?? Metrics.panelWidth)
                 .frame(maxHeight: .infinity)
             Color.clear
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in

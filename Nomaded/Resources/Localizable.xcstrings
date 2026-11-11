@@ -1096,6 +1096,16 @@
         }
       }
     },
+    "Opens the statistics" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Открывает статистику"
+          }
+        }
+      }
+    },
     "Picture" : {
       "localizations" : {
         "ru" : {

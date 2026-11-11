@@ -38,6 +38,7 @@ struct MilestoneCelebration: View {
     @State private var successes = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.spread) private var spread
     @ScaledMetric(relativeTo: .largeTitle) private var baseMedalSize = 172
 
     /// A bigger coin on an iPad's bigger stage.
@@ -49,7 +50,12 @@ struct MilestoneCelebration: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let medalCenter = CGPoint(x: proxy.size.width / 2, y: proxy.size.height * 0.36)
+            // An open iPhone Duo held like a book: the medal on the left page, the words on
+            // the right, like a passport's stamp and its entry. Nothing lands on the fold.
+            let pages = spread?.layout == .sideBySide ? spread : nil
+            let medalCenter = pages.map { CGPoint(x: $0.firstPage.midX, y: proxy.size.height / 2) }
+                ?? CGPoint(x: proxy.size.width / 2, y: proxy.size.height * 0.36)
+            let wordsMiddle = pages?.secondPage.midX ?? proxy.size.width / 2
             ZStack {
                 Color.black.opacity(0.55)
 
@@ -75,14 +81,14 @@ struct MilestoneCelebration: View {
                     .position(medalCenter)
 
                 words
-                    .frame(maxWidth: min(proxy.size.width - 48, Metrics.panelWidth))
-                    .position(x: proxy.size.width / 2, y: medalCenter.y + medalSize * 0.5 + 110)
+                    .frame(maxWidth: pages.map { $0.secondPage.width - 48 } ?? min(proxy.size.width - 48, Metrics.panelWidth))
+                    .position(x: wordsMiddle, y: pages == nil ? medalCenter.y + medalSize * 0.5 + 110 : medalCenter.y)
 
                 Text("Tap to continue")
                     .font(Typography.label)
                     .foregroundStyle(.secondary)
                     .opacity(hintShown ? 1 : 0)
-                    .position(x: proxy.size.width / 2, y: proxy.size.height - proxy.safeAreaInsets.bottom - 40)
+                    .position(x: wordsMiddle, y: proxy.size.height - proxy.safeAreaInsets.bottom - 40)
 
                 ConfettiView(bursts: bursts)
             }

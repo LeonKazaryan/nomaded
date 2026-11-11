@@ -25,27 +25,43 @@ struct ShareStoryScreen: View {
     @State private var videoFailed = false
     @State private var appeared = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.spread) private var spread
 
     var body: some View {
         ZStack {
             SpaceBackground()
 
-            VStack(spacing: 16) {
-                header
-                card
-                    .frame(maxHeight: .infinity)
-                    .scaleEffect(appeared || reduceMotion ? 1 : 0.9)
-                    .opacity(appeared ? 1 : 0)
-                PillPicker(
-                    options: [.init(id: Format.picture, title: "Picture"), .init(id: Format.video, title: "Video")],
-                    selection: $format
-                )
-                .frame(maxWidth: 300)
-                shareButton
+            if let spread, spread.layout == .sideBySide {
+                // An open iPhone Duo: the controls on the left page, the story on the right,
+                // standing like a phone held up to show it.
+                let columns = spread.columns(padding: 16)
+                HStack(spacing: columns.gap) {
+                    VStack(spacing: 16) {
+                        header(closes: false)
+                        Spacer(minLength: 0)
+                        controls
+                    }
+                    .frame(width: columns.first)
+                    shownCard
+                        .frame(width: columns.second)
+                }
+                // In the corner, as on the phone, rather than by the fold.
+                .overlay(alignment: .topTrailing) {
+                    closeButton
+                        .padding(.top, 8)
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+            } else {
+                VStack(spacing: 16) {
+                    header(closes: true)
+                    shownCard
+                    controls
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+                .frame(maxWidth: Metrics.panelWidth)
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 8)
-            .frame(maxWidth: Metrics.panelWidth)
         }
         .task { await makePicture() }
         .task(id: videoRequests) { await makeVideo() }
@@ -58,25 +74,50 @@ struct ShareStoryScreen: View {
         .sensoryFeedback(Haptics.storyReady, trigger: video) { _, new in new != nil }
     }
 
-    private var header: some View {
+    private var shownCard: some View {
+        card
+            .frame(maxHeight: .infinity)
+            .scaleEffect(appeared || reduceMotion ? 1 : 0.9)
+            .opacity(appeared ? 1 : 0)
+    }
+
+    private var controls: some View {
+        VStack(spacing: 16) {
+            PillPicker(
+                options: [.init(id: Format.picture, title: "Picture"), .init(id: Format.video, title: "Video")],
+                selection: $format
+            )
+            .frame(maxWidth: 300)
+            shareButton
+        }
+    }
+
+    private func header(closes: Bool) -> some View {
         HStack {
             Text("Share")
                 .font(Typography.largeTitle)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
             Spacer()
-            Button(action: onClose) {
-                Image(systemName: "xmark")
-                    .font(Typography.headline)
-                    .frame(width: 44, height: 44)
-                    .glass(Circle())
-                    .contentShape(.hoverEffect, Circle())
+            if closes {
+                closeButton
             }
-            .buttonStyle(.pressable)
-            .keyboardShortcut(.cancelAction)
-            .accessibilityLabel("Close")
         }
+        .frame(minHeight: 44)
         .padding(.top, 8)
+    }
+
+    private var closeButton: some View {
+        Button(action: onClose) {
+            Image(systemName: "xmark")
+                .font(Typography.headline)
+                .frame(width: 44, height: 44)
+                .glass(Circle())
+                .contentShape(.hoverEffect, Circle())
+        }
+        .buttonStyle(.pressable)
+        .keyboardShortcut(.cancelAction)
+        .accessibilityLabel("Close")
     }
 
     /// The story as a phone shows it: 9:16, rounded, floating.

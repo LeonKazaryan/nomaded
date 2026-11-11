@@ -14,6 +14,10 @@ struct PickCountriesStep: View {
 
     /// How much of the screen the panel takes; the globe gets the rest.
     private static let panelShare = 0.52
+    /// On a short screen (iPhone Duo folded, iPhone SE) that share would show a row and a
+    /// half of the list, so it takes this much instead.
+    private static let shortScreenPanelShare = 0.6
+    private static let shortScreen = 700.0
     /// While typing, the panel rises to the keyboard and leaves the globe this strip on top.
     private static let searchingGlobeStrip = 140.0
 
@@ -52,7 +56,7 @@ struct PickCountriesStep: View {
                         Spacer(minLength: 0)
                         panel
                             .frame(height: panelHeight(in: proxy.size.height))
-                            .modifier(PanelEntrance(appeared: appeared, distance: proxy.size.height * Self.panelShare))
+                            .modifier(PanelEntrance(appeared: appeared, distance: proxy.size.height * Self.panelShare(in: proxy.size.height)))
                             .onScreenEdge(.top) { globeRoom.bottom = $0 }
                     }
                     .centered(maxWidth: Metrics.panelWidth)
@@ -114,7 +118,12 @@ struct PickCountriesStep: View {
     }
 
     private func panelHeight(in height: Double) -> Double {
-        isSearchFocused ? max(height - Self.searchingGlobeStrip, height * Self.panelShare) : height * Self.panelShare
+        let share = Self.panelShare(in: height)
+        return isSearchFocused ? max(height - Self.searchingGlobeStrip, height * share) : height * share
+    }
+
+    private static func panelShare(in height: Double) -> Double {
+        height < shortScreen ? shortScreenPanelShare : panelShare
     }
 
     private var panel: some View {

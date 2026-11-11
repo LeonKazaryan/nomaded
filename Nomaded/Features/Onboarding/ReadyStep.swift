@@ -11,12 +11,10 @@ struct ReadyStep: View {
     @Binding var globeRoom: GlobeRoom
     let onFinish: () -> Void
 
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(WorldStore.self) private var world
     @State private var appeared = false
     @State private var cheers = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @ScaledMetric(relativeTo: .largeTitle) private var ringSize = 108
 
     var body: some View {
         Group {
@@ -48,7 +46,7 @@ struct ReadyStep: View {
                     .foregroundStyle(.secondary)
                     .cascade(1, appeared: appeared)
             } else {
-                summary(stats)
+                WorldSummaryCard(stats: stats)
                     .cascade(1, appeared: appeared)
             }
 
@@ -61,25 +59,6 @@ struct ReadyStep: View {
             .buttonStyle(.capsule(.accent))
             .cascade(3, appeared: appeared)
         }
-    }
-
-    private func summary(_ stats: WorldStats) -> some View {
-        // With the largest text the numbers go under the ring, where they have the width.
-        (dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 12)) : AnyLayout(HStackLayout(spacing: 18))) {
-            WorldProgressRing(progress: stats.countries.share)
-                .frame(width: ringSize, height: ringSize)
-            VStack(alignment: .leading, spacing: 6) {
-                HeroNumber(value: stats.countries.visited, caption: "of \(stats.countries.total) countries")
-                Text("\(stats.visitedContinents) of \(stats.continents.count) continents")
-                    .font(Typography.label)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .padding(18)
-        .glassCard(cornerRadius: 28)
     }
 
     private var tips: some View {

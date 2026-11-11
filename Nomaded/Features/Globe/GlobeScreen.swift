@@ -53,6 +53,14 @@ struct GlobeScreen: View {
     @State private var restores = 0
     /// The story being shared, over the statistics.
     @State private var story: StoryContent?
+    /// An open iPhone Duo's two pages (ADR-020).
+    @State private var spread: Spread?
+    /// Where the top bar ends on screen: a globe on the top page stands below it.
+    @State private var topBarBottom = 0.0
+    /// Where the country card starts on screen, and the window's size: on a short screen the
+    /// globe stands above the card.
+    @State private var cardTop: Double?
+    @State private var windowSize = CGSize.zero
 
     /// The one split every counter on this screen uses.
     private var visitedPlaces: VisitedPlaces {
@@ -108,65 +116,87 @@ struct GlobeScreen: View {
                             onToggleVisited: { setShowingVisited(!isShowingVisited) },
                             onSearch: { setSearching(true) }
                         )
+                        .onScreenEdge(.bottom) { topBarBottom = $0 }
                         .transition(.opacity)
                     }
 
-                    if isShowingRestored, !isSearching, !isShowingStats, !isShowingVisited, addingCityTo == nil {
-                        RestoredBanner(onDismiss: hideRestored)
+                    // The bar spans the screen; the rest keeps to the left page of an open Duo.
+                    VStack(spacing: 0) {
+                        if isShowingRestored, !isSearching, !isShowingStats, !isShowingVisited, addingCityTo == nil {
+                            RestoredBanner(onDismiss: hideRestored)
+                                .frame(maxWidth: Metrics.panelWidth)
+                                .padding(.top, 12)
+                                // Drops out of the counter it's filling, as the list does.
+                                .transition(reduceMotion ? .opacity : .scale(scale: 0.5, anchor: counterAnchor).combined(with: .opacity))
+                        }
+
+                        if isShowingVisited {
+                            VisitedCountriesPanel(
+                                places: VisitedPlaces(
+                                    countries: RegionDisplay.sortedByName(visitedPlaces.countries),
+                                    territories: RegionDisplay.sortedByName(visitedPlaces.territories)
+                                ),
+                                onPick: flyTo
+                            )
+                                .frame(maxWidth: Metrics.panelWidth)
+                                .padding(.top, 12)
+                                // Drops out of the counter above it.
+                                .transition(reduceMotion ? .opacity : .scale(scale: 0.5, anchor: counterAnchor).combined(with: .opacity))
+                        }
+
+                        Spacer(minLength: 0)
+
+                        if !isSearching, !isShowingVisited, !isShowingStats, addingCityTo == nil, let selected {
+                            CountryPeekCard(
+                                code: selected,
+                                isVisited: world.isVisited(selected),
+                                // Newest first: a city just added is the first chip.
+                                cities: world.cities(in: selected).reversed().map(shownName),
+                                highlightedCity: highlightedCity,
+                                visitedSince: awaitingLanding == selected ? nil : world.firstVisits[selected],
+                                stampInk: controller.visitedColor(of: selected).map(Color.init(components:)) ?? Palette.accentLight,
+                                stampSlams: justMarked == selected,
+                                isConfirmingUnmark: Binding(
+                                    get: { confirmingUnmark == selected },
+                                    set: { if !$0 { confirmingUnmark = nil } }
+                                ),
+                                onConfirmUnmark: { unmark(selected) },
+                                onToggleVisited: { toggleVisited(selected) },
+                                onFindNext: { setSearching(true) },
+                                onAddCity: { setAddingCity(selected) },
+                                onSelectCity: selectCity,
+                                onRemoveCity: removeCity,
+                                onClose: { select(nil) }
+                            )
                             .frame(maxWidth: Metrics.panelWidth)
-                            .padding(.top, 12)
-                            // Drops out of the counter it's filling, as the list does.
-                            .transition(reduceMotion ? .opacity : .scale(scale: 0.5, anchor: .top).combined(with: .opacity))
+                            .onScreenEdge(.top) { cardTop = $0 }
+                            .id(selected)
+                            .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
+                        }
                     }
-
-                    if isShowingVisited {
-                        VisitedCountriesPanel(
-                            places: VisitedPlaces(
-                                countries: RegionDisplay.sortedByName(visitedPlaces.countries),
-                                territories: RegionDisplay.sortedByName(visitedPlaces.territories)
-                            ),
-                            onPick: flyTo
-                        )
-                            .frame(maxWidth: Metrics.panelWidth)
-                            .padding(.top, 12)
-                            // Drops out of the counter above it.
-                            .transition(reduceMotion ? .opacity : .scale(scale: 0.5, anchor: .top).combined(with: .opacity))
-                    }
-
-                    Spacer(minLength: 0)
-
-                    if !isSearching, !isShowingVisited, !isShowingStats, addingCityTo == nil, let selected {
-                        CountryPeekCard(
-                            code: selected,
-                            isVisited: world.isVisited(selected),
-                            // Newest first: a city just added is the first chip.
-                            cities: world.cities(in: selected).reversed().map(shownName),
-                            highlightedCity: highlightedCity,
-                            visitedSince: awaitingLanding == selected ? nil : world.firstVisits[selected],
-                            stampInk: controller.visitedColor(of: selected).map(Color.init(components:)) ?? Palette.accentLight,
-                            stampSlams: justMarked == selected,
-                            isConfirmingUnmark: Binding(
-                                get: { confirmingUnmark == selected },
-                                set: { if !$0 { confirmingUnmark = nil } }
-                            ),
-                            onConfirmUnmark: { unmark(selected) },
-                            onToggleVisited: { toggleVisited(selected) },
-                            onFindNext: { setSearching(true) },
-                            onAddCity: { setAddingCity(selected) },
-                            onSelectCity: selectCity,
-                            onRemoveCity: removeCity,
-                            onClose: { select(nil) }
-                        )
-                        .frame(maxWidth: Metrics.panelWidth)
-                        .id(selected)
-                        .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
-                    }
+                    .padding(panelInsets)
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
                 .ignoresSafeArea(.keyboard)
                 .transition(.opacity)
             }
+
+            ZStack {
+                if showsDeskPlaque, let spread {
+                    DeskPlaque(
+                        stats: StatsCalculator.stats(visited: world.visitedCodes, catalog: places, cities: world.cities.count),
+                        onOpen: { setShowingStats(true) }
+                    )
+                    .frame(maxWidth: Metrics.panelWidth)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.horizontal, 16)
+                    .padding(spread.insets(confiningTo: spread.secondPage))
+                    // Rises onto the stand as the screen bends.
+                    .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .animation(reduceMotion ? Motion.smooth : Motion.bouncy, value: showsDeskPlaque)
 
             ConfettiView(bursts: confetti)
 
@@ -187,6 +217,7 @@ struct GlobeScreen: View {
                 .frame(maxWidth: Metrics.panelWidth)
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
+                .padding(panelInsets)
                 .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
             }
 
@@ -205,6 +236,7 @@ struct GlobeScreen: View {
                 .frame(maxWidth: Metrics.panelWidth)
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
+                .padding(panelInsets)
                 .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
             }
 
@@ -234,6 +266,15 @@ struct GlobeScreen: View {
                 FrameRateBadge(framesPerSecond: controller.framesPerSecond, demand: controller.isPaused ? .none : controller.frameDemand)
             }
             #endif
+        }
+        .readsSpread($spread)
+        .onGeometryChange(for: CGSize.self) { proxy in
+            let frame = proxy.frame(in: .global)
+            return CGSize(width: frame.maxX + proxy.safeAreaInsets.trailing, height: frame.maxY + proxy.safeAreaInsets.bottom)
+        } action: { windowSize = $0 }
+        .environment(\.spread, spread)
+        .onChange(of: globeStage, initial: true) { _, stage in
+            controller.setStage(stage)
         }
         .environment(\.countryCatalog, places)
         .sensoryFeedback(Haptics.select, trigger: selected) { _, new in new != nil }
@@ -436,6 +477,65 @@ struct GlobeScreen: View {
 
     private var isGlobeBehind: Bool {
         isShowingStats || shownMilestone != nil
+    }
+
+    // MARK: - iPhone Duo
+
+    /// An open iPhone Duo held like a book: the bars, lists and cards keep to the left page,
+    /// clear of the fold, as on the phone folded.
+    private var panelInsets: EdgeInsets {
+        guard let spread, spread.layout == .sideBySide else { return EdgeInsets() }
+        return spread.insets(confiningTo: spread.firstPage)
+    }
+
+    /// Where the lists that drop out of the counter grow from: the counter sits in the middle
+    /// of the bar, or in the left page's top corner on an open Duo held like a book.
+    private var counterAnchor: UnitPoint {
+        spread?.layout == .sideBySide ? .topLeading : .top
+    }
+
+    /// A short screen (iPhone Duo folded, iPhone SE): the country card takes over a third of
+    /// it, and a country framed in the middle would sit half under the card. The globe moves up
+    /// into the room between the bar and the card instead, keeping its size: a stage as big as
+    /// the window, centred on that room.
+    private var roomAboveCard: CGRect? {
+        guard selected != nil, !isSearching, !isShowingVisited, addingCityTo == nil,
+              let cardTop, windowSize.height > 0, (windowSize.height - cardTop) / windowSize.height > 1.0 / 3
+        else { return nil }
+        let middle = (topBarBottom + cardTop) / 2
+        return CGRect(origin: CGPoint(x: 0, y: middle - windowSize.height / 2), size: windowSize)
+    }
+
+    /// iPhone Duo half open on a table, nothing else open: a desk globe on the upper half,
+    /// its plaque on the lower.
+    private var showsDeskPlaque: Bool {
+        guard let spread, spread.layout == .stacked, spread.isBent else { return false }
+        return onboarding == nil && selected == nil && !isSearching && !isShowingVisited && addingCityTo == nil
+            && !isShowingStats && story == nil && shownMilestone == nil
+    }
+
+    /// Where the globe stands. The whole screen, unless an open iPhone Duo has something on
+    /// the other page (the right one held like a book; below the fold on a table, the card) or
+    /// is bent at the fold: then its own page, so the fold never runs through it.
+    private var globeStage: CGRect? {
+        guard onboarding == nil, !isShowingStats else { return nil }
+        guard let spread else { return roomAboveCard }
+        let hasPanel = switch spread.layout {
+        case .sideBySide: selected != nil || isSearching || isShowingVisited || addingCityTo != nil
+        case .stacked: selected != nil && !isSearching && !isShowingVisited && addingCityTo == nil
+        }
+        guard hasPanel || spread.isBent else { return nil }
+        switch spread.layout {
+        case .sideBySide:
+            return spread.secondPage
+        case .stacked:
+            // The top page under the bar.
+            var page = spread.firstPage
+            let top = min(page.maxY, max(page.minY, topBarBottom + 8))
+            page.size.height = page.maxY - top
+            page.origin.y = top
+            return page
+        }
     }
 
     /// A saved city under the name the app's language gives it: the bundled list's, so "Алматы"
@@ -855,7 +955,33 @@ private struct TopBar: View {
     let onToggleVisited: () -> Void
     let onSearch: () -> Void
 
+    @Environment(\.spread) private var spread
+
     var body: some View {
+        Group {
+            if spread?.layout == .sideBySide {
+                // An open iPhone Duo held like a book: the middle of the bar is the fold, so the
+                // counter moves to the left page beside the statistics, the page its list
+                // drops onto, and the search keeps its corner.
+                HStack(spacing: 12) {
+                    statsButton
+                    counter
+                    Spacer(minLength: 0)
+                    searchButton
+                }
+            } else {
+                counter
+                    .frame(maxWidth: .infinity)
+                    .overlay(alignment: .leading) { statsButton }
+                    .overlay(alignment: .trailing) { searchButton }
+            }
+        }
+        // A bar: it stops growing at the largest regular size, and a long press shows its
+        // buttons big instead (the large content viewer).
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+    }
+
+    private var counter: some View {
         Button(action: onToggleVisited) {
             WorldSummaryChip(
                 countries: visited.countries.count,
@@ -870,19 +996,17 @@ private struct TopBar: View {
         // On an iPad keyboard Esc folds the list away again.
         .keyboardShortcut(isShowingVisited ? .cancelAction : nil)
         .accessibilityHint(isShowingVisited ? "Hides the list" : "Shows the countries you've visited")
-        .frame(maxWidth: .infinity)
-        .overlay(alignment: .leading) {
-            RoundButton(title: "Statistics", systemImage: "chart.bar.fill", action: onStats)
-                .disabled(!isReady)
-        }
-        .overlay(alignment: .trailing) {
-            RoundButton(title: "Search countries", systemImage: "magnifyingglass", action: onSearch)
-                .keyboardShortcut("f", modifiers: .command)
-                .disabled(!isReady)
-        }
-        // A bar: it stops growing at the largest regular size, and a long press shows its
-        // buttons big instead (the large content viewer).
-        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+    }
+
+    private var statsButton: some View {
+        RoundButton(title: "Statistics", systemImage: "chart.bar.fill", action: onStats)
+            .disabled(!isReady)
+    }
+
+    private var searchButton: some View {
+        RoundButton(title: "Search countries", systemImage: "magnifyingglass", action: onSearch)
+            .keyboardShortcut("f", modifiers: .command)
+            .disabled(!isReady)
     }
 }
 

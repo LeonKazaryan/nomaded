@@ -48,6 +48,11 @@ final class GlobeMetalView: UIView {
         isOpaque = false
         // The system may drop a background app's layer contents; redraw on the way back.
         NotificationCenter.default.addObserver(self, selector: #selector(wake), name: UIApplication.didBecomeActiveNotification, object: nil)
+        if #available(iOS 27.0, *) {
+            registerForTraitChanges([UITraitSystemPrefersReducedResourceUsage.self]) { (view: GlobeMetalView, _: UITraitCollection) in
+                view.applyDemand()
+            }
+        }
     }
 
     /// Draws again after the globe came to rest, or at full rate after the idle spin. Cheap:
@@ -64,14 +69,27 @@ final class GlobeMetalView: UIView {
         // Don't count the time without frames as one huge step.
         if stops || displayLink.isPaused { lastTargetTimestamp = nil }
         displayLink.isPaused = stops
-        displayLink.preferredFrameRateRange = Self.frameRates(for: demand)
+        displayLink.preferredFrameRateRange = frameRates(for: demand)
     }
 
-    private static func frameRates(for demand: FrameDemand) -> CAFrameRateRange {
+    private func frameRates(for demand: FrameDemand) -> CAFrameRateRange {
         let rate = GlobeTuning.idleSpinFrameRate
         return switch demand {
-        case .full, .none: CAFrameRateRange(minimum: 60, maximum: 120, preferred: 120)
+        case .full, .none:
+            prefersReducedResources
+                ? CAFrameRateRange(minimum: 30, maximum: 60, preferred: 60)
+                : CAFrameRateRange(minimum: 60, maximum: 120, preferred: 120)
         case .slow: CAFrameRateRange(minimum: rate / 2, maximum: rate, preferred: rate)
+        }
+    }
+
+    /// The system asks apps to go easy (iOS 27): hot, or saving power. The globe moves at 60
+    /// frames instead of 120, which a big screen like iPhone Duo's open one feels most.
+    private var prefersReducedResources: Bool {
+        if #available(iOS 27.0, *) {
+            traitCollection.systemPrefersReducedResourceUsage
+        } else {
+            false
         }
     }
 
@@ -95,12 +113,22 @@ final class GlobeMetalView: UIView {
         lastTargetTimestamp = nil
         // Off screen there's nothing to draw. Dropping the link also lets go of `self`,
         // which the link holds as its target.
-        guard window != nil else { return }
-        let link = CADisplayLink(target: self, selector: #selector(step))
+        guard let window else { return }
+        let link = makeDisplayLink(in: window)
         link.add(to: .main, forMode: .common)
         displayLink = link
         demand = .full
         applyDemand()
+    }
+
+    /// The scene's own link where there is one (iOS 27): it follows the scene from display to
+    /// display, so on iPhone Duo the globe keeps the pace of whichever screen it's on, folded
+    /// or open. The main display's link would stay with the outer screen.
+    private func makeDisplayLink(in window: UIWindow) -> CADisplayLink {
+        if #available(iOS 27.0, *), let link = window.windowScene?.displayLink(target: self, selector: #selector(step)) {
+            return link
+        }
+        return CADisplayLink(target: self, selector: #selector(step))
     }
 
     @objc private func step(_ link: CADisplayLink) {

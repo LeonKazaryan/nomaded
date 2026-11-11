@@ -96,6 +96,14 @@ final class GlobeController {
     /// Points the globe sits above the view's middle, springing as panels come and go.
     @ObservationIgnored private var centerOffset = SpringValue(0)
     @ObservationIgnored private var centerShift = SpringValue(0)
+    /// Where the globe stands: the whole view (`nil`), or a part of it, like one page of an
+    /// open iPhone Duo's spread. Flights, fits and the resting size all happen inside it.
+    @ObservationIgnored private var stage: CGRect?
+    /// The stage's middle right of and above the view's middle, and its size as a share of
+    /// the whole view's, springing from one stage to the next.
+    @ObservationIgnored private var stageShift = SpringValue(0)
+    @ObservationIgnored private var stageLift = SpringValue(0)
+    @ObservationIgnored private var stageScale = SpringValue(1)
     /// The zoom the globe comes to rest at when framed for a panel (1 = whole globe).
     @ObservationIgnored private var restingZoom = 1.0
     /// Each name on screen, including names on their way out.
@@ -304,7 +312,8 @@ final class GlobeController {
 
     private var isMoving: Bool {
         if isDragging || isPinching || isFocusing || flight != nil || ring != nil || !animating.isEmpty
-            || !arrivals.isEmpty || !zoom.isSettled || !centerOffset.isSettled || !centerShift.isSettled {
+            || !arrivals.isEmpty || !zoom.isSettled || !centerOffset.isSettled || !centerShift.isSettled
+            || !stageShift.isSettled || !stageLift.isSettled || !stageScale.isSettled {
             return true
         }
         // Coasting after a flick, or springing back inside the tilt limit, faster than the eye
@@ -350,10 +359,60 @@ final class GlobeController {
     }
 
     func setViewportSize(_ size: CGSize) {
-        guard size != camera.viewportSize, size.width > 0, size.height > 0 else { return }
+        let old = camera.viewportSize
+        guard size != old, size.width > 0, size.height > 0 else { return }
         camera.viewportSize = size
+        // A screen twice the size (iPhone Duo opening): for a moment the globe stays the size
+        // it was, then springs to fill the new room, instead of popping to it.
+        let areas = (size.width * size.height) / max(old.width * old.height, 1)
+        if isReady, !reduceMotion, old.width > 0, max(areas, 1 / areas) >= GlobeTuning.resizeCarryOver {
+            stageScale.value *= GlobeTuning.baseDiameter(in: old) / GlobeTuning.baseDiameter(in: size)
+        }
+        retargetStage()
+        if reduceMotion { snapStage() }
+        applyCenter()
         applyCamera()
         wake()
+    }
+
+    /// Moves the globe into `rect` (view points) and sizes it there the way it's sized in the
+    /// whole view; `nil` gives it the whole view back. On an open iPhone Duo that's its page
+    /// of the spread, while a panel holds the other one or the screen is bent at the fold.
+    func setStage(_ rect: CGRect?) {
+        guard rect != stage else { return }
+        wake()
+        stage = rect
+        retargetStage()
+        if reduceMotion {
+            snapStage()
+            applyCenter()
+            applyCamera()
+        }
+    }
+
+    private func retargetStage() {
+        let size = camera.viewportSize
+        guard let stage, size.width > 0, size.height > 0 else {
+            stageShift.target = 0
+            stageLift.target = 0
+            stageScale.target = 1
+            return
+        }
+        stageShift.target = stage.midX - size.width / 2
+        stageLift.target = size.height / 2 - stage.midY
+        stageScale.target = GlobeTuning.baseDiameter(in: stage.size) / GlobeTuning.baseDiameter(in: size)
+    }
+
+    private func snapStage() {
+        stageShift.snap()
+        stageLift.snap()
+        stageScale.snap()
+    }
+
+    /// The camera's centre: the panel framing on top of the stage.
+    private func applyCenter() {
+        camera.centerOffset = centerOffset.value + stageLift.value
+        camera.centerShift = centerShift.value + stageShift.value
     }
 
     /// Off the main thread: packing ~165k vertices takes a moment.
@@ -485,8 +544,7 @@ final class GlobeController {
         if reduceMotion {
             centerOffset.snap()
             centerShift.snap()
-            camera.centerOffset = centerOffset.value
-            camera.centerShift = centerShift.value
+            applyCenter()
             self.zoom.snap()
             applyCamera()
         }
@@ -1165,9 +1223,9 @@ final class GlobeController {
     }
 
     /// The zoom at which an angular radius around the screen center spans `fraction` of the
-    /// screen's shorter side, clamped to the zoom range.
+    /// stage's shorter side, clamped to the zoom range.
     private func zoom(fitting angle: Double, fraction: Double) -> Double {
-        let size = camera.viewportSize
+        let size = stage?.size ?? camera.viewportSize
         let side = Double(min(size.width, size.height))
         let range = GlobeTuning.zoomRange
         guard side > 0, angle > 0 else { return range.upperBound }
@@ -1180,14 +1238,12 @@ final class GlobeController {
 
     private func stepZoom(_ dt: Double) {
         if !isPinching { zoom.step(dt, zoomSpring) }
-        if !centerOffset.isSettled {
-            centerOffset.step(dt, GlobeTuning.framingSpring)
-            camera.centerOffset = centerOffset.value
-        }
-        if !centerShift.isSettled {
-            centerShift.step(dt, GlobeTuning.framingSpring)
-            camera.centerShift = centerShift.value
-        }
+        if !centerOffset.isSettled { centerOffset.step(dt, GlobeTuning.framingSpring) }
+        if !centerShift.isSettled { centerShift.step(dt, GlobeTuning.framingSpring) }
+        if !stageShift.isSettled { stageShift.step(dt, GlobeTuning.stageSpring) }
+        if !stageLift.isSettled { stageLift.step(dt, GlobeTuning.stageSpring) }
+        if !stageScale.isSettled { stageScale.step(dt, GlobeTuning.stageSpring) }
+        applyCenter()
         applyCamera()
         updateLiftScale()
     }
@@ -1204,7 +1260,7 @@ final class GlobeController {
 
     private func applyCamera() {
         guard camera.viewportSize.width > 0, camera.viewportSize.height > 0 else { return }
-        let radius = GlobeTuning.baseDiameter(in: camera.viewportSize) / 2 * zoom.value
+        let radius = GlobeTuning.baseDiameter(in: camera.viewportSize) / 2 * zoom.value * stageScale.value
         let distance = GlobeCamera.distance(silhouetteRadius: radius, focalLength: camera.focalLength)
         if abs(distance - camera.distance) > 1e-6 { camera.distance = distance }
     }
@@ -1275,7 +1331,7 @@ final class GlobeController {
         self.zoom.target = zoom
         zoomSpring = GlobeTuning.filmArrivalSpring
         centerOffset = SpringValue(-offset)
-        camera.centerOffset = -offset
+        applyCenter()
         aim(at: coordinate)
         applyCamera()
     }
@@ -1300,7 +1356,7 @@ final class GlobeController {
         restingZoom = zoom
         self.zoom = SpringValue(zoom)
         centerOffset = SpringValue(-offset)
-        camera.centerOffset = -offset
+        applyCenter()
         // Without motion every spring lands where it's going in a single step.
         let moves = reduceMotion
         reduceMotion = true

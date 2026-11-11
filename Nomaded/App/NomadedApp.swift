@@ -27,6 +27,7 @@ struct NomadedApp: App {
                 #endif
             }
             .environment(world)
+            .prefersHorizontalBars()
             // Past AX2 a screen with the globe on it can't fit its text any more. Bars stop
             // earlier still and show the large content viewer on a long press instead.
             .dynamicTypeSize(...DynamicTypeSize.accessibility2)

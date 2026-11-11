@@ -100,6 +100,13 @@ enum GlobeTuning {
     static let arrivalSpring = SpringParameters(response: 2.4, dampingRatio: 1)
     /// Sliding the globe up over a panel and back, and resizing it with it.
     static let framingSpring = SpringParameters(response: 0.8, dampingRatio: 1)
+    /// On an open iPhone Duo, the globe gliding onto its page of the spread and back out to
+    /// the whole screen: a touch of overshoot, so it lands like something set down.
+    static let stageSpring = SpringParameters(response: 0.7, dampingRatio: 0.8)
+    /// The view's area changing at least this many times over in one go (iPhone Duo unfolding
+    /// doubles it): the globe keeps its size on screen for a moment, then grows into the new
+    /// room (or shrinks into it, folding). Smaller changes, like dragging an iPad window, just follow.
+    static let resizeCarryOver = 1.3
     static let selectedBrightening: Float = 0.22
     static let wallShade: Float = 0.5
 

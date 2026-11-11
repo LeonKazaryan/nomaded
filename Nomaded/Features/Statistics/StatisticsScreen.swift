@@ -33,6 +33,7 @@ struct StatisticsScreen: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// An iPad (or a wide enough window on one): three continents a row, cards side by side.
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.spread) private var spread
     @Environment(\.countryCatalog) private var catalog
     #if DEBUG
     @Environment(\.developerTools) private var developer
@@ -125,22 +126,46 @@ struct StatisticsScreen: View {
             VStack(spacing: 16) {
                 header
                     .cascade(0, appeared: appeared)
-                worldCard
-                    .cascade(1, appeared: appeared)
-                continents
-                    .cascade(2, appeared: appeared)
-                AchievementsCard(earned: earned, maps: maps, baseDelay: delay(of: 3), appeared: appeared)
-                    .cascade(3, appeared: appeared)
-                if stats.regions.isEmpty {
-                    emptyHint
-                        .cascade(4, appeared: appeared)
+                if let columns = spreadColumns {
+                    // An open iPhone Duo: a spread, nothing on the fold. The world and what it
+                    // adds up to on the left page, where it's been on the right.
+                    HStack(alignment: .top, spacing: columns.gap) {
+                        VStack(spacing: 16) {
+                            worldCard
+                                .cascade(1, appeared: appeared)
+                            achievements
+                            if !stats.regions.isEmpty {
+                                facts
+                            }
+                        }
+                        .frame(width: columns.first)
+                        VStack(spacing: 16) {
+                            continents
+                                .cascade(2, appeared: appeared)
+                            if stats.regions.isEmpty {
+                                emptyHint
+                                    .cascade(4, appeared: appeared)
+                            } else {
+                                regions
+                            }
+                        }
+                        .frame(width: columns.second)
+                    }
                 } else {
-                    // Side by side when there's the width: the regions run long, the facts don't.
-                    (isWide ? AnyLayout(HStackLayout(alignment: .top, spacing: 16)) : AnyLayout(VStackLayout(spacing: 16))) {
-                        RegionsCard(regions: stats.regions, baseDelay: delay(of: 5))
+                    worldCard
+                        .cascade(1, appeared: appeared)
+                    continents
+                        .cascade(2, appeared: appeared)
+                    achievements
+                    if stats.regions.isEmpty {
+                        emptyHint
                             .cascade(4, appeared: appeared)
-                        FactsCard(stats: stats)
-                            .cascade(5, appeared: appeared)
+                    } else {
+                        // Side by side when there's the width: the regions run long, the facts don't.
+                        (isWide ? AnyLayout(HStackLayout(alignment: .top, spacing: 16)) : AnyLayout(VStackLayout(spacing: 16))) {
+                            regions
+                            facts
+                        }
                     }
                 }
                 #if DEBUG
@@ -285,6 +310,21 @@ struct StatisticsScreen: View {
         .accessibilityHint("Shows all countries")
     }
 
+    private var achievements: some View {
+        AchievementsCard(earned: earned, maps: maps, baseDelay: delay(of: 3), appeared: appeared)
+            .cascade(3, appeared: appeared)
+    }
+
+    private var regions: some View {
+        RegionsCard(regions: stats.regions, baseDelay: delay(of: 5))
+            .cascade(4, appeared: appeared)
+    }
+
+    private var facts: some View {
+        FactsCard(stats: stats)
+            .cascade(5, appeared: appeared)
+    }
+
     private var emptyHint: some View {
         Text("Mark your first country and this page comes alive")
             .font(Typography.body)
@@ -295,7 +335,15 @@ struct StatisticsScreen: View {
             .glassCard(cornerRadius: 24)
     }
 
-    private var isWide: Bool { sizeClass == .regular }
+    /// An iPad, or a wide enough window on one. Not an open iPhone Duo: each of its pages is
+    /// a phone's width.
+    private var isWide: Bool { sizeClass == .regular && spreadColumns == nil }
+
+    /// An open iPhone Duo held like a book: a column on each page.
+    private var spreadColumns: (first: CGFloat, gap: CGFloat, second: CGFloat)? {
+        guard let spread, spread.layout == .sideBySide else { return nil }
+        return spread.columns(padding: 16)
+    }
 
     /// When a card's own animations start: after it has slid in.
     private func delay(of index: Int) -> Double {
