@@ -595,6 +595,7 @@
       }
     },
     "Countries visited" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ru" : {
           "stringUnit" : {
@@ -1025,6 +1026,7 @@
       }
     },
     "of %lld" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ru" : {
           "stringUnit" : {

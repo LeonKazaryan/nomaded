@@ -35,9 +35,19 @@ xcrun simctl install "$UDID" "$BUILD/Build/Products/Debug-iphonesimulator/Nomade
 xcrun simctl status_bar "$UDID" override --time "9:41" --dataNetwork wifi --wifiMode active \
     --wifiBars 3 --cellularMode active --cellularBars 4 --operatorName "" --batteryState charged --batteryLevel 100
 
-# A display that's off shoots plain black, about 100 KB of PNG; one in use, megabytes.
+# A screenshot can hang while the Duo folds or opens: give up after 30 s (macOS has no `timeout`).
+screenshot() { # display, file
+    perl -e 'alarm 30; exec @ARGV' xcrun simctl io "$UDID" screenshot --display="$1" "$2" >/dev/null 2>&1
+}
+
+# A display that's off, or still black under an app that's launching, shoots about 100 KB of
+# PNG; one showing something, megabytes.
+shows_something() { # file
+    [ -f "$1" ] && [ "$(stat -f %z "$1")" -gt 500000 ]
+}
+
 is_on() { # display
-    xcrun simctl io "$UDID" screenshot --display="$1" "$PROBE" >/dev/null 2>&1 && [ "$(stat -f %z "$PROBE")" -gt 500000 ]
+    screenshot "$1" "$PROBE" && shows_something "$PROBE"
 }
 
 wait_for() { # display, what to ask for
@@ -56,7 +66,12 @@ shot() { # display, name, seconds to wait, launch arguments…
     shift 3
     launch "$@"
     sleep "$wait"
-    xcrun simctl io "$UDID" screenshot --display="$display" "$DIR/$name.png" >/dev/null 2>&1
+    # The first launch after a fold can take a few seconds longer.
+    for _ in 1 2 3; do
+        screenshot "$display" "$DIR/$name.png" && shows_something "$DIR/$name.png" && return
+        sleep 4
+    done
+    echo "  $name looks black, check it"
 }
 
 use_language() {
